@@ -1,0 +1,6 @@
+networkx==3.2.1
+numpy==1.26.2
+pbr==6.0.0
+Pillow==10.1.0
+pysmiles==1.1.2
+rdkit==2023.9.2
