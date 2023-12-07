@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 
-import fileinput
-import networkx as nx
-import pysmiles
-from rdkit import Chem
-from utils import smartsToGraph
+from utils import smartsToGraph, getLabel
 import sys
 
 if __name__ == '__main__':
@@ -18,7 +14,7 @@ if __name__ == '__main__':
   nodes = []
 
   for node, node_value in g.nodes.data():
-    label = node_value.get('element', '*')
+    label = getLabel(node_value)
     nodes.append(label)
   
   print(len(nodes), len(g.edges))
