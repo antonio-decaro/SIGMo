@@ -1,3 +1,6 @@
 [submodule "repo/vf3"]
 	path = repo/vf3
 	url = https://github.com/MiviaLab/vf3lib.git
+[submodule "repo/GSI"]
+	path = repo/GSI
+	url = https://github.com/pkumod/GSI
