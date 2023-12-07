@@ -24,5 +24,4 @@ def smartsToGraph(smarts: str) -> nx.DiGraph:
 def getLabel(g: dict, digit: bool = True):
   return organic_subset.get(g.get('element', '*'), 0) if digit else str(g.get('element', '*'))
 
-def getNumLabels():
-  return len(organic_subset)
+NUM_LABELS = len(organic_subset) + 1
