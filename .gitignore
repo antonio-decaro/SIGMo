@@ -2,3 +2,5 @@ build
 *.dat
 .venv
 __pycache__
+out
+parsed
