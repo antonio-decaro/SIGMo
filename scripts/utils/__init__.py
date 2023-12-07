@@ -1,1 +1,2 @@
+from smarts2graph import smartsToGraph
 organic_subset = {l: (i+1) for i, l in enumerate('* H B C N O P S F Cl Br I b c n o s p'.split())}

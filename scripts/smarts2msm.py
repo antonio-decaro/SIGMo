@@ -4,7 +4,7 @@ import fileinput
 import networkx as nx
 import pysmiles
 from rdkit import Chem
-from utils import organic_subset
+from utils import smartsToGraph
 import sys
 
 if __name__ == '__main__':
@@ -13,12 +13,7 @@ if __name__ == '__main__':
     sys.exit(1)
   mol = sys.argv[1]
   
-  # Read the row in SMARTS format
-  mol_smart = Chem.MolFromSmarts(mol)
-  mol_str = Chem.MolToSmiles(mol_smart)
-  # Convert to SMILES format
-  g: nx.Graph = pysmiles.read_smiles(mol_str, explicit_hydrogen=True)
-  g = nx.DiGraph(g)
+  g = smartsToGraph(mol)
 
   nodes = []
 
