@@ -11,9 +11,9 @@ The repository is structured as follows:
 ### 1. Init Repository
 Init the repository by launching:
 ```bash
-git submodule init && git submodule update
+./download.sh
 ```
-Navigate to the `repo` folder, then download and extract the *cuTS* repository from Zenodo at this [link](https://zenodo.org/records/5154114).
+This will initialize the repository with all the dependencies.
 
 ### 2. Data Script
 Second, launch the `init.sh` script to initialize data.
