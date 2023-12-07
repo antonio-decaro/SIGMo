@@ -21,3 +21,5 @@ do
     echo "$out" >> $OUT_DIR/vf3/vf3.out
   done
 done
+
+$SCRIPT_DIR/../scripts/parser/parseVF3.py $OUT_DIR/vf3/vf3.out $OUT_DIR/vf3/vf3.csv
