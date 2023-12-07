@@ -1,0 +1,3 @@
+[submodule "repo/vf3"]
+	path = repo/vf3
+	url = https://github.com/MiviaLab/vf3lib.git
