@@ -74,6 +74,16 @@ then
   deactivate
 fi
 
+# check if limits are set
+if [ $query_limit -eq -1 ] # if query_limit is no set, generate all query files
+then
+  query_limit=$(wc -l < $DATA_DIR/query.smarts)
+fi
+if [ $data_limit -eq -1 ] # if data_limit is not set, generate all data files
+then
+  data_limit=$(wc -l < $DATA_DIR/data.smarts)
+fi
+
 # activate venv
 source $SCRIPT_DIR/scripts/.venv/bin/activate
 
@@ -87,26 +97,26 @@ do
 
   # generate query files
   i=0
-  if [ $query_limit -eq -1 ] # if query_limit is no set, generate all query files
-  then
-    query_limit=$(wc -l < $DATA_DIR/query.smarts)
-  fi
   while read -r line && [ $i -lt $query_limit ];
   do
-    $SCRIPT_DIR/scripts/smarts2${bench}.py $line > $OUT_DIR/query/query_$i.dat
-    i=$((i+1))
+    out=$($SCRIPT_DIR/scripts/smarts2${bench}.py $line)
+    if [ "$out" ]
+    then
+      echo "$out" > $OUT_DIR/query/query_$i.dat
+      i=$((i+1))
+    fi
   done < $DATA_DIR/query.smarts
 
   # generate data files
   i=0
-  if [ $data_limit -eq -1 ] # if data_limit is not set, generate all data files
-  then
-    data_limit=$(wc -l < $SCRIPT_DIR/data.smarts)
-  fi
   while read -r line && [ $i -lt $data_limit ];
   do
-    $SCRIPT_DIR/scripts/smarts2${bench}.py $line > $OUT_DIR/data/data_$i.dat
-    i=$((i+1))
+    out=$($SCRIPT_DIR/scripts/smarts2${bench}.py $line)
+    if [ "$out" ]
+    then
+      echo "$out" > $OUT_DIR/data/data_$i.dat
+      i=$((i+1))
+    fi
   done < $DATA_DIR/data.smarts
 done
 
