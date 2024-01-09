@@ -9,4 +9,8 @@ make
 
 echo "[*] Building GSI"
 cd $SCRIPT_DIR/repo/GSI
-# TODO
+make
+
+echo "[*] Building CuTS"
+cd $SCRIPT_DIR/repo/CuTS
+source ./build.sh 

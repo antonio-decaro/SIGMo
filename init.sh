@@ -3,7 +3,7 @@
 # Setting up variables
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DATA_DIR=$SCRIPT_DIR/data
-AVAILABLE_BENCHMARKS="msm,vf3,GSI"
+AVAILABLE_BENCHMARKS="msm,vf3,GSI,CuTS"
 
 data_limit=-1
 query_limit=-1
@@ -16,7 +16,7 @@ help()
       [ --data-limit= ] Limit the number of data files to be generated;
       [ --query-limit= ] Limit the number of query files to be generated;
       [ -h | --help ] Print this help message and exit.
-      The available benchmarks are: [msm, vf3, GSI]"
+      The available benchmarks are: [msm, vf3, GSI, CuTS]"
 }
 
 # Parsing arguments
@@ -99,7 +99,7 @@ do
   i=0
   while read -r line && [ $i -lt $query_limit ];
   do
-    out=$($SCRIPT_DIR/scripts/smarts2${bench}.py $line)
+    out=$(python3 $SCRIPT_DIR/scripts/smarts2${bench}.py $line)
     if [ "$out" ]
     then
       echo "$out" > $OUT_DIR/query/query_$i.dat
@@ -111,7 +111,7 @@ do
   i=0
   while read -r line && [ $i -lt $data_limit ];
   do
-    out=$($SCRIPT_DIR/scripts/smarts2${bench}.py $line)
+    out=$(python3 $SCRIPT_DIR/scripts/smarts2${bench}.py $line)
     if [ "$out" ]
     then
       echo "$out" > $OUT_DIR/data/data_$i.dat

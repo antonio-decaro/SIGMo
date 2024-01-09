@@ -3,18 +3,18 @@
 # Setting up variables
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DATA_DIR=$SCRIPT_DIR/data
-AVAILABLE_BENCHMARKS="msm,vf3,GSI"
+AVAILABLE_BENCHMARKS="msm,vf3,GSI,CuTS"
 
 benchmarks=""
 
 help()
 {
-    echo "Usage: ./init_msm.sh 
+    echo "Usage: ./run.sh 
       [ -b=bench1,bench2,bench3] The set of benchmark files to be generated;
       [ --data-limit= ] Limit the number of data files to be generated;
       [ --query-limit= ] Limit the number of query files to be generated;
       [ -h | --help ] Print this help message and exit.
-      The available benchmarks are: [msm, vf3, GSI]"
+      The available benchmarks are: [msm, vf3, GSI, CuTS]"
 }
 
 # Parsing arguments
