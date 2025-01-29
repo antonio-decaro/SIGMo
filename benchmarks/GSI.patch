@@ -1,5 +1,5 @@
 diff --git a/Makefile b/Makefile
-index 95e11c0..3149c1d 100644
+index 95e11c0..2298a74 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -35,7 +35,7 @@ CC = g++
@@ -51,11 +51,65 @@ index de2fb68..ab66404 100644
          buckets[pos].push_back(id);
      }
      queue<unsigned> empty_buckets;
+diff --git a/main/run.cpp b/main/run.cpp
+index de654c5..62b179e 100644
+--- a/main/run.cpp
++++ b/main/run.cpp
+@@ -27,7 +27,7 @@ main(int argc, const char * argv[])
+ 	string output = "ans.txt";
+ 	if(argc > 5 || argc < 3)
+ 	{
+-		cerr<<"invalid arguments!"<<endl;
++		cout<<"invalid arguments!"<<endl;
+ 		return -1;
+ 	}
+ 	string data = argv[1];
+@@ -52,7 +52,7 @@ main(int argc, const char * argv[])
+ 	io.input(query_list);
+ 	int qnum = query_list.size();
+ 	
+-	cerr<<"input ok!"<<endl;
++	cout<<"input ok!"<<endl;
+ 	long t2 = Util::get_cur_time();
+ 
+ 	unsigned* final_result = NULL;
+@@ -96,18 +96,18 @@ main(int argc, const char * argv[])
+ 		//cudaDeviceReset();
+ 		}
+         long end = Util::get_cur_time();
+-        cerr<<"match used: "<<(end-start)<<" ms"<<endl;
++        cout<<"match used: "<<(end-start)<<" ms"<<endl;
+ 
+ 		delete data_graph;
+ 	}
+ 
+-	cerr<<"match ended!"<<endl;
++	cout<<"match ended!"<<endl;
+ 	long t3 = Util::get_cur_time();
+ 
+ 	//output the time for contrast
+-	cerr<<"part 1 used: "<<(t2-t1)<<"ms"<<endl;
+-	cerr<<"part 2 used: "<<(t3-t2)<<"ms"<<endl;
+-	cerr<<"total time used: "<<(t3-t1)<<"ms"<<endl;
++	cout<<"part 1 used: "<<(t2-t1)<<"ms"<<endl;
++	cout<<"part 2 used: "<<(t3-t2)<<"ms"<<endl;
++	cout<<"total time used: "<<(t3-t1)<<"ms"<<endl;
+ 	//getchar();
+ 
+ 	//release all and flush cached writes
 diff --git a/match/Match.cu b/match/Match.cu
-index 2d24599..b4a2be9 100644
+index 2d24599..6197ce9 100644
 --- a/match/Match.cu
 +++ b/match/Match.cu
-@@ -864,16 +864,16 @@ second_kernel(unsigned* d_result_tmp, unsigned* d_result_tmp_num)
+@@ -7,6 +7,7 @@
+ =============================================================================*/
+ 
+ #include <cub/cub.cuh> 
++#include <cuda_runtime.h> 
+ #include "Match.h"
+ 
+ using namespace std;
+@@ -864,16 +865,16 @@ second_kernel(unsigned* d_result_tmp, unsigned* d_result_tmp_num)
          for(unsigned stride = 1; stride < 32; stride <<= 1)
          {
              //NOTICE: this must be called by the whole warp, not placed in the judgement
@@ -75,7 +129,7 @@ index 2d24599..b4a2be9 100644
          //NOTICE: for the first element, the original presum value is copied
          if(idx == 0)
          {
-@@ -935,14 +935,14 @@ second_kernel(unsigned* d_result_tmp, unsigned* d_result_tmp_num)
+@@ -935,14 +936,14 @@ second_kernel(unsigned* d_result_tmp, unsigned* d_result_tmp_num)
      }
      for(unsigned stride = 1; stride < 32; stride <<= 1)
      {
@@ -93,7 +147,7 @@ index 2d24599..b4a2be9 100644
      if(idx == 0)
      {
          presum = 0;
-@@ -1085,14 +1085,14 @@ join_kernel(unsigned* d_result_tmp, unsigned* d_result_tmp_num)
+@@ -1085,14 +1086,14 @@ join_kernel(unsigned* d_result_tmp, unsigned* d_result_tmp_num)
          presum = pred;
          for(unsigned stride = 1; stride < 32; stride <<= 1)
          {
