@@ -1,9 +1,9 @@
+[submodule "benchmarks/cuTS"]
+	path = benchmarks/cuTS
+	url = https://github.com/appl-lab/CuTS.git
 [submodule "benchmarks/vf3"]
 	path = benchmarks/vf3
 	url = https://github.com/MiviaLab/vf3lib.git
 [submodule "benchmarks/GSI"]
 	path = benchmarks/GSI
 	url = https://github.com/pkumod/GSI
-[submodule "benchmarks/cuTS"]
-	path = benchmarks/cuTS
-	url = https://github.com/appl-lab/CuTS.git
