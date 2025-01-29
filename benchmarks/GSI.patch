@@ -98,7 +98,7 @@ index de654c5..62b179e 100644
  
  	//release all and flush cached writes
 diff --git a/match/Match.cu b/match/Match.cu
-index 2d24599..6197ce9 100644
+index 2d24599..937ea70 100644
 --- a/match/Match.cu
 +++ b/match/Match.cu
 @@ -7,6 +7,7 @@
@@ -165,4 +165,70 @@ index 2d24599..6197ce9 100644
          if(idx == 0)
          {
              presum = 0;
-
+@@ -1365,7 +1366,7 @@ Match::join(unsigned* d_summary, int* link_pos, int* link_edge, int link_num, un
+         cudaFree(d_column_index);
+     }
+ 	long end = Util::get_cur_time();
+-	cerr<<"join_kernel used: "<<(end-begin)<<"ms"<<endl;
++	cout<<"join_kernel used: "<<(end-begin)<<"ms"<<endl;
+ #ifdef DEBUG
+ 	cout<<"join kernel finished"<<endl;
+ #endif
+@@ -1407,7 +1408,7 @@ Match::join(unsigned* d_summary, int* link_pos, int* link_edge, int link_num, un
+ 		cudaDeviceSynchronize();
+ 		long end = Util::get_cur_time();
+ #ifdef DEBUG
+-		cerr<<"link_kernel used: "<<(end-begin)<<"ms"<<endl;
++		cout<<"link_kernel used: "<<(end-begin)<<"ms"<<endl;
+ #endif
+ #ifdef DEBUG
+ 		checkCudaErrors(cudaGetLastError());
+@@ -1477,7 +1478,7 @@ Match::match(IO& io, unsigned*& final_result, unsigned& result_row_num, unsigned
+ 	long t0 = Util::get_cur_time();
+ 	copyGraphToGPU();
+ 	long t1 = Util::get_cur_time();
+-	cerr<<"copy graph used: "<<(t1-t0)<<"ms"<<endl;
++	cout<<"copy graph used: "<<(t1-t0)<<"ms"<<endl;
+ #ifdef DEBUG
+ 	cout<<"graph copied to GPU"<<endl;
+ #endif
+@@ -1541,7 +1542,7 @@ Match::match(IO& io, unsigned*& final_result, unsigned& result_row_num, unsigned
+ 	cout<<"candidates prepared"<<endl;
+ #endif
+ 	long t3 = Util::get_cur_time();
+-	cerr<<"build candidates used: "<<(t3-t2)<<"ms"<<endl;
++	cout<<"build candidates used: "<<(t3-t2)<<"ms"<<endl;
+ 
+ 	//initialize the mapping structure
+ 	this->id2pos = new int[qsize];
+@@ -1571,10 +1572,10 @@ Match::match(IO& io, unsigned*& final_result, unsigned& result_row_num, unsigned
+         // update the scores of query nodes
+         update_score(score, qsize, idx);
+         long t5 = Util::get_cur_time();
+-        cerr<<"update score used: "<<(t5-t4)<<"ms"<<endl;
++        cout<<"update score used: "<<(t5-t4)<<"ms"<<endl;
+         int idx2 = this->get_minimum_idx(score, qsize);
+         long t6 = Util::get_cur_time();
+-        cerr<<"get minimum idx used: "<<(t6-t5)<<"ms"<<endl;
++        cout<<"get minimum idx used: "<<(t6-t5)<<"ms"<<endl;
+     /*#ifdef DEBUG*/
+         cout<<"next node to join: "<<idx2<<" "<<this->query->vertex_value[idx2]<<" candidate size: "<<qnum[idx2]<<endl;
+     /*#endif*/
+@@ -1583,7 +1584,7 @@ Match::match(IO& io, unsigned*& final_result, unsigned& result_row_num, unsigned
+ 		int *link_pos, *link_edge, link_num;
+ 		this->acquire_linking(link_pos, link_edge, link_num, idx2);
+         long t7 = Util::get_cur_time();
+-        cerr<<"acquire linking used: "<<(t7-t6)<<"ms"<<endl;
++        cout<<"acquire linking used: "<<(t7-t6)<<"ms"<<endl;
+ 
+         long tmp1 = Util::get_cur_time();
+         //build the bitset
+@@ -1656,7 +1657,7 @@ Match::match(IO& io, unsigned*& final_result, unsigned& result_row_num, unsigned
+ #endif
+ 	checkCudaErrors(cudaFree(d_result));
+ 	long t9 = Util::get_cur_time();
+-	cerr<<"copy result used: "<<(t9-t8)<<"ms"<<endl;
++	cout<<"copy result used: "<<(t9-t8)<<"ms"<<endl;
+ #ifdef DEBUG
+ 	checkCudaErrors(cudaGetLastError());
+ #endif
