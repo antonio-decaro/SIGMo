@@ -8,7 +8,7 @@ EXEC_FILE=$CUTS_DIR/build/cuts
 mkdir -p $OUT_DIR
 mkdir -p $OUT_DIR/cuTS
 
-rm -f $OUT_DIR/cuTS/CuTS.out
+rm -f $OUT_DIR/cuTS/cuTS.out
 
 for data in $(ls $DATA_DIR/data)
 do
