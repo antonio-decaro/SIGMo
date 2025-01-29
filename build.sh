@@ -11,7 +11,7 @@ git submodule update --init
 
 echo "[*] Building GSI"
 cd $SCRIPT_DIR/benchmarks/GSI
-git apply ../patches/GSI.patch
+git apply ../GSI.patch
 rm objs/*.o
 make
 
