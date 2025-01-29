@@ -12,9 +12,18 @@ index 95e11c0..2298a74 100644
  #CFLAGS = -g -c #-fprofile-arcs -ftest-coverage -coverage #-pg
  #EXEFLAG = -g #-fprofile-arcs -ftest-coverage -coverage #-pg #-O2
 diff --git a/graph/Graph.cpp b/graph/Graph.cpp
-index de2fb68..ab66404 100644
+index de2fb68..9680508 100644
 --- a/graph/Graph.cpp
 +++ b/graph/Graph.cpp
+@@ -41,7 +41,7 @@ Graph::preprocessing(bool column_oriented)
+     this->transformToCSR();
+     this->buildSignature(column_oriented);
+     long t2 = Util::get_cur_time();
+-    printf("time of preprocessing(not included in matching): %ld ms\n", t2-t1);
++    printf("time of preprocessing(not included in matching): %ld us\n", t2-t1);
+ 	//now we can release the memory of original structure 
+ 	//this->vertices.clear();
+ }
 @@ -59,7 +59,7 @@ Graph::buildSignature(bool column_oriented)
      for(int i = 0; i < this->vertex_num; ++i)
      {
@@ -52,7 +61,7 @@ index de2fb68..ab66404 100644
      }
      queue<unsigned> empty_buckets;
 diff --git a/main/run.cpp b/main/run.cpp
-index de654c5..62b179e 100644
+index de654c5..77dce9d 100644
 --- a/main/run.cpp
 +++ b/main/run.cpp
 @@ -27,7 +27,7 @@ main(int argc, const char * argv[])
@@ -73,12 +82,21 @@ index de654c5..62b179e 100644
  	long t2 = Util::get_cur_time();
  
  	unsigned* final_result = NULL;
+@@ -82,7 +82,7 @@ main(int argc, const char * argv[])
+ 	//long tt1 = Util::get_cur_time();
+ 			m.match(io, final_result, result_row_num, result_col_num, id_map);
+ 	//long tt2 = Util::get_cur_time();
+-	//cerr<<"match used: "<<(tt2-tt1)<<"ms"<<endl;
++	//cerr<<"match used: "<<(tt2-tt1)<<"us"<<endl;
+ 		/*getchar();*/
+ 			io.output(final_result, result_row_num, result_col_num, id_map);
+ 			io.flush();
 @@ -96,18 +96,18 @@ main(int argc, const char * argv[])
  		//cudaDeviceReset();
  		}
          long end = Util::get_cur_time();
 -        cerr<<"match used: "<<(end-start)<<" ms"<<endl;
-+        cout<<"match used: "<<(end-start)<<" ms"<<endl;
++        cout<<"match used: "<<(end-start)<<" us"<<endl;
  
  		delete data_graph;
  	}
@@ -91,14 +109,14 @@ index de654c5..62b179e 100644
 -	cerr<<"part 1 used: "<<(t2-t1)<<"ms"<<endl;
 -	cerr<<"part 2 used: "<<(t3-t2)<<"ms"<<endl;
 -	cerr<<"total time used: "<<(t3-t1)<<"ms"<<endl;
-+	cout<<"part 1 used: "<<(t2-t1)<<"ms"<<endl;
-+	cout<<"part 2 used: "<<(t3-t2)<<"ms"<<endl;
-+	cout<<"total time used: "<<(t3-t1)<<"ms"<<endl;
++	cout<<"part 1 used: "<<(t2-t1)<<"us"<<endl;
++	cout<<"part 2 used: "<<(t3-t2)<<"us"<<endl;
++	cout<<"total time used: "<<(t3-t1)<<"us"<<endl;
  	//getchar();
  
  	//release all and flush cached writes
 diff --git a/match/Match.cu b/match/Match.cu
-index 2d24599..937ea70 100644
+index 2d24599..31f57c6 100644
 --- a/match/Match.cu
 +++ b/match/Match.cu
 @@ -7,6 +7,7 @@
@@ -109,6 +127,15 @@ index 2d24599..937ea70 100644
  #include "Match.h"
  
  using namespace std;
+@@ -521,7 +522,7 @@ Match::filter(float* _score, int* _qnum)
+     exclusive_sum(d_status, dsize+1);
+ 	checkCudaErrors(cudaGetLastError());
+     /*long t2 = Util::get_cur_time();*/
+-    /*cout<<"prefix sum scan used: "<<t2-t1<<" ms"<<endl;*/
++    /*cout<<"prefix sum scan used: "<<t2-t1<<" us"<<endl;*/
+ 
+         cudaMemcpy(&_qnum[i], d_status+dsize, sizeof(unsigned), cudaMemcpyDeviceToHost);
+         if(_qnum[i] == 0)
 @@ -864,16 +865,16 @@ second_kernel(unsigned* d_result_tmp, unsigned* d_result_tmp_num)
          for(unsigned stride = 1; stride < 32; stride <<= 1)
          {
@@ -170,7 +197,7 @@ index 2d24599..937ea70 100644
      }
  	long end = Util::get_cur_time();
 -	cerr<<"join_kernel used: "<<(end-begin)<<"ms"<<endl;
-+	cout<<"join_kernel used: "<<(end-begin)<<"ms"<<endl;
++	cout<<"join_kernel used: "<<(end-begin)<<"us"<<endl;
  #ifdef DEBUG
  	cout<<"join kernel finished"<<endl;
  #endif
@@ -179,7 +206,7 @@ index 2d24599..937ea70 100644
  		long end = Util::get_cur_time();
  #ifdef DEBUG
 -		cerr<<"link_kernel used: "<<(end-begin)<<"ms"<<endl;
-+		cout<<"link_kernel used: "<<(end-begin)<<"ms"<<endl;
++		cout<<"link_kernel used: "<<(end-begin)<<"us"<<endl;
  #endif
  #ifdef DEBUG
  		checkCudaErrors(cudaGetLastError());
@@ -188,16 +215,25 @@ index 2d24599..937ea70 100644
  	copyGraphToGPU();
  	long t1 = Util::get_cur_time();
 -	cerr<<"copy graph used: "<<(t1-t0)<<"ms"<<endl;
-+	cout<<"copy graph used: "<<(t1-t0)<<"ms"<<endl;
++	cout<<"copy graph used: "<<(t1-t0)<<"us"<<endl;
  #ifdef DEBUG
  	cout<<"graph copied to GPU"<<endl;
  #endif
+@@ -1499,7 +1500,7 @@ Match::match(IO& io, unsigned*& final_result, unsigned& result_row_num, unsigned
+ 	/*cout<<"to filter"<<endl;*/
+ 	bool success = filter(score, qnum);
+ 	long t2 = Util::get_cur_time();
+-	cout<<"filter used: "<<(t2-t1)<<"ms"<<endl;
++	cout<<"filter used: "<<(t2-t1)<<"us"<<endl;
+     for(int i = 0; i < qsize; ++i)
+     {
+         cout<<qnum[i]<<" ";
 @@ -1541,7 +1542,7 @@ Match::match(IO& io, unsigned*& final_result, unsigned& result_row_num, unsigned
  	cout<<"candidates prepared"<<endl;
  #endif
  	long t3 = Util::get_cur_time();
 -	cerr<<"build candidates used: "<<(t3-t2)<<"ms"<<endl;
-+	cout<<"build candidates used: "<<(t3-t2)<<"ms"<<endl;
++	cout<<"build candidates used: "<<(t3-t2)<<"us"<<endl;
  
  	//initialize the mapping structure
  	this->id2pos = new int[qsize];
@@ -206,11 +242,11 @@ index 2d24599..937ea70 100644
          update_score(score, qsize, idx);
          long t5 = Util::get_cur_time();
 -        cerr<<"update score used: "<<(t5-t4)<<"ms"<<endl;
-+        cout<<"update score used: "<<(t5-t4)<<"ms"<<endl;
++        cout<<"update score used: "<<(t5-t4)<<"us"<<endl;
          int idx2 = this->get_minimum_idx(score, qsize);
          long t6 = Util::get_cur_time();
 -        cerr<<"get minimum idx used: "<<(t6-t5)<<"ms"<<endl;
-+        cout<<"get minimum idx used: "<<(t6-t5)<<"ms"<<endl;
++        cout<<"get minimum idx used: "<<(t6-t5)<<"us"<<endl;
      /*#ifdef DEBUG*/
          cout<<"next node to join: "<<idx2<<" "<<this->query->vertex_value[idx2]<<" candidate size: "<<qnum[idx2]<<endl;
      /*#endif*/
@@ -219,16 +255,47 @@ index 2d24599..937ea70 100644
  		this->acquire_linking(link_pos, link_edge, link_num, idx2);
          long t7 = Util::get_cur_time();
 -        cerr<<"acquire linking used: "<<(t7-t6)<<"ms"<<endl;
-+        cout<<"acquire linking used: "<<(t7-t6)<<"ms"<<endl;
++        cout<<"acquire linking used: "<<(t7-t6)<<"us"<<endl;
  
          long tmp1 = Util::get_cur_time();
          //build the bitset
+@@ -1596,7 +1597,7 @@ Match::match(IO& io, unsigned*& final_result, unsigned& result_row_num, unsigned
+         cudaDeviceSynchronize();
+ 		checkCudaErrors(cudaGetLastError());
+         long tmp2 = Util::get_cur_time();
+-        cout<<"candidate kernel used: "<<(tmp2-tmp1)<<"ms"<<endl;
++        cout<<"candidate kernel used: "<<(tmp2-tmp1)<<"us"<<endl;
+ 
+         //build summary which is placed in read-only cache: the summary is groups of 8B=64 bits
+         /*cudaMemset(d_summary, 0, SUMMARY_BYTES);   //NOTICE: this is needed for each iteration*/
+@@ -1609,7 +1610,7 @@ Match::match(IO& io, unsigned*& final_result, unsigned& result_row_num, unsigned
+         //METHOD 3: Interval Summary
+ 		/*checkCudaErrors(cudaGetLastError());*/
+         /*long tmp3 = Util::get_cur_time();*/
+-        /*cout<<"build summary used: "<<(tmp3-tmp2)<<"ms"<<endl;*/
++        /*cout<<"build summary used: "<<(tmp3-tmp2)<<"us"<<endl;*/
+ 
+         cudaFree(this->candidates[idx2]);
+ 		checkCudaErrors(cudaGetLastError());
 @@ -1656,7 +1657,7 @@ Match::match(IO& io, unsigned*& final_result, unsigned& result_row_num, unsigned
  #endif
  	checkCudaErrors(cudaFree(d_result));
  	long t9 = Util::get_cur_time();
 -	cerr<<"copy result used: "<<(t9-t8)<<"ms"<<endl;
-+	cout<<"copy result used: "<<(t9-t8)<<"ms"<<endl;
++	cout<<"copy result used: "<<(t9-t8)<<"us"<<endl;
  #ifdef DEBUG
  	checkCudaErrors(cudaGetLastError());
  #endif
+diff --git a/util/Util.cpp b/util/Util.cpp
+index 5e0c5a8..189874d 100644
+--- a/util/Util.cpp
++++ b/util/Util.cpp
+@@ -23,7 +23,7 @@ Util::get_cur_time()
+ {
+     timeval tv;
+     gettimeofday(&tv, NULL);
+-    return (tv.tv_sec*1000 + tv.tv_usec/1000);
++    return (tv.tv_sec * 1000000 + tv.tv_usec); // Return time in microseconds
+ }
+ 
+ unsigned 
