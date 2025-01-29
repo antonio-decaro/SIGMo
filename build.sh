@@ -15,9 +15,9 @@ git apply ../GSI.patch
 rm objs/*.o
 make
 
-# echo "[*] Building CuTS"
-# cd $SCRIPT_DIR/benchmarks/CuTS
-# source ./build.sh 
+echo "[*] Building CuTS"
+cd $SCRIPT_DIR/benchmarks/cuTS
+bash $SCRIPT_DIR/benchmarks/cuTS/build.sh 
 
 # echo "[*] Building MSM"
 # cd $SCRIPT_DIR/benchmarks/msm
