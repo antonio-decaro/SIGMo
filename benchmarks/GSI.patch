@@ -7,7 +7,7 @@ index 95e11c0..3149c1d 100644
  #intermediate files, using --keep for nvcc
  #for PTX codes, using --ptx for nvcc
 -NVCC = nvcc -arch=sm_35 -lcudadevrt -rdc=true -G --ptxas-options=-v -lineinfo -Xcompiler -rdynamic -I ~/cudaToolkit/cub-1.8.0/
-+NVCC = nvcc -arch=sm_80 -lcudadevrt -rdc=true -G --ptxas-options=-v -lineinfo -Xcompiler -rdynamic -I ~/cudaToolkit/cub-1.8.0/
++NVCC = nvcc -arch=sm_70 -lcudadevrt -rdc=true -G --ptxas-options=-v -lineinfo -Xcompiler -rdynamic -I ~/cudaToolkit/cub-1.8.0/
  #NVCC = nvcc -arch=sm_35 -lcudadevrt -rdc=true -G -Xcompiler -rdynamic -lineinfo
  #CFLAGS = -g -c #-fprofile-arcs -ftest-coverage -coverage #-pg
  #EXEFLAG = -g #-fprofile-arcs -ftest-coverage -coverage #-pg #-O2
