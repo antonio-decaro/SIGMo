@@ -1,0 +1,114 @@
+diff --git a/Makefile b/Makefile
+index 95e11c0..3149c1d 100644
+--- a/Makefile
++++ b/Makefile
+@@ -35,7 +35,7 @@ CC = g++
+ #opt-in to caching of global memory accesses in L1 via the -Xptxas -dlcm=ca option to nvcc
+ #intermediate files, using --keep for nvcc
+ #for PTX codes, using --ptx for nvcc
+-NVCC = nvcc -arch=sm_35 -lcudadevrt -rdc=true -G --ptxas-options=-v -lineinfo -Xcompiler -rdynamic -I ~/cudaToolkit/cub-1.8.0/
++NVCC = nvcc -arch=sm_80 -lcudadevrt -rdc=true -G --ptxas-options=-v -lineinfo -Xcompiler -rdynamic -I ~/cudaToolkit/cub-1.8.0/
+ #NVCC = nvcc -arch=sm_35 -lcudadevrt -rdc=true -G -Xcompiler -rdynamic -lineinfo
+ #CFLAGS = -g -c #-fprofile-arcs -ftest-coverage -coverage #-pg
+ #EXEFLAG = -g #-fprofile-arcs -ftest-coverage -coverage #-pg #-O2
+diff --git a/graph/Graph.cpp b/graph/Graph.cpp
+index de2fb68..ab66404 100644
+--- a/graph/Graph.cpp
++++ b/graph/Graph.cpp
+@@ -59,7 +59,7 @@ Graph::buildSignature(bool column_oriented)
+     for(int i = 0; i < this->vertex_num; ++i)
+     {
+         Vertex& v = this->vertices[i];
+-        int pos = hash(&(v.label), 4, HASHSEED) % VLEN;
++        int pos = Util::MurmurHash2(&(v.label), 4, HASHSEED) % VLEN;
+         signature_table[signum*i] = 1 << pos;
+         for(int j = 0; j < v.in.size(); ++j)
+         {
+@@ -67,7 +67,7 @@ Graph::buildSignature(bool column_oriented)
+             int sig[2];
+             sig[0] = this->vertices[nb.vid].label;
+             sig[1] = nb.elb;
+-            pos = hash(sig, 8, HASHSEED) % gnum;
++            pos = Util::MurmurHash2(sig, 8, HASHSEED) % gnum;
+             int a = pos / 16, b = pos % 16;
+             unsigned t = signature_table[signum*i+1+a];
+             unsigned c = 3 << (2*b);
+@@ -95,7 +95,7 @@ Graph::buildSignature(bool column_oriented)
+             int sig[2];
+             sig[0] = this->vertices[nb.vid].label;
+             sig[1] = -nb.elb;
+-            int pos = hash(sig, 8, HASHSEED) % gnum;
++            int pos = Util::MurmurHash2(sig, 8, HASHSEED) % gnum;
+             int a = pos / 16, b = pos % 16;
+             unsigned t = signature_table[signum*i+1+a];
+             unsigned c = 3 << (2*b);
+@@ -253,7 +253,7 @@ Graph::buildPCSR(PCSR* pcsr, vector<unsigned>& keys, int label, bool incoming)
+     for(int i = 0; i < key_num; ++i)
+     {
+         unsigned id = keys[i];
+-        unsigned pos = hash(&id, 4, HASHSEED) % key_num;
++        unsigned pos = Util::MurmurHash2(&id, 4, HASHSEED) % key_num;
+         buckets[pos].push_back(id);
+     }
+     queue<unsigned> empty_buckets;
+diff --git a/match/Match.cu b/match/Match.cu
+index 2d24599..b4a2be9 100644
+--- a/match/Match.cu
++++ b/match/Match.cu
+@@ -864,16 +864,16 @@ second_kernel(unsigned* d_result_tmp, unsigned* d_result_tmp_num)
+         for(unsigned stride = 1; stride < 32; stride <<= 1)
+         {
+             //NOTICE: this must be called by the whole warp, not placed in the judgement
+-            unsigned tmp = __shfl_up(presum, stride);
++            unsigned tmp = __shfl_sync(0xFFFFFFFF, presum, stride);
+             if(idx >= stride)
+             {
+                 presum += tmp;
+             }
+         }
+         //this must be called first, only in inclusive-scan the 31-th element is the sum
+-        unsigned total = __shfl(presum, 31);  //broadcast to all threads in the warp
++        unsigned total = __shfl_sync(0xFFFFFFFF, presum, 31);  //broadcast to all threads in the warp
+         //transform inclusive prefixSum to exclusive prefixSum
+-        presum = __shfl_up(presum, 1);
++        presum = __shfl_sync(0xFFFFFFFF, presum, 1);
+         //NOTICE: for the first element, the original presum value is copied
+         if(idx == 0)
+         {
+@@ -935,14 +935,14 @@ second_kernel(unsigned* d_result_tmp, unsigned* d_result_tmp_num)
+     }
+     for(unsigned stride = 1; stride < 32; stride <<= 1)
+     {
+-        unsigned tmp = __shfl_up(presum, stride);
++        unsigned tmp = __shfl_sync(0xFFFFFFFF, presum, stride);
+         if(idx >= stride)
+         {
+             presum += tmp;
+         }
+     }
+-    unsigned total = __shfl(presum, 31);  //broadcast to all threads in the warp
+-    presum = __shfl_up(presum, 1);
++    unsigned total = __shfl_sync(0xFFFFFFFF, presum, 31);  //broadcast to all threads in the warp
++    presum = __shfl_sync(0xFFFFFFFF, presum, 1);
+     if(idx == 0)
+     {
+         presum = 0;
+@@ -1085,14 +1085,14 @@ join_kernel(unsigned* d_result_tmp, unsigned* d_result_tmp_num)
+         presum = pred;
+         for(unsigned stride = 1; stride < 32; stride <<= 1)
+         {
+-            unsigned tmp = __shfl_up(presum, stride);
++            unsigned tmp = __shfl_sync(0xFFFFFFFF, presum, stride);
+             if(idx >= stride)
+             {
+                 presum += tmp;
+             }
+         }
+-        unsigned total = __shfl(presum, 31);  //broadcast to all threads in the warp
+-        presum = __shfl_up(presum, 1);
++        unsigned total = __shfl_sync(0xFFFFFFFF, presum, 31);  //broadcast to all threads in the warp
++        presum = __shfl_sync(0xFFFFFFFF, presum, 1);
+         if(idx == 0)
+         {
+             presum = 0;
+
