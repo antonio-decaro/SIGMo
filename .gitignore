@@ -4,6 +4,6 @@ build
 __pycache__
 out
 parsed
-benchmarks/CuTS
+benchmarks/cuTS
 benchmarks/GSI
 benchmarks/vf3
