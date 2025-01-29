@@ -14,3 +14,7 @@ make
 echo "[*] Building CuTS"
 cd $SCRIPT_DIR/repo/CuTS
 source ./build.sh 
+
+echo "[*] Building MSM"
+cd $SCRIPT_DIR/repo/msm
+# TODO

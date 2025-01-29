@@ -4,6 +4,6 @@ build
 __pycache__
 out
 parsed
-repo/CuTS
-repo/GSI
-repo/vf3
+benchmarks/CuTS
+benchmarks/GSI
+benchmarks/vf3
