@@ -4,7 +4,7 @@ from utils import *
 
 if __name__ == '__main__':
   if len(sys.argv) < 2:
-    print('Usage: python smarts2CuTS.py <smarts>')
+    print('Usage: python smarts2cuTS.py <smarts>')
     sys.exit(1)
     
   mol = sys.argv[1]

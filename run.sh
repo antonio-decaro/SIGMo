@@ -3,7 +3,7 @@
 # Setting up variables
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DATA_DIR=$SCRIPT_DIR/data
-AVAILABLE_BENCHMARKS="msm,vf3,GSI,CuTS"
+AVAILABLE_BENCHMARKS="cuTS"
 
 benchmarks=""
 
@@ -14,7 +14,7 @@ help()
       [ --data-limit= ] Limit the number of data files to be generated;
       [ --query-limit= ] Limit the number of query files to be generated;
       [ -h | --help ] Print this help message and exit.
-      The available benchmarks are: [msm, vf3, GSI, CuTS]"
+      The available benchmarks are: " $AVAILABLE_BENCHMARKS
 }
 
 # Parsing arguments
@@ -59,6 +59,6 @@ do
   then
     echo "[!] Data directory for $bench does not exist. Please run ./init.sh first."
   else
-    $SCRIPT_DIR/repo/run_$bench.sh 
+    $SCRIPT_DIR/benchmarks/run_$bench.sh 
   fi
 done
