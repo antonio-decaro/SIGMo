@@ -7,3 +7,6 @@
 [submodule "benchmarks/GSI"]
 	path = benchmarks/GSI
 	url = https://github.com/pkumod/GSI
+[submodule "benchmarks/EGSM"]
+	path = benchmarks/EGSM
+	url = https://github.com/RapidsAtHKUST/EGSM.git

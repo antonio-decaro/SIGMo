@@ -33,6 +33,11 @@ def smartsToGraph(smarts: str) -> nx.DiGraph:
   return molToGraph(mol_smart)
 
 def getLabel(g: dict, digit: bool = True):
-  return organic_subset.get(g.get('element', '*'), 0) if digit else str(g.get('element', '*'))
+  if digit:
+    if g['atom_symbol'] in organic_subset:
+      return organic_subset[g['atom_symbol']]
+    else:
+      return 0
+  return g['atom_symbol']
 
 NUM_LABELS = len(organic_subset) + 1
