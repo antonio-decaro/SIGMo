@@ -1,19 +1,17 @@
-#include <sycl/sycl.hpp>
-#include <iostream>
-#include <vector>
-#include <string>
 #include <bitset>
+#include <iostream>
+#include <string>
+#include <sycl/sycl.hpp>
+#include <vector>
 
-#include <msm.hpp>
 #include "arg_parse.hpp"
+#include <mbsm.hpp>
 
 
-void printGraph(msm::Graph& g, std::string tab = "\t") {
+void printGraph(mbsm::Graph& g, std::string tab = "\t") {
   for (int i = 0; i < g.getNumNodes(); i++) {
     std::cout << tab << "[" << i << "] " << g.getLabel(i) << ": ";
-    for (auto& e : g.getNeighbours(i)) {
-      std::cout << e << " ";
-    }
+    for (auto& e : g.getNeighbours(i)) { std::cout << e << " "; }
     std::cout << std::endl;
   }
 }
@@ -21,25 +19,17 @@ void printGraph(msm::Graph& g, std::string tab = "\t") {
 int main(int argc, char** argv) {
   Args args{argc, argv};
 
-  sycl::queue q {sycl::gpu_selector_v};
+  sycl::queue q{sycl::gpu_selector_v};
 
-  std::vector<msm::SubgraphIsomorphism> isos;
-  std::vector<msm::Graph> data_graphs;
-  std::vector<msm::Graph> query_graphs;
+  std::vector<mbsm::SubgraphIsomorphism> isos;
+  std::vector<mbsm::Graph> data_graphs;
+  std::vector<mbsm::Graph> query_graphs;
 
-  for (auto data : args.data) {
-    data_graphs.push_back(msm::utils::readGraphFromFile(data));
-  }
-  for (auto query : args.query) {
-    query_graphs.push_back(msm::utils::readGraphFromFile(query));
-  }
-  for (auto& data : data_graphs) {
-    isos.push_back(msm::SubgraphIsomorphism(data, {query_graphs}, q));
-  }
+  for (auto data : args.data) { data_graphs.push_back(mbsm::utils::readGraphFromFile(data)); }
+  for (auto query : args.query) { query_graphs.push_back(mbsm::utils::readGraphFromFile(query)); }
+  for (auto& data : data_graphs) { isos.push_back(mbsm::SubgraphIsomorphism(data, {query_graphs}, q)); }
 
-  for (auto& iso : isos) {
-    iso.run();
-  }
+  for (auto& iso : isos) { iso.run(); }
   for (int i = 0; i < isos.size(); i++) {
     auto& iso = isos[i];
     std::cerr << "Waiting Instance " << i << std::endl;
@@ -66,9 +56,7 @@ int main(int argc, char** argv) {
           std::cout << "No mappings found" << std::endl;
           continue;
         }
-        for (auto& m : ans) {
-          std::cout << "(" << m.first << " -> " << m.second << ") ";
-        }
+        for (auto& m : ans) { std::cout << "(" << m.first << " -> " << m.second << ") "; }
         std::cout << std::endl;
       }
     }

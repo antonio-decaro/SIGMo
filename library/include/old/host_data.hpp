@@ -1,30 +1,28 @@
 #pragma once
 
-#include <vector>
-#include <unordered_map>
-#include <stdexcept>
-#include <algorithm>
-#include "types.hpp"
 #include "mapping.hpp"
+#include "types.hpp"
+#include <algorithm>
+#include <stdexcept>
+#include <unordered_map>
+#include <vector>
 
-namespace msm {
+namespace mbsm {
 
 /**
  * @brief Represents a graph data structure implemented as a CSR matrix.
  */
 class Graph {
 protected:
-  std::vector<size_t> row_offsets; /**< The row offsets of the graph. */
-  std::vector<node_t> col_indices; /**< The column indices of the graph. */
+  std::vector<size_t> row_offsets;  /**< The row offsets of the graph. */
+  std::vector<node_t> col_indices;  /**< The column indices of the graph. */
   std::vector<label_t> node_labels; /**< The labels of the nodes in the graph. */
 
 public:
   /**
    * @brief Default constructor for Graph.
    */
-  Graph() {
-    row_offsets.push_back(0);
-  }
+  Graph() { row_offsets.push_back(0); }
 
   /**
    * @brief Constructor for Graph.
@@ -32,8 +30,8 @@ public:
    * @param col_indices The column indices of the graph.
    * @param node_labels The labels of the nodes in the graph.
    */
-  Graph(std::vector<size_t> row_offsets, std::vector<node_t> col_indices, std::vector<label_t> node_labels) :
-    row_offsets(row_offsets), col_indices(col_indices), node_labels(node_labels) {};
+  Graph(std::vector<size_t> row_offsets, std::vector<node_t> col_indices, std::vector<label_t> node_labels)
+      : row_offsets(row_offsets), col_indices(col_indices), node_labels(node_labels) {};
 
   /**
    * @brief Copy constructor for Graph.
@@ -84,7 +82,7 @@ public:
   const bool isNeighbour(node_t src, node_t dst) const {
     auto begin = col_indices.begin() + row_offsets[src];
     auto end = col_indices.begin() + row_offsets[src + 1];
-    
+
     return std::find(begin, end, dst) != end;
   }
 
@@ -113,21 +111,15 @@ public:
    * @throws std::runtime_error if the node index is out of bounds or the edge already exists.
    */
   void addEdge(node_t src, node_t dst) {
-    if (src >= getNumNodes() || dst >= getNumNodes()) {
-      throw std::runtime_error("Node index out of bounds");
-    }
+    if (src >= getNumNodes() || dst >= getNumNodes()) { throw std::runtime_error("Node index out of bounds"); }
 
     auto begin = col_indices.begin() + row_offsets[src];
     auto end = col_indices.begin() + row_offsets[src + 1];
 
-    if (std::find(begin, end, dst) != end) {
-      throw std::runtime_error("Edge already exists");
-    }
+    if (std::find(begin, end, dst) != end) { throw std::runtime_error("Edge already exists"); }
 
     col_indices.insert(end, dst);
-    for (size_t i = src + 1; i < row_offsets.size(); i++) {
-      row_offsets[i]++;
-    }
+    for (size_t i = src + 1; i < row_offsets.size(); i++) { row_offsets[i]++; }
 
     row_offsets[src + 1]++;
   }
@@ -139,9 +131,7 @@ public:
    * @throws std::runtime_error if the node index is out of bounds.
    */
   void setLabel(node_t node, label_t label) {
-    if (node >= getNumNodes()) {
-      throw std::runtime_error("Node index out of bounds");
-    }
+    if (node >= getNumNodes()) { throw std::runtime_error("Node index out of bounds"); }
 
     node_labels[node] = label;
   }
@@ -157,57 +147,53 @@ public:
 
 /**
  * @brief Represents an undirected graph.
- * 
+ *
  * This class extends the Graph class and provides additional functionality for undirected graphs.
  */
 class UnGraph : public Graph {
 public:
   /**
    * @brief Move constructor for UnGraph.
-   * 
+   *
    * @param other The UnGraph object to be moved.
    */
   UnGraph(UnGraph&& other) : Graph(std::move(other)) {}
 
   /**
    * @brief Copy constructor for UnGraph.
-   * 
+   *
    * @param other The Graph object to be copied.
    */
   UnGraph(const Graph& other) : Graph(other) {
     for (node_t node = 0; node < getNumNodes(); node++) {
       for (auto neighbour : getNeighbours(node)) {
-        if (!isNeighbour(neighbour, node)) {
-          addEdge(neighbour, node);
-        }
+        if (!isNeighbour(neighbour, node)) { addEdge(neighbour, node); }
       }
     }
   }
 
   /**
    * @brief Constructor for UnGraph.
-   * 
+   *
    * @param row_offsets The row offsets of the graph.
    * @param col_indices The column indices of the graph.
    * @param node_labels The labels of the nodes in the graph.
    */
-  UnGraph(std::vector<size_t> row_offsets, std::vector<node_t> col_indices, std::vector<label_t> node_labels) :
-    Graph(row_offsets, col_indices, node_labels) {
+  UnGraph(std::vector<size_t> row_offsets, std::vector<node_t> col_indices, std::vector<label_t> node_labels)
+      : Graph(row_offsets, col_indices, node_labels) {
     for (node_t node = 0; node < getNumNodes(); node++) {
       for (auto neighbour : getNeighbours(node)) {
-        if (!isNeighbour(neighbour, node)) {
-          addEdge(neighbour, node);
-        }
+        if (!isNeighbour(neighbour, node)) { addEdge(neighbour, node); }
       }
     }
   }
 
   /**
    * @brief Adds an edge between two nodes in the graph.
-   * 
+   *
    * This function adds an edge between the source node and the destination node,
    * and also adds an edge between the destination node and the source node.
-   * 
+   *
    * @param src The source node.
    * @param dst The destination node.
    */
@@ -236,9 +222,7 @@ public:
     for (auto& graph : graphs) {
       offsets.push_back(offset);
 
-      for (auto it = graph.getRowOffsets().begin() + 1; it < graph.getRowOffsets().end(); it++) {
-        row_offsets.push_back(*it + row_size);
-      }
+      for (auto it = graph.getRowOffsets().begin() + 1; it < graph.getRowOffsets().end(); it++) { row_offsets.push_back(*it + row_size); }
       col_indices.insert(col_indices.end(), graph.getColIndices().begin(), graph.getColIndices().end());
       node_labels.insert(node_labels.end(), graph.getNodeLabels().begin(), graph.getNodeLabels().end());
 
@@ -259,4 +243,4 @@ public:
 };
 
 
-} // namespace msm
+} // namespace mbsm

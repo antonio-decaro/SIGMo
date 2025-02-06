@@ -1,22 +1,17 @@
 #pragma once
 
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include <cstdint>
 
-namespace msm {
-typedef unsigned short node_t;
-typedef unsigned short label_t;
-constexpr label_t WILDCARD = 0;
+namespace mbsm {
+namespace types {
 
-typedef struct {
-  std::string name;
-  double join_time;
-  double filter_time;
-} bench_t;
+using row_offset_t = uint32_t;
+using col_index_t = uint32_t;
+using label_t = uint8_t;
+using node_t = uint32_t;
+using mask_t = uint64_t;
+using adjacency_t = uint64_t;
 
-typedef uint32_t mask_t;
-constexpr size_t MASK_SIZE = sizeof(mask_t) * 8;
 
-}
-
+} // namespace types
+} // namespace mbsm

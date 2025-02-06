@@ -87,37 +87,38 @@ fi
 # activate venv
 source $SCRIPT_DIR/scripts/.venv/bin/activate
 
+generate_files() {
+  local bench=$1
+  local type=$2
+  local limit=$3
+  local total=$(wc -l < $DATA_DIR/${type}.smarts)
+  local i=0
+  local OUT_DIR=$DATA_DIR/$bench/$type
+
+  mkdir -p $OUT_DIR
+
+  while read -r line && [ $i -lt $limit ];
+  do
+    out=$(python3 $SCRIPT_DIR/scripts/smarts2${bench}.py $line)
+    if [ "$out" ]
+    then
+      echo "$out" > $OUT_DIR/${type}_$i.dat
+      i=$((i+1))
+    fi
+    printf "\rProgress ($type): %d/%d" $i $total
+  done < $DATA_DIR/${type}.smarts
+  echo # new line after progress bar
+}
+
 for bench in $(echo $benchmarks | sed "s/,/ /g")
 do
-  # creating output directories
-  OUT_DIR=$DATA_DIR/$bench
-  mkdir -p $OUT_DIR
-  mkdir -p $OUT_DIR/data
-  mkdir -p $OUT_DIR/query
+  echo "[*] Generating $bench files..."
+  mkdir -p $DATA_DIR/$bench
 
-  # generate query files
-  i=0
-  while read -r line && [ $i -lt $query_limit ];
-  do
-    out=$(python3 $SCRIPT_DIR/scripts/smarts2${bench}.py $line)
-    if [ "$out" ]
-    then
-      echo "$out" > $OUT_DIR/query/query_$i.dat
-      i=$((i+1))
-    fi
-  done < $DATA_DIR/query.smarts
-
-  # generate data files
-  i=0
-  while read -r line && [ $i -lt $data_limit ];
-  do
-    out=$(python3 $SCRIPT_DIR/scripts/smarts2${bench}.py $line)
-    if [ "$out" ]
-    then
-      echo "$out" > $OUT_DIR/data/data_$i.dat
-      i=$((i+1))
-    fi
-  done < $DATA_DIR/data.smarts
+  # generate query and data files in parallel
+  generate_files $bench "query" $query_limit &
+  generate_files $bench "data" $data_limit &
+  wait
 done
 
 # deactivate venv
