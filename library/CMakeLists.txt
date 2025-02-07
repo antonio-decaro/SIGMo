@@ -19,11 +19,9 @@ if (MBSM_ENABLE_TEST)
 endif()
 
 # Add the executable
-# add_executable(mbsm
-#     ${CMAKE_SOURCE_DIR}/src/main.cpp
-#     ${CMAKE_SOURCE_DIR}/src/graph.cpp
-#     # Add other source files here
-# )
+add_executable(create_pool
+    ${CMAKE_SOURCE_DIR}/src/create_pool.cpp
+)
 
 # Select the target architecture
 set (MBSM_TARGET_ARCHITECTURE "" CACHE STRING "Target architecture for the MBSM library")

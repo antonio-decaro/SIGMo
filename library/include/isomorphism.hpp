@@ -4,6 +4,9 @@
 
 
 namespace mbsm {
-namespace isomorphism {} // namespace isomorphism
+namespace isomorphism {
 
+namespace filter {} // namespace filter
+
+} // namespace isomorphism
 } // namespace mbsm
