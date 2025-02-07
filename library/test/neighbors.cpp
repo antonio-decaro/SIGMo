@@ -2,11 +2,6 @@
 #include <iostream>
 #include <mbsm.hpp>
 
-void printBinary(mbsm::types::adjacency_t num) {
-  std::bitset<64> x(num);
-  for (int i = 0; i < x.size(); ++i) { std::cout << x[i]; }
-  std::cout << std::endl;
-}
 
 int main(int argc, char** argv) {
   std::string fname1 = std::string(argv[1]);
