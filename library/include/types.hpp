@@ -12,6 +12,9 @@ using node_t = uint32_t;
 using mask_t = uint64_t;
 using adjacency_t = uint64_t;
 
+// define null
+constexpr node_t NULL_NODE = std::numeric_limits<node_t>::max();
+
 
 } // namespace types
 } // namespace mbsm
