@@ -3,7 +3,7 @@
 # Setting up variables
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DATA_DIR=$SCRIPT_DIR/data
-AVAILABLE_BENCHMARKS="vf3,cuTS,GSI"
+AVAILABLE_BENCHMARKS="vf3,cuTS,GSI,MBSM"
 
 data_limit=-1
 query_limit=-1
@@ -97,16 +97,24 @@ generate_files() {
 
   mkdir -p $OUT_DIR
 
-  while read -r line && [ $i -lt $limit ];
-  do
-    out=$(python3 $SCRIPT_DIR/scripts/smarts2${bench}.py $line)
+  if [ "$bench" == "MBSM" ]; then
+    out=$(python3 $SCRIPT_DIR/scripts/smarts2${bench}.py $DATA_DIR/${type}.smarts)
     if [ "$out" ]
     then
-      echo "$out" > $OUT_DIR/${type}_$i.dat
-      i=$((i+1))
+      echo "$out" > $OUT_DIR/${type}.dat
     fi
-    printf "\rProgress ($type): %d/%d" $i $total
-  done < $DATA_DIR/${type}.smarts
+  else
+    while read -r line && [ $i -lt $limit ];
+    do
+      out=$(python3 $SCRIPT_DIR/scripts/smarts2${bench}.py $line)
+      if [ "$out" ]
+      then
+        echo "$out" > $OUT_DIR/${type}_$i.dat
+        i=$((i+1))
+      fi
+      printf "\rProgress ($type): %d/%d" $i $total
+    done < $DATA_DIR/${type}.smarts
+  fi
   echo # new line after progress bar
 }
 
@@ -116,7 +124,9 @@ do
   mkdir -p $DATA_DIR/$bench
 
   # generate query and data files in parallel
+  echo "[*] Generating query files..."
   generate_files $bench "query" $query_limit &
+  echo "[*] Generating data files..."
   generate_files $bench "data" $data_limit &
   wait
 done

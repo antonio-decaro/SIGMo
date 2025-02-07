@@ -12,7 +12,7 @@ inline size_t getDeviceMemorySize(sycl::queue& queue) {
 
 namespace kernels {
 
-class CopyToDeviceKernel;
+class PrefixSumKernel;
 
 } // namespace kernels
 } // namespace device
