@@ -1,5 +1,6 @@
 # Define the test executable
 add_executable(read_graph read_graph.cpp)
+add_executable(read_write_pool read_write_pool.cpp)
 
 # Link the test executable with the library
 link_libraries(mbsm)

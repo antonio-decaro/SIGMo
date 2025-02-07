@@ -13,14 +13,12 @@ class GraphPool {
 public:
   GraphPool() = default;
 
-  GraphPool(const std::vector<mbsm::DataGraph>& data_graphs, const std::vector<mbsm::QueryGraph>& query_graphs)
+  GraphPool(std::vector<mbsm::DataGraph>& data_graphs, std::vector<mbsm::QueryGraph>& query_graphs)
       : _data_graphs(data_graphs), _query_graphs(query_graphs) {}
 
-  std::vector<mbsm::DataGraph>& dataGraphs() { return _data_graphs; }
-  const std::vector<mbsm::DataGraph>& dataGraphs() const { return _data_graphs; }
+  std::vector<mbsm::DataGraph>& getDataGraphs() { return _data_graphs; }
 
-  std::vector<mbsm::QueryGraph>& queryGraphs() { return _query_graphs; }
-  const std::vector<mbsm::QueryGraph>& queryGraphs() const { return _query_graphs; }
+  std::vector<mbsm::QueryGraph>& getQueryGraphs() { return _query_graphs; }
 
   void transferDataGraphsToDevice(sycl::queue& queue) {
     for (auto& graph : _data_graphs) {
