@@ -10,6 +10,8 @@ struct Signature {
 
   Signature() : signature(0) {}
 
+  Signature(uint32_t signature) : signature(signature) {}
+
   SYCL_EXTERNAL void setLabelCount(uint8_t label, uint8_t count) {
     if (label < 16 && count < 4) {
       signature &= ~(0x3 << (label * 2));  // Clear the bits for the label

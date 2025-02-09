@@ -30,4 +30,4 @@ if (MBSM_TARGET_ARCHITECTURE STREQUAL "")
 endif()
 
 # Set the target architecture
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsycl -fsycl-targets=${MBSM_TARGET_ARCHITECTURE}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_DEBUG} -fsycl -fsycl-targets=${MBSM_TARGET_ARCHITECTURE}")

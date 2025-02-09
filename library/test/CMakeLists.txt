@@ -7,8 +7,8 @@ enable_testing()
 # List of source files
 set(TEST_FILES
   read_write.cpp
-  neighbors.cpp
-  signature.cpp
+  graphs.cpp
+  candidates.cpp
 )
 
 # Add GoogleTest
@@ -24,8 +24,11 @@ FetchContent_MakeAvailable(googletest)
 # Define the test data path
 set(TEST_DATA_PATH "${CMAKE_SOURCE_DIR}/test/data/test_data.dat")
 set(TEST_QUERY_PATH "${CMAKE_SOURCE_DIR}/test/data/test_query.dat")
-set(TEST_POOL_PATH "${CMAKE_SOURCE_DIR}/test/data/test_pool.dat")
+set(TEST_POOL_PATH "${CMAKE_SOURCE_DIR}/test/data/test_pool.bin")
 set(TEST_TMP_PATH "${CMAKE_SOURCE_DIR}/test/data/tmp")
+
+# Add SYCL flags
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl -fsycl-targets=${MBSM_TARGET_ARCHITECTURE}")
 
 # Loop to add executables and include directories
 foreach(TEST_FILE ${TEST_FILES})
@@ -36,6 +39,7 @@ foreach(TEST_FILE ${TEST_FILES})
   target_compile_definitions(${EXECUTABLE_NAME} PRIVATE TEST_QUERY_PATH="${TEST_QUERY_PATH}")
   target_compile_definitions(${EXECUTABLE_NAME} PRIVATE TEST_POOL_PATH="${TEST_POOL_PATH}")
   target_compile_definitions(${EXECUTABLE_NAME} PRIVATE TEST_TMP_PATH="${TEST_TMP_PATH}")
+
   target_link_libraries(${EXECUTABLE_NAME} gtest gtest_main)
 endforeach()
 

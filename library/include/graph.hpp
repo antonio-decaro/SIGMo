@@ -198,11 +198,15 @@ static DeviceBatchedQueryGraph createDeviceQueryGraph(sycl::queue& queue, std::v
   device_query_graph.labels = sycl::malloc_shared<types::label_t>(total_labels, queue);
 
   // copy data to device
+  size_t nodes_offset = 0;
   for (auto& graph : query_graphs) {
+    size_t graph_size = graph.getNumNodes();
     queue.copy(graph.getAdjacencyMatrix(),
                device_query_graph.adjacency + device_query_graph.graph_offsets[&graph - &query_graphs[0]],
-               utils::getNumOfAdjacencyIntegers(graph.getNumNodes()));
-    queue.copy(graph.getLabels(), device_query_graph.labels + device_query_graph.num_nodes[&graph - &query_graphs[0]], graph.getNumNodes());
+               utils::getNumOfAdjacencyIntegers(graph_size));
+
+    queue.copy(graph.getLabels(), device_query_graph.labels + nodes_offset, graph_size);
+    nodes_offset += graph_size;
   }
 
   // wait for all copies to finish
