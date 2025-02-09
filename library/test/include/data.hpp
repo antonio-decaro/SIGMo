@@ -171,3 +171,30 @@ mbsm::candidates::Signature expected_data_signatures[]{// Graph 1
                                                        {0b00000000000000000000000000001000},
                                                        {0b00000000000000000000000000001100},
                                                        {0b00000000000000000000000000001000}};
+
+std::vector<mbsm::candidates::Signature> getExpectedDataSignatures(std::string fname) {
+  auto data = mbsm::io::loadDataGraphsFromFile(fname);
+
+  size_t num_nodes = 0;
+  for (auto& graph : data) { num_nodes += graph.getNumNodes(); }
+
+  std::vector<mbsm::candidates::Signature> signatures(num_nodes);
+
+  size_t offset = 0;
+
+  for (auto& graph : data) {
+    for (int i = 0; i < graph.getNumNodes(); ++i) {
+      signatures[offset + i].setLabelCount(graph.getLabels()[i], 1);
+      auto start_node = graph.getRowOffsets()[i];
+      auto end_node = graph.getRowOffsets()[i + 1];
+
+      for (int j = start_node; j < end_node; ++j) {
+        auto neighbor = graph.getColumnIndices()[j];
+        signatures[offset + i].incrementLabelCount(graph.getLabels()[neighbor]);
+      }
+    }
+    offset += graph.getNumNodes();
+  }
+
+  return signatures;
+}
