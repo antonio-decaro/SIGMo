@@ -29,6 +29,7 @@ TEST(GraphTest, IntoQueryDevice) {
   auto device_query_graph = mbsm::createDeviceQueryGraph(queue, query_graphs);
 
   ASSERT_EQ(device_query_graph.total_nodes, total_nodes);
+  ASSERT_EQ(device_query_graph.num_graphs, query_graphs.size());
 
   size_t adjacency_size = 0;
   for (auto& graph : query_graphs) {
@@ -40,7 +41,7 @@ TEST(GraphTest, IntoQueryDevice) {
   }
 
   // create a vector with all the labels
-  mbsm::types::label_t* labels = new mbsm::types::label_t[total_nodes];
+  std::vector<mbsm::types::label_t> labels(total_nodes);
   size_t offset = 0;
   for (auto& graph : query_graphs) {
     for (size_t i = 0; i < graph.getNumNodes(); i++) { labels[offset + i] = graph.getLabels()[i]; }
@@ -48,8 +49,6 @@ TEST(GraphTest, IntoQueryDevice) {
   }
 
   for (size_t i = 0; i < device_query_graph.total_nodes; ++i) { ASSERT_EQ(device_query_graph.labels[i], labels[i]); }
-
-  delete[] labels;
 }
 
 int main(int argc, char** argv) {
