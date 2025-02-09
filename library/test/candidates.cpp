@@ -1,3 +1,4 @@
+#include "./include/data.hpp"
 #include "./include/utils.hpp"
 #include "gtest/gtest.h"
 #include <bitset>
@@ -44,32 +45,7 @@ TEST(SignatureTest, CheckQuerySignatureGeneration) {
 
   e.wait_and_throw();
 
-  mbsm::candidates::Signature expected_signatures[]{// Graph 1
-                                                    {0b00000000000000000000001100000000},
-                                                    {0b00000000000000000000001000000000},
-                                                    {0b00000000000000000000001000000000},
-                                                    {0b00000000000000000000001100000000},
-                                                    {0b00000000000000000000001000000100},
-                                                    {0b00000000000000000000000100000100},
-                                                    // Graph 2
-                                                    {0b00000000000000010010000000001000},
-                                                    {0b00000000000000010001000000000000},
-                                                    {0b00000000000000010001000000000000},
-                                                    {0b00000000000000010000000000000100},
-                                                    {0b00000000000000010000000000000100},
-                                                    // Graph 3
-                                                    {0b00000000000000000000010000000100},
-                                                    {0b00000000000000000000010000001000},
-                                                    {0b00000000000000000000000000001100},
-                                                    {0b00000000000000000000000000001100},
-                                                    {0b00000000000000000000000000001100},
-                                                    {0b00000000000000000000000000001100},
-                                                    {0b00000000000000000000000000001100},
-                                                    {0b00000000000000000000000000001100},
-                                                    {0b00000000000000000001000000001000},
-                                                    {0b00000000000000000001000000000100}};
-
-  for (size_t i = 0; i < device_query_graph.total_nodes; ++i) { ASSERT_EQ(signatures[i].signature, expected_signatures[i].signature); }
+  for (size_t i = 0; i < device_query_graph.total_nodes; ++i) { ASSERT_EQ(signatures[i].signature, expected_query_signatures[i].signature); }
 
   sycl::free(signatures, queue);
 }
