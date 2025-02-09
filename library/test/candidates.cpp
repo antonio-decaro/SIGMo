@@ -50,6 +50,24 @@ TEST(SignatureTest, CheckQuerySignatureGeneration) {
   sycl::free(signatures, queue);
 }
 
+TEST(SignatureTest, CheckDataSignatureGeneration) {
+  sycl::queue queue{sycl::gpu_selector_v};
+
+  auto data_graphs = mbsm::io::loadDataGraphsFromFile(TEST_DATA_PATH);
+
+  auto device_data_graph = mbsm::createDeviceDataGraph(queue, data_graphs);
+
+  mbsm::candidates::Signature* signatures = sycl::malloc_shared<mbsm::candidates::Signature>(device_data_graph.total_nodes, queue);
+
+  auto e = mbsm::isomorphism::filter::generateDataSignatures(queue, device_data_graph, signatures);
+
+  e.wait_and_throw();
+
+  for (size_t i = 0; i < device_data_graph.total_nodes; ++i) { ASSERT_EQ(signatures[i].signature, expected_data_signatures[i].signature); }
+
+  sycl::free(signatures, queue);
+}
+
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

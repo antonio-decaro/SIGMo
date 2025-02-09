@@ -51,6 +51,62 @@ TEST(GraphTest, IntoQueryDevice) {
   for (size_t i = 0; i < device_query_graph.total_nodes; ++i) { ASSERT_EQ(device_query_graph.labels[i], labels[i]); }
 }
 
+TEST(GraphTest, IntoDataDevice) {
+  std::string fname1 = std::string(TEST_DATA_PATH);
+  std::vector<mbsm::DataGraph> data_graphs = mbsm::io::loadDataGraphsFromFile(fname1);
+
+  size_t total_nodes = 0;
+  size_t total_edges = 0;
+  for (auto& graph : data_graphs) {
+    total_nodes += graph.getNumNodes();
+    total_edges += graph.getRowOffsets()[graph.getNumNodes()];
+  }
+
+  sycl::queue queue{sycl::gpu_selector_v};
+
+  auto device_data_graph = mbsm::createDeviceDataGraph(queue, data_graphs);
+
+  ASSERT_EQ(device_data_graph.total_nodes, total_nodes);
+  ASSERT_EQ(device_data_graph.num_graphs, data_graphs.size());
+  ASSERT_EQ(device_data_graph.row_offsets[0], 0);
+
+  // create a vector with all the labels, row_offsets and column_indices
+  std::vector<mbsm::types::row_offset_t> row_offsets(total_nodes + 1);
+  std::vector<mbsm::types::col_index_t> column_indices(total_edges);
+  std::vector<mbsm::types::label_t> labels(total_nodes);
+
+  size_t ro_offset = 0;
+  size_t col_offset = 0;
+  size_t label_offset = 0;
+
+  for (auto& graph : data_graphs) {
+    size_t num_nodes = graph.getNumNodes();
+    size_t num_row_offsets = num_nodes + 1;
+    size_t num_column_indices = graph.getRowOffsets()[num_nodes];
+
+    for (size_t j = 0; j < num_row_offsets; ++j) { row_offsets[ro_offset + j] = graph.getRowOffsets()[j] + col_offset; }
+
+    for (size_t j = 0; j < num_column_indices; ++j) { column_indices[col_offset + j] = graph.getColumnIndices()[j] + label_offset; }
+
+    for (size_t j = 0; j < num_nodes; ++j) { labels[label_offset + j] = graph.getLabels()[j]; }
+
+    ro_offset += num_nodes;
+    col_offset += num_column_indices;
+    label_offset += num_nodes;
+  }
+
+  // Verify the unique graph
+  ASSERT_EQ(row_offsets.size(), total_nodes + 1);
+  ASSERT_EQ(column_indices.size(), total_edges);
+  ASSERT_EQ(labels.size(), total_nodes);
+
+  for (size_t i = 0; i < total_nodes; ++i) { ASSERT_EQ(labels[i], device_data_graph.labels[i]); }
+
+  for (size_t i = 0; i < column_indices.size(); ++i) { ASSERT_EQ(column_indices[i], device_data_graph.column_indices[i]); }
+
+  for (size_t i = 0; i < row_offsets.size(); ++i) { ASSERT_EQ(row_offsets[i], device_data_graph.row_offsets[i]); }
+}
+
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

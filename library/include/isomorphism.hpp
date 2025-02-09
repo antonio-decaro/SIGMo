@@ -57,6 +57,30 @@ sycl::event generateQuerySignatures(sycl::queue& queue, mbsm::DeviceBatchedQuery
   return e;
 }
 
+sycl::event generateDataSignatures(sycl::queue& queue, mbsm::DeviceBatchedDataGraph& graphs, mbsm::candidates::Signature* signatures) {
+  sycl::range<1> global_range(graphs.total_nodes);
+  auto e = queue.submit([&](sycl::handler& cgh) {
+    auto* row_offsets = graphs.row_offsets;
+    auto* column_indices = graphs.column_indices;
+    auto* labels = graphs.labels;
+
+    cgh.parallel_for<mbsm::device::kernels::GenerateDataSignaturesKernel>(global_range, [=](sycl::item<1> item) {
+      auto node_id = item.get_id(0);
+
+      uint32_t start_neighbor = row_offsets[node_id];
+      uint32_t end_neighbor = row_offsets[node_id + 1];
+      mbsm::types::label_t node_label = labels[node_id];
+
+      signatures[node_id].setLabelCount(node_label, 1);
+      for (uint32_t i = start_neighbor; i < end_neighbor; ++i) {
+        auto neighbor = column_indices[i];
+        signatures[node_id].incrementLabelCount(labels[neighbor]);
+      }
+    });
+  });
+  return e;
+}
+
 } // namespace filter
 
 } // namespace isomorphism

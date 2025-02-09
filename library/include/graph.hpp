@@ -54,7 +54,7 @@ public:
   types::col_index_t* column_indices;
   types::label_t* labels;
   uint32_t num_graphs;
-  uint32_t* graph_offsets;
+  size_t total_nodes;
 };
 
 struct DeviceBatchedQueryGraph {
@@ -152,8 +152,40 @@ public:
 static DeviceBatchedDataGraph createDeviceDataGraph(sycl::queue& queue, std::vector<DataGraph>& data_graphs) {
   DeviceBatchedDataGraph device_data_graph;
 
-  // TODO Implement logic to create DeviceBatchedDataGraph from DataGraphs
-  // prefix sum to get graph offsets
+  size_t total_nodes = 0;
+  size_t total_edges = 0;
+
+  for (auto& graph : data_graphs) {
+    total_nodes += graph.getNumNodes();
+    total_edges += graph.getRowOffsets()[graph.getNumNodes()];
+  }
+
+  device_data_graph.total_nodes = total_nodes;
+
+  device_data_graph.row_offsets = sycl::malloc_shared<types::row_offset_t>(total_nodes + 1, queue);
+  device_data_graph.column_indices = sycl::malloc_shared<types::col_index_t>(total_edges, queue);
+  device_data_graph.labels = sycl::malloc_shared<types::label_t>(total_nodes, queue);
+  device_data_graph.num_graphs = data_graphs.size();
+
+  size_t ro_offset = 0;
+  size_t col_offset = 0;
+  size_t label_offset = 0;
+
+  for (auto& graph : data_graphs) {
+    size_t num_nodes = graph.getNumNodes();
+    size_t num_row_offsets = num_nodes + 1;
+    size_t num_column_indices = graph.getRowOffsets()[num_nodes];
+
+    for (size_t j = 0; j < num_row_offsets; ++j) { device_data_graph.row_offsets[ro_offset + j] = graph.getRowOffsets()[j] + col_offset; }
+
+    for (size_t j = 0; j < num_column_indices; ++j) { device_data_graph.column_indices[col_offset + j] = graph.getColumnIndices()[j] + label_offset; }
+
+    for (size_t j = 0; j < num_nodes; ++j) { device_data_graph.labels[label_offset + j] = graph.getLabels()[j]; }
+
+    ro_offset += num_nodes;
+    col_offset += num_column_indices;
+    label_offset += num_nodes;
+  }
 
   return device_data_graph;
 }
@@ -162,7 +194,6 @@ static void destroyDeviceDataGraph(DeviceBatchedDataGraph& device_data_graph, sy
   sycl::free(device_data_graph.row_offsets, queue);
   sycl::free(device_data_graph.column_indices, queue);
   sycl::free(device_data_graph.labels, queue);
-  sycl::free(device_data_graph.graph_offsets, queue);
 }
 
 // TODO offload on GPU

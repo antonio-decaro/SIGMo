@@ -14,6 +14,7 @@ namespace kernels {
 
 class PrefixSumKernel;
 class GenerateQuerySignaturesKernel;
+class GenerateDataSignaturesKernel;
 
 } // namespace kernels
 } // namespace device
