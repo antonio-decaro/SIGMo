@@ -1,4 +1,5 @@
 #pragma once
+#include "types.hpp"
 #include <cstdint>
 #include <sycl/sycl.hpp>
 
@@ -32,6 +33,29 @@ struct Signature {
       }
     }
   }
+};
+
+struct Candidates {
+  types::candidates_t* candidates;
+
+  Candidates(size_t num_nodes, sycl::queue& queue) {
+    candidates = sycl::malloc_shared<types::candidates_t>(num_nodes, queue);
+    queue.fill(candidates, 0, num_nodes).wait_and_throw();
+  }
+
+  void insert(types::node_t candidate) {
+    types::candidates_t idx = candidate / (sizeof(types::candidates_t) * 8);
+    types::candidates_t offset = candidate % (sizeof(types::candidates_t) * 8);
+    candidates[idx] |= (static_cast<types::candidates_t>(1) << offset);
+  }
+
+  void remove(types::node_t candidate) {
+    types::candidates_t idx = candidate / (sizeof(types::candidates_t) * 8);
+    types::candidates_t offset = candidate % (sizeof(types::candidates_t) * 8);
+    candidates[idx] &= ~(static_cast<types::candidates_t>(1) << offset);
+  }
+
+  void destroy(sycl::queue& queue) { sycl::free(candidates, queue); }
 };
 
 } // namespace candidates

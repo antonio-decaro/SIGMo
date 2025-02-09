@@ -68,6 +68,23 @@ TEST(SignatureTest, CheckDataSignatureGeneration) {
   sycl::free(signatures, queue);
 }
 
+TEST(CandidateTest, CheckInsertAndRemove) {
+  sycl::queue queue{sycl::gpu_selector_v};
+  mbsm::candidates::Candidates candidates(128, queue);
+  candidates.insert(0);
+  candidates.insert(31);
+  candidates.insert(32);
+  candidates.insert(124);
+
+  ASSERT_EQ(candidates.candidates[0], 0b0000000000000000000000000000000110000000000000000000000000000001u);
+  ASSERT_EQ(candidates.candidates[1], 0b0001000000000000000000000000000000000000000000000000000000000000u);
+
+  candidates.remove(32);
+  ASSERT_EQ(candidates.candidates[0], 0b0000000000000000000000000000000010000000000000000000000000000001u);
+
+  sycl::free(candidates.candidates, queue);
+}
+
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

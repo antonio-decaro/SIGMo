@@ -9,6 +9,7 @@ set(TEST_FILES
   read_write.cpp
   graphs.cpp
   candidates.cpp
+  filter.cpp
 )
 
 # Add GoogleTest

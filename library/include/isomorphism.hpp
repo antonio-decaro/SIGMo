@@ -81,6 +81,17 @@ sycl::event generateDataSignatures(sycl::queue& queue, mbsm::DeviceBatchedDataGr
   return e;
 }
 
+sycl::event filterCandidates(sycl::queue& queue,
+                             mbsm::DeviceBatchedQueryGraph& query_graph,
+                             mbsm::DeviceBatchedDataGraph& data_graph,
+                             mbsm::candidates::Signature* query_signatures,
+                             mbsm::candidates::Signature* data_signatures,
+                             mbsm::candidates::Candidates* candidates) {
+  sycl::event e{};
+  // TODO implement this
+  return e;
+}
+
 } // namespace filter
 
 } // namespace isomorphism
