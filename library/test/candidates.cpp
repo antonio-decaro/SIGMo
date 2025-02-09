@@ -34,27 +34,15 @@ TEST(SignatureTest, CheckSignatureMethods) {
 TEST(SignatureTest, CheckQuerySignatureGeneration) {
   sycl::queue queue{sycl::gpu_selector_v};
 
-  std::cout << "Reading from " << TEST_QUERY_PATH << std::endl;
-
   auto query_graphs = mbsm::io::loadQueryGraphsFromFile(TEST_QUERY_PATH);
-  std::cout << "Loaded " << query_graphs.size() << " query graphs" << std::endl;
 
   auto device_query_graph = mbsm::createDeviceQueryGraph(queue, query_graphs);
 
-  std::cout << "Created device query graph" << std::endl;
-
   mbsm::candidates::Signature* signatures = sycl::malloc_shared<mbsm::candidates::Signature>(device_query_graph.total_nodes, queue);
-
-  std::cout << "Allocated memory for signatures" << std::endl;
 
   auto e = mbsm::isomorphism::filter::generateQuerySignatures(queue, device_query_graph, signatures);
 
-  std::cout << "Generated query signatures" << std::endl;
-
   e.wait_and_throw();
-
-  std::cout << "Qeueue terminated" << std::endl;
-
 
   mbsm::candidates::Signature expected_signatures[]{// Graph 1
                                                     {0b00000000000000000000001100000000},
@@ -82,8 +70,6 @@ TEST(SignatureTest, CheckQuerySignatureGeneration) {
                                                     {0b00000000000000000001000000000100}};
 
   for (size_t i = 0; i < device_query_graph.total_nodes; ++i) { ASSERT_EQ(signatures[i].signature, expected_signatures[i].signature); }
-
-  std::cout << "Signatures are correct" << std::endl;
 
   sycl::free(signatures, queue);
 }
