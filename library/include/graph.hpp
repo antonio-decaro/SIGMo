@@ -48,7 +48,7 @@ private:
   size_t _num_nodes;
 };
 
-class DeviceBatchedDataGraph {
+struct DeviceBatchedDataGraph {
 public:
   types::row_offset_t* row_offsets;
   types::col_index_t* column_indices;
@@ -57,11 +57,11 @@ public:
   uint32_t* graph_offsets;
 };
 
-class DeviceBatchedQueryGraph {
-public:
+struct DeviceBatchedQueryGraph {
   types::adjacency_t* adjacency;
   types::label_t* labels;
   uint32_t* num_nodes;
+  size_t total_nodes;
   uint32_t num_graphs;
   uint32_t* graph_offsets;
 };
@@ -194,6 +194,7 @@ static DeviceBatchedQueryGraph createDeviceQueryGraph(sycl::queue& queue, std::v
 
   // allocate memory for labels
   size_t total_labels = device_query_graph.num_nodes[query_graphs.size() - 1];
+  device_query_graph.total_nodes = total_labels;
   device_query_graph.labels = sycl::malloc_shared<types::label_t>(total_labels, queue);
 
   // copy data to device
@@ -205,7 +206,7 @@ static DeviceBatchedQueryGraph createDeviceQueryGraph(sycl::queue& queue, std::v
   }
 
   // wait for all copies to finish
-  queue.wait();
+  queue.wait_and_throw();
 
   return device_query_graph;
 }

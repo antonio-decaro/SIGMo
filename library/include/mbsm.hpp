@@ -1,5 +1,6 @@
 #pragma once
 
+#include "candidates.hpp"
 #include "device.hpp"
 #include "graph.hpp"
 #include "io.hpp"

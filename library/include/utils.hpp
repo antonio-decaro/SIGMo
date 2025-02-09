@@ -9,7 +9,7 @@ namespace mbsm {
 namespace utils {
 
 template<typename TypeT = types::adjacency_t>
-uint8_t getNumOfAdjacencyIntegers(uint8_t num_nodes) {
+SYCL_EXTERNAL uint8_t getNumOfAdjacencyIntegers(uint8_t num_nodes) {
   uint8_t num_bits = sizeof(TypeT) * 8;
   return (num_nodes * num_nodes + num_bits - 1) / num_bits;
 }
@@ -39,5 +39,20 @@ SYCL_EXTERNAL void getNeighbors(TypeT* adjacency_matrix, uint8_t adjacency_matri
 }
 
 } // namespace adjacency_matrix
+
+SYCL_EXTERNAL uint32_t binarySearch(const uint32_t* num_nodes, uint32_t total_graphs, uint32_t node_id) {
+  uint32_t low = 0;
+  uint32_t high = total_graphs - 1;
+  while (low < high) {
+    uint32_t mid = (low + high) / 2;
+    if (num_nodes[mid] <= node_id) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  return low;
+}
+
 } // namespace utils
 } // namespace mbsm

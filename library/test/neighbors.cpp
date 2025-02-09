@@ -1,23 +1,23 @@
-#include <bitset>
-#include <iostream>
+#include "./include/utils.hpp"
+#include "gtest/gtest.h"
 #include <mbsm.hpp>
 
-
-int main(int argc, char** argv) {
-  std::string fname1 = std::string(argv[1]);
+TEST(NeighborsTest, GetNeighbors) {
+  std::string fname1 = std::string(TEST_QUERY_PATH);
   std::vector<mbsm::QueryGraph> query_graphs = mbsm::io::loadQueryGraphsFromFile(fname1);
 
-  mbsm::types::node_t* neighbors = new mbsm::types::node_t[4];
+  mbsm::types::node_t neighbors[4];
   for (auto& graph : query_graphs) {
-    std::cout << "Number of nodes: " << static_cast<int>(graph.getNumNodes()) << std::endl;
     for (int i = 0; i < graph.getNumNodes(); ++i) {
       mbsm::utils::adjacency_matrix::getNeighbors(
           graph.getAdjacencyMatrix(), mbsm::utils::getNumOfAdjacencyIntegers(graph.getNumNodes()), i, neighbors);
-      int neighbor_count = 0;
-      std::cout << "Neighbors of node " << i << ":" << std::endl;
-      for (int j = 0; neighbors[j] != mbsm::types::NULL_NODE; ++j) { std::cout << static_cast<int>(neighbors[j]) << std::endl; }
+      // Add assertions to verify the correctness of neighbors
+      ASSERT_TRUE(neighbors[0] != mbsm::types::NULL_NODE);
     }
   }
+}
 
-  return 0;
+int main(int argc, char** argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

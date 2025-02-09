@@ -1,14 +1,46 @@
-# Define the test executable
-add_executable(read_graph read_graph.cpp)
-add_executable(read_write_pool read_write_pool.cpp)
-add_executable(neighbors neighbors.cpp)
-
-# Link the test executable with the library
-link_libraries(mbsm)
+cmake_minimum_required(VERSION 3.14)
+project(SubgraphIsoTests)
 
 # Enable testing
 enable_testing()
 
+# List of source files
+set(TEST_FILES
+  read_write.cpp
+  neighbors.cpp
+  signature.cpp
+)
+
+# Add GoogleTest
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/refs/tags/release-1.11.0.zip
+)
+# For Windows: Prevent overriding the parent project's compiler/linker settings
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+# Define the test data path
+set(TEST_DATA_PATH "${CMAKE_SOURCE_DIR}/test/data/test_data.dat")
+set(TEST_QUERY_PATH "${CMAKE_SOURCE_DIR}/test/data/test_query.dat")
+set(TEST_POOL_PATH "${CMAKE_SOURCE_DIR}/test/data/test_pool.dat")
+set(TEST_TMP_PATH "${CMAKE_SOURCE_DIR}/test/data/tmp")
+
+# Loop to add executables and include directories
+foreach(TEST_FILE ${TEST_FILES})
+  get_filename_component(EXECUTABLE_NAME ${TEST_FILE} NAME_WE)
+  add_executable(${EXECUTABLE_NAME} ${TEST_FILE})
+  target_include_directories(${EXECUTABLE_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  target_compile_definitions(${EXECUTABLE_NAME} PRIVATE TEST_DATA_PATH="${TEST_DATA_PATH}")
+  target_compile_definitions(${EXECUTABLE_NAME} PRIVATE TEST_QUERY_PATH="${TEST_QUERY_PATH}")
+  target_compile_definitions(${EXECUTABLE_NAME} PRIVATE TEST_POOL_PATH="${TEST_POOL_PATH}")
+  target_compile_definitions(${EXECUTABLE_NAME} PRIVATE TEST_TMP_PATH="${TEST_TMP_PATH}")
+  target_link_libraries(${EXECUTABLE_NAME} gtest gtest_main)
+endforeach()
+
 # Add tests
-add_test(NAME UtilsTest COMMAND tests)
-add_test(NAME IOTest COMMAND tests)
+foreach(TEST_FILE ${TEST_FILES})
+  get_filename_component(EXECUTABLE_NAME ${TEST_FILE} NAME_WE)
+  add_test(NAME ${EXECUTABLE_NAME} COMMAND ${EXECUTABLE_NAME})
+endforeach()
