@@ -71,20 +71,26 @@ TEST(SignatureTest, CheckDataSignatureGeneration) {
 TEST(CandidateTest, CheckInsertAndRemove) {
   sycl::queue queue{sycl::gpu_selector_v};
   const size_t num_nodes = 128;
-  mbsm::candidates::Candidates candidates(num_nodes, queue);
-  candidates.insert(0);
-  candidates.insert(31);
-  candidates.insert(32);
-  candidates.insert(124);
+  mbsm::candidates::Candidates candidates(2, num_nodes);
+  candidates.setDataCandidates(sycl::malloc_shared<mbsm::types::candidates_t>(candidates.getAllocationSize(), queue));
+  queue.fill(candidates.candidates, static_cast<mbsm::types::candidates_t>(0), candidates.getAllocationSize()).wait();
+  candidates.insert(0, 0);
+  candidates.insert(0, 31);
+  candidates.insert(0, 32);
+  candidates.insert(0, 124);
 
   ASSERT_EQ(candidates.candidates[0], 0b0000000000000000000000000000000110000000000000000000000000000001u);
   ASSERT_EQ(candidates.candidates[1], 0b0001000000000000000000000000000000000000000000000000000000000000u);
-  ASSERT_EQ(candidates.getCandidatesCount(num_nodes), 4);
+  ASSERT_EQ(candidates.getCandidatesCount(0, num_nodes), 4);
 
-  candidates.remove(32);
+  candidates.remove(0, 32);
   ASSERT_EQ(candidates.candidates[0], 0b0000000000000000000000000000000010000000000000000000000000000001u);
 
-  ASSERT_EQ(candidates.getCandidatesCount(num_nodes), 3);
+  ASSERT_EQ(candidates.getCandidatesCount(0, num_nodes), 3);
+
+  candidates.insert(1, 0);
+  ASSERT_EQ(candidates.candidates[2], 0b0000000000000000000000000000000000000000000000000000000000000001u);
+  ASSERT_EQ(candidates.candidates[3], 0b0u);
 
   sycl::free(candidates.candidates, queue);
 }

@@ -34,18 +34,18 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl -fsycl-targets=${MBSM_TARGET_ARCH
 # Loop to add executables and include directories
 foreach(TEST_FILE ${TEST_FILES})
   get_filename_component(EXECUTABLE_NAME ${TEST_FILE} NAME_WE)
-  add_executable(${EXECUTABLE_NAME} ${TEST_FILE})
-  target_include_directories(${EXECUTABLE_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-  target_compile_definitions(${EXECUTABLE_NAME} PRIVATE TEST_DATA_PATH="${TEST_DATA_PATH}")
-  target_compile_definitions(${EXECUTABLE_NAME} PRIVATE TEST_QUERY_PATH="${TEST_QUERY_PATH}")
-  target_compile_definitions(${EXECUTABLE_NAME} PRIVATE TEST_POOL_PATH="${TEST_POOL_PATH}")
-  target_compile_definitions(${EXECUTABLE_NAME} PRIVATE TEST_TMP_PATH="${TEST_TMP_PATH}")
+  add_executable(test_${EXECUTABLE_NAME} ${TEST_FILE})
+  target_include_directories(test_${EXECUTABLE_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  target_compile_definitions(test_${EXECUTABLE_NAME} PRIVATE TEST_DATA_PATH="${TEST_DATA_PATH}")
+  target_compile_definitions(test_${EXECUTABLE_NAME} PRIVATE TEST_QUERY_PATH="${TEST_QUERY_PATH}")
+  target_compile_definitions(test_${EXECUTABLE_NAME} PRIVATE TEST_POOL_PATH="${TEST_POOL_PATH}")
+  target_compile_definitions(test_${EXECUTABLE_NAME} PRIVATE TEST_TMP_PATH="${TEST_TMP_PATH}")
 
-  target_link_libraries(${EXECUTABLE_NAME} gtest gtest_main)
+  target_link_libraries(test_${EXECUTABLE_NAME} gtest gtest_main)
 endforeach()
 
 # Add tests
 foreach(TEST_FILE ${TEST_FILES})
   get_filename_component(EXECUTABLE_NAME ${TEST_FILE} NAME_WE)
-  add_test(NAME ${EXECUTABLE_NAME} COMMAND ${EXECUTABLE_NAME})
+  add_test(NAME test_${EXECUTABLE_NAME} COMMAND test_${EXECUTABLE_NAME})
 endforeach()

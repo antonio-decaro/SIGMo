@@ -38,47 +38,50 @@ struct Signature {
 struct Candidates {
   types::candidates_t* candidates;
   constexpr static types::candidates_t num_bits = sizeof(types::candidates_t) * 8;
+  size_t query_nodes;
+  size_t data_nodes;
+  size_t single_node_size;
 
-  Candidates(size_t num_nodes, sycl::queue& queue) {
-    size_t size = (num_nodes + (num_bits - 1)) / num_bits;
-    candidates = sycl::malloc_shared<types::candidates_t>(size, queue);
-    queue.fill(candidates, static_cast<types::candidates_t>(0), size).wait_and_throw();
-  }
+  Candidates(size_t query_nodes, size_t data_nodes)
+      : query_nodes(query_nodes), data_nodes(data_nodes), single_node_size((data_nodes + (num_bits - 1)) / num_bits) {}
 
-  void insert(types::node_t candidate) {
+  size_t getAllocationSize() const { return query_nodes * single_node_size * sizeof(types::candidates_t); }
+
+  void setDataCandidates(types::candidates_t* data_candidates) { candidates = data_candidates; }
+
+  SYCL_EXTERNAL void insert(types::node_t query_node, types::node_t candidate) const {
     types::candidates_t idx = candidate / num_bits;
     types::candidates_t offset = candidate % num_bits;
-    candidates[idx] |= (static_cast<types::candidates_t>(1) << offset);
+    candidates[query_node * this->single_node_size + idx] |= (static_cast<types::candidates_t>(1) << offset);
   }
 
-  void atomicInsert(types::node_t candidate) {
+  SYCL_EXTERNAL void atomicInsert(types::node_t query_node, types::node_t candidate) const {
     types::candidates_t idx = candidate / num_bits;
     types::candidates_t offset = candidate % num_bits;
-    sycl::atomic_ref<types::candidates_t, sycl::memory_order::relaxed, sycl::memory_scope::device> ref{candidates[idx]};
+    sycl::atomic_ref<types::candidates_t, sycl::memory_order::relaxed, sycl::memory_scope::device> ref{
+        candidates[query_node * this->single_node_size + idx]};
     ref |= (static_cast<types::candidates_t>(1) << offset);
   }
 
-  void remove(types::node_t candidate) {
+  SYCL_EXTERNAL void remove(types::node_t query_node, types::node_t candidate) const {
     types::candidates_t idx = candidate / num_bits;
     types::candidates_t offset = candidate % num_bits;
-    candidates[idx] &= ~(static_cast<types::candidates_t>(1) << offset);
+    candidates[query_node * this->single_node_size + idx] &= ~(static_cast<types::candidates_t>(1) << offset);
   }
 
-  void atomicRemove(types::node_t candidate) {
+  SYCL_EXTERNAL void atomicRemove(types::node_t query_node, types::node_t candidate) const {
     types::candidates_t idx = candidate / num_bits;
     types::candidates_t offset = candidate % num_bits;
-    sycl::atomic_ref<types::candidates_t, sycl::memory_order::relaxed, sycl::memory_scope::device> ref{candidates[idx]};
+    sycl::atomic_ref<types::candidates_t, sycl::memory_order::relaxed, sycl::memory_scope::device> ref{
+        candidates[query_node * this->single_node_size + idx]};
     ref &= ~(static_cast<types::candidates_t>(1) << offset);
   }
 
-  uint32_t getCandidatesCount(size_t num_nodes) const {
+  SYCL_EXTERNAL uint32_t getCandidatesCount(types::node_t query_node, size_t data_nodes) const {
     uint32_t count = 0;
-    size_t size = (num_nodes + (num_bits - 1)) / num_bits;
-    for (size_t i = 0; i < size; ++i) { count += sycl::popcount(candidates[i]); }
+    for (size_t i = 0; i < single_node_size; ++i) { count += sycl::popcount(candidates[query_node * single_node_size + i]); }
     return count;
   }
-
-  void destroy(sycl::queue& queue) { sycl::free(candidates, queue); }
 };
 
 } // namespace candidates

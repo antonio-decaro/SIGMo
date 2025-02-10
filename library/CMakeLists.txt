@@ -25,6 +25,9 @@ add_executable(create_pool
 add_executable(inspector
     ${CMAKE_SOURCE_DIR}/src/inspector.cpp
 )
+add_executable(filter
+    ${CMAKE_SOURCE_DIR}/src/filter.cpp
+)
 
 
 # Select the target architecture
