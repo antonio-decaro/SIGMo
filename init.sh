@@ -93,7 +93,7 @@ generate_files() {
   local limit=$3
   local total=$(wc -l < $DATA_DIR/${type}.smarts)
   local i=0
-  local OUT_DIR=$DATA_DIR/$bench/$type
+  local OUT_DIR=$DATA_DIR/$bench
 
   mkdir -p $OUT_DIR
 
@@ -104,12 +104,13 @@ generate_files() {
       echo "$out" > $OUT_DIR/${type}.dat
     fi
   else
+    mkdir -p $OUT_DIR/$type
     while read -r line && [ $i -lt $limit ];
     do
       out=$(python3 $SCRIPT_DIR/scripts/smarts2${bench}.py $line)
       if [ "$out" ]
       then
-        echo "$out" > $OUT_DIR/${type}_$i.dat
+        echo "$out" > $OUT_DIR/$type/${type}_$i.dat
         i=$((i+1))
       fi
       printf "\rProgress ($type): %d/%d" $i $total

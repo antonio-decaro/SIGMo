@@ -37,22 +37,31 @@ struct Signature {
 
 struct Candidates {
   types::candidates_t* candidates;
+  constexpr static types::candidates_t num_bits = sizeof(types::candidates_t) * 8;
 
   Candidates(size_t num_nodes, sycl::queue& queue) {
-    candidates = sycl::malloc_shared<types::candidates_t>(num_nodes, queue);
-    queue.fill(candidates, 0, num_nodes).wait_and_throw();
+    size_t size = (num_nodes + (num_bits - 1)) / num_bits;
+    candidates = sycl::malloc_shared<types::candidates_t>(size, queue);
+    queue.fill(candidates, static_cast<types::candidates_t>(0), size).wait_and_throw();
   }
 
   void insert(types::node_t candidate) {
-    types::candidates_t idx = candidate / (sizeof(types::candidates_t) * 8);
-    types::candidates_t offset = candidate % (sizeof(types::candidates_t) * 8);
+    types::candidates_t idx = candidate / num_bits;
+    types::candidates_t offset = candidate % num_bits;
     candidates[idx] |= (static_cast<types::candidates_t>(1) << offset);
   }
 
   void remove(types::node_t candidate) {
-    types::candidates_t idx = candidate / (sizeof(types::candidates_t) * 8);
-    types::candidates_t offset = candidate % (sizeof(types::candidates_t) * 8);
+    types::candidates_t idx = candidate / num_bits;
+    types::candidates_t offset = candidate % num_bits;
     candidates[idx] &= ~(static_cast<types::candidates_t>(1) << offset);
+  }
+
+  uint32_t getCandidatesCount(size_t num_nodes) const {
+    uint32_t count = 0;
+    size_t size = (num_nodes + (num_bits - 1)) / num_bits;
+    for (size_t i = 0; i < size; ++i) { count += sycl::popcount(candidates[i]); }
+    return count;
   }
 
   void destroy(sycl::queue& queue) { sycl::free(candidates, queue); }
