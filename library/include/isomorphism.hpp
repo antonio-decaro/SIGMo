@@ -81,14 +81,39 @@ sycl::event generateDataSignatures(sycl::queue& queue, mbsm::DeviceBatchedDataGr
   return e;
 }
 
+// TODO maybe invert the parallelization domain (data nodes in the outer loop) to improve memory access and reduce the number of iterations (requires
+// atomic operations on candidates)
 sycl::event filterCandidates(sycl::queue& queue,
                              mbsm::DeviceBatchedQueryGraph& query_graph,
                              mbsm::DeviceBatchedDataGraph& data_graph,
                              mbsm::candidates::Signature* query_signatures,
                              mbsm::candidates::Signature* data_signatures,
                              mbsm::candidates::Candidates* candidates) {
-  sycl::event e{};
-  // TODO implement this
+  size_t total_query_nodes = query_graph.total_nodes;
+  size_t total_data_nodes = data_graph.total_nodes;
+  auto e = queue.submit([&](sycl::handler& cgh) {
+    cgh.parallel_for<mbsm::device::kernels::FilterCandidatesKernel>(sycl::range<1>(total_query_nodes), [=](sycl::item<1> item) {
+      auto query_node_id = item.get_id(0);
+      auto query_signature = query_signatures[query_node_id];
+      auto query_labels = query_graph.labels;
+
+      if (query_labels[query_node_id] == static_cast<types::label_t>(1)) { // TODO optimize wildcard node filtering
+        for (size_t data_node_id = 0; data_node_id < total_data_nodes; ++data_node_id) { candidates[query_node_id].insert(data_node_id); }
+      } else {
+        for (size_t data_node_id = 0; data_node_id < total_data_nodes; ++data_node_id) {
+          auto data_signature = data_signatures[data_node_id];
+
+          bool insert = true;
+          for (types::label_t l = 0; l < 16; l++) {
+            insert &= query_signature.getLabelCount(l) <= data_signature.getLabelCount(l);
+            if (!insert) break;
+          }
+          if (insert) { candidates[query_node_id].insert(data_node_id); }
+        }
+      }
+    });
+  });
+
   return e;
 }
 

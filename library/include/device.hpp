@@ -16,6 +16,8 @@ class PrefixSumKernel;
 class GenerateQuerySignaturesKernel;
 class GenerateDataSignaturesKernel;
 
+class FilterCandidatesKernel;
+
 } // namespace kernels
 } // namespace device
 } // namespace mbsm

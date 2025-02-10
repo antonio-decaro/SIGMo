@@ -51,10 +51,24 @@ struct Candidates {
     candidates[idx] |= (static_cast<types::candidates_t>(1) << offset);
   }
 
+  void atomicInsert(types::node_t candidate) {
+    types::candidates_t idx = candidate / num_bits;
+    types::candidates_t offset = candidate % num_bits;
+    sycl::atomic_ref<types::candidates_t, sycl::memory_order::relaxed, sycl::memory_scope::device> ref{candidates[idx]};
+    ref |= (static_cast<types::candidates_t>(1) << offset);
+  }
+
   void remove(types::node_t candidate) {
     types::candidates_t idx = candidate / num_bits;
     types::candidates_t offset = candidate % num_bits;
     candidates[idx] &= ~(static_cast<types::candidates_t>(1) << offset);
+  }
+
+  void atomicRemove(types::node_t candidate) {
+    types::candidates_t idx = candidate / num_bits;
+    types::candidates_t offset = candidate % num_bits;
+    sycl::atomic_ref<types::candidates_t, sycl::memory_order::relaxed, sycl::memory_scope::device> ref{candidates[idx]};
+    ref &= ~(static_cast<types::candidates_t>(1) << offset);
   }
 
   uint32_t getCandidatesCount(size_t num_nodes) const {
