@@ -22,6 +22,10 @@ endif()
 add_executable(create_pool
     ${CMAKE_SOURCE_DIR}/src/create_pool.cpp
 )
+add_executable(inspector
+    ${CMAKE_SOURCE_DIR}/src/inspector.cpp
+)
+
 
 # Select the target architecture
 set (MBSM_TARGET_ARCHITECTURE "" CACHE STRING "Target architecture for the MBSM library")
