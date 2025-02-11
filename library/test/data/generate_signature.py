@@ -12,11 +12,6 @@ def generate_signature(graph):
         signature = np.int32(0)
         label_counts = [0] * 16  # Assuming there are 16 possible labels
         
-        # Include the node's label in the signature
-        node_label = node[1].get('label', 0)
-        if node_label < 16:
-            label_counts[node_label] += 1
-        
         # Count the number of adjacent nodes with each label
         for neighbor in graph.neighbors(node[0]):
             neighbor_label = graph.nodes[neighbor].get('label', 0)

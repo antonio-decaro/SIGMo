@@ -47,7 +47,6 @@ sycl::event generateQuerySignatures(sycl::queue& queue, mbsm::DeviceBatchedQuery
       mbsm::utils::adjacency_matrix::getNeighbors(adjacency_matrix, adjacency_integers, node, neighbors);
 
       // Initialize the signature for the current node
-      signatures[node_id].setLabelCount(node_label, 1);
       for (uint8_t i = 0; neighbors[i] != types::NULL_NODE && i < types::MAX_NEIGHBORS; ++i) {
         auto neighbor = neighbors[i] + prev_nodes;
         signatures[node_id].incrementLabelCount(labels[neighbor]);
@@ -71,7 +70,6 @@ sycl::event generateDataSignatures(sycl::queue& queue, mbsm::DeviceBatchedDataGr
       uint32_t end_neighbor = row_offsets[node_id + 1];
       mbsm::types::label_t node_label = labels[node_id];
 
-      signatures[node_id].setLabelCount(node_label, 1);
       for (uint32_t i = start_neighbor; i < end_neighbor; ++i) {
         auto neighbor = column_indices[i];
         signatures[node_id].incrementLabelCount(labels[neighbor]);
@@ -97,11 +95,13 @@ sycl::event filterCandidates(sycl::queue& queue,
           auto query_node_id = item.get_id(0);
           auto query_signature = query_signatures[query_node_id];
           auto query_labels = query_graph.labels;
+          auto data_labels = data_graph.labels;
 
           if (query_labels[query_node_id] == static_cast<types::label_t>(1)) { // TODO optimize wildcard node filtering
             for (size_t data_node_id = 0; data_node_id < total_data_nodes; ++data_node_id) { candidates.insert(query_node_id, data_node_id); }
           } else {
             for (size_t data_node_id = 0; data_node_id < total_data_nodes; ++data_node_id) {
+              if (query_labels[query_node_id] != data_labels[data_node_id]) { continue; }
               auto data_signature = data_signatures[data_node_id];
 
               bool insert = true;

@@ -37,10 +37,14 @@ int main(int argc, char** argv) {
 
   auto e2 = mbsm::isomorphism::filter::generateDataSignatures(queue, device_data_graph, data_signatures);
   e2.wait();
-  std::cout << "Data signatures generated" << std::endl;
+  auto start = e2.get_profiling_info<sycl::info::event_profiling::command_start>();
+  auto end = e2.get_profiling_info<sycl::info::event_profiling::command_end>();
+  std::cout << "Data signatures generated in " << (end - start) * 1e-6 << " ms" << std::endl;
   auto e1 = mbsm::isomorphism::filter::generateQuerySignatures(queue, device_query_graph, query_signatures);
   e1.wait();
-  std::cout << "Query signatures generated" << std::endl;
+  start = e1.get_profiling_info<sycl::info::event_profiling::command_start>();
+  end = e1.get_profiling_info<sycl::info::event_profiling::command_end>();
+  std::cout << "Query signatures generated in " << (end - start) * 1e-6 << " ms" << std::endl;
 
   mbsm::candidates::Candidates candidates{query_nodes, data_nodes};
   candidates.candidates = sycl::malloc_shared<mbsm::types::candidates_t>(candidates.getAllocationSize(), queue);
@@ -49,8 +53,8 @@ int main(int argc, char** argv) {
 
   auto e3 = mbsm::isomorphism::filter::filterCandidates(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, candidates);
   e3.wait();
-  auto start = e3.get_profiling_info<sycl::info::event_profiling::command_start>();
-  auto end = e3.get_profiling_info<sycl::info::event_profiling::command_end>();
+  start = e3.get_profiling_info<sycl::info::event_profiling::command_start>();
+  end = e3.get_profiling_info<sycl::info::event_profiling::command_end>();
   std::cout << "Candidates filtered in " << (end - start) * 1e-6 << " ms" << std::endl;
 
   if (args.print_candidates) {
