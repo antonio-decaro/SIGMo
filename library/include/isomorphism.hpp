@@ -43,12 +43,12 @@ sycl::event generateQuerySignatures(sycl::queue& queue, mbsm::DeviceBatchedQuery
       types::node_t node = node_id - prev_nodes;
 
       // Get the neighbors of the current node
-      types::node_t neighbors[4];
+      types::node_t neighbors[types::MAX_NEIGHBORS];
       mbsm::utils::adjacency_matrix::getNeighbors(adjacency_matrix, adjacency_integers, node, neighbors);
 
       // Initialize the signature for the current node
       signatures[node_id].setLabelCount(node_label, 1);
-      for (uint8_t i = 0; neighbors[i] != types::NULL_NODE; ++i) {
+      for (uint8_t i = 0; neighbors[i] != types::NULL_NODE && i < types::MAX_NEIGHBORS; ++i) {
         auto neighbor = neighbors[i] + prev_nodes;
         signatures[node_id].incrementLabelCount(labels[neighbor]);
       }

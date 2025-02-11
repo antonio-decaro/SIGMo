@@ -17,6 +17,8 @@ using candidates_t = uint64_t;
 // define null
 constexpr node_t NULL_NODE = std::numeric_limits<node_t>::max();
 
+constexpr std::size_t MAX_NEIGHBORS = 4;
+
 
 } // namespace types
 } // namespace mbsm

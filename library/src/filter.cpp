@@ -30,17 +30,17 @@ int main(int argc, char** argv) {
 
   std::cout << "Reed data graph and query graph" << std::endl;
 
-  mbsm::candidates::Signature* query_signatures = sycl::malloc_shared<mbsm::candidates::Signature>(query_nodes, queue);
-  std::cout << "Query signatures allocated" << std::endl;
   mbsm::candidates::Signature* data_signatures = sycl::malloc_shared<mbsm::candidates::Signature>(data_nodes, queue);
   std::cout << "Data signatures allocated" << std::endl;
+  mbsm::candidates::Signature* query_signatures = sycl::malloc_shared<mbsm::candidates::Signature>(query_nodes, queue);
+  std::cout << "Query signatures allocated" << std::endl;
 
-  auto e1 = mbsm::isomorphism::filter::generateQuerySignatures(queue, device_query_graph, query_signatures);
-  e1.wait();
-  std::cout << "Query signatures generated" << std::endl;
   auto e2 = mbsm::isomorphism::filter::generateDataSignatures(queue, device_data_graph, data_signatures);
   e2.wait();
   std::cout << "Data signatures generated" << std::endl;
+  auto e1 = mbsm::isomorphism::filter::generateQuerySignatures(queue, device_query_graph, query_signatures);
+  e1.wait();
+  std::cout << "Query signatures generated" << std::endl;
 
   mbsm::candidates::Candidates candidates{query_nodes, data_nodes};
   candidates.candidates = sycl::malloc_shared<mbsm::types::candidates_t>(candidates.getAllocationSize(), queue);
