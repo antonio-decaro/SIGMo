@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.hpp"
+#include <chrono>
 #include <cmath>
 #include <sycl/sycl.hpp>
 #include <vector>
@@ -53,6 +54,40 @@ SYCL_EXTERNAL uint32_t binarySearch(const uint32_t* num_nodes, uint32_t total_gr
   }
   return low;
 }
+
+class BatchedEvent {
+public:
+  BatchedEvent() = default;
+
+  void add(sycl::event e) { events.push_back(e); }
+
+  void wait() {
+    for (auto& e : events) { e.wait(); }
+  }
+
+  void clear() { events.clear(); }
+
+  void addAndClear(sycl::event e) {
+    wait();
+    clear();
+    add(e);
+  }
+
+  sycl::event getLastEvent() { return events.back(); }
+
+  std::chrono::duration<double> getProfilingInfo() {
+    std::chrono::nanoseconds total_time(0);
+    for (auto& e : events) {
+      auto start = e.get_profiling_info<sycl::info::event_profiling::command_start>();
+      auto end = e.get_profiling_info<sycl::info::event_profiling::command_end>();
+      total_time += std::chrono::nanoseconds(end - start);
+    }
+    return std::chrono::duration_cast<std::chrono::duration<double>>(total_time);
+  }
+
+private:
+  std::vector<sycl::event> events;
+};
 
 } // namespace utils
 } // namespace mbsm
