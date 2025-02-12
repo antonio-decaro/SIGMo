@@ -6,30 +6,33 @@
 namespace mbsm {
 namespace candidates {
 
+template<size_t Bits = 4>
 struct Signature {
-  uint32_t signature;
+  uint64_t signature;
 
   Signature() : signature(0) {}
 
-  Signature(uint32_t signature) : signature(signature) {}
+  Signature(uint64_t signature) : signature(signature) {}
+
+  SYCL_EXTERNAL static uint16_t getMaxLabels() { return sizeof(signature) * 8 / Bits; }
 
   SYCL_EXTERNAL void setLabelCount(uint8_t label, uint8_t count) {
-    if (label < 16 && count < 4) {
-      signature &= ~(0x3 << (label * 2));  // Clear the bits for the label
-      signature |= (count << (label * 2)); // Set the new count
+    if (label < (64 / Bits) && count < (1 << Bits)) {
+      signature &= ~((static_cast<uint64_t>((1 << Bits) - 1)) << (label * Bits)); // Clear the bits for the label
+      signature |= (static_cast<uint64_t>(count) << (label * Bits));              // Set the new count
     }
   }
 
   SYCL_EXTERNAL uint8_t getLabelCount(uint8_t label) const {
-    if (label < 16) { return (signature >> (label * 2)) & 0x3; }
+    if (label < (64 / Bits)) { return (signature >> (label * Bits)) & ((1 << Bits) - 1); }
     return 0;
   }
 
-  SYCL_EXTERNAL void incrementLabelCount(uint8_t label) {
-    if (label < 16) {
+  SYCL_EXTERNAL void incrementLabelCount(uint8_t label, uint8_t add = 1) {
+    if (label < (64 / Bits)) {
       uint8_t count = getLabelCount(label);
-      if (count < 3) { // Ensure count does not exceed 3
-        setLabelCount(label, count + static_cast<uint8_t>(1));
+      if (count < ((1 << Bits) - 1)) { // Ensure count does not exceed max value
+        setLabelCount(label, count + static_cast<uint8_t>(add));
       }
     }
   }

@@ -3,28 +3,53 @@ import numpy as np
 import sys
 import matplotlib.pyplot as plt
 
-def generate_signature(graph):
-    # Initialize a 32-bit integer
+def generate_signature(graph, bits=4, refinement_steps=1):
+    # Initialize a 64-bit integer
     signatures = []
+    max_labels = 64 // bits
+    max_count = (1 << bits) - 1
     
     # Modify the signature according to the labels
     for node in graph.nodes(data=True):
-        signature = np.int32(0)
-        label_counts = [0] * 16  # Assuming there are 16 possible labels
+        signature = np.int64(0)
+        label_counts = [0] * max_labels  # Adjust based on the number of bits
         
         # Count the number of adjacent nodes with each label
         for neighbor in graph.neighbors(node[0]):
             neighbor_label = graph.nodes[neighbor].get('label', 0)
-            if neighbor_label < 16:
+            if neighbor_label < max_labels:
                 label_counts[neighbor_label] += 1
         
         # Map the counts to the signature
         for i, count in enumerate(label_counts):
-            if count > 3:
-                count = 3  # Limit the count to 2 bits (0-3)
-            signature |= (count << (i * 2))
+            if count > max_count:
+                count = max_count  # Limit the count to the maximum value based on bits
+            signature |= (count << (i * bits))
         
         signatures.append(signature)
+
+    # Refine the signatures based on neighbor labels
+    for _ in range(refinement_steps):
+        new_signatures = []
+        for node in graph.nodes(data=True):
+            signature = signatures[node[0]]
+            label_counts = [0] * max_labels  # Adjust based on the number of bits
+            
+            # Count the number of adjacent nodes with each label
+            for neighbor in graph.neighbors(node[0]):
+                neighbor_signature = signatures[neighbor]
+                for i in range(max_labels):
+                    count = (neighbor_signature >> (i * bits)) & ((1 << bits) - 1)
+                    label_counts[i] += count
+            
+            # Map the counts to the signature
+            for i, count in enumerate(label_counts):
+                if count > max_count:
+                    count = max_count  # Limit the count to the maximum value based on bits
+                signature |= (count << (i * bits))
+            
+            new_signatures.append(signature)
+        signatures = new_signatures
     
     return signatures
 
@@ -51,16 +76,19 @@ def read_graph(line):
     
     return graph
 
-def print_signature(signature):
+def print_signature(signature, bits=4):
+    max_labels = 64 // bits
     details = []
-    for i in range(16):
-        count = (signature >> (i * 2)) & 0b11
+    for i in range(max_labels):
+        count = (signature >> (i * bits)) & ((1 << bits) - 1)
         details.append(f"{i}: [{count}]")
     # print("Signature details:", ", ".join(details))
-    print('{', f"0b{format(signature, '032b')}", '},', sep='')
+    print('{', f"0b{format(signature, '064b')}", '},', sep='')
 
 if __name__ == '__main__':
     fname = sys.argv[1]
+    bits = int(sys.argv[2]) if len(sys.argv) > 2 else 4
+    refinement_steps = int(sys.argv[3]) if len(sys.argv) > 3 else 1
     
     # Load the graph
     with open(fname, 'r') as f:
@@ -73,7 +101,7 @@ if __name__ == '__main__':
 
     signatures = {}
     for i, graph in enumerate(graphs):
-        signature = generate_signature(graph)
+        signature = generate_signature(graph, bits, refinement_steps)
         signatures[i] = signature
     
     # Print the signatures in binary with details
@@ -81,7 +109,7 @@ if __name__ == '__main__':
         print(f"//Graph {i+1}")
         for n, sig in enumerate(signature):
             # print(f"Node {n}:")
-            print_signature(sig)
+            print_signature(sig, bits)
 
 
 

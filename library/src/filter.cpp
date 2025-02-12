@@ -30,9 +30,9 @@ int main(int argc, char** argv) {
 
   std::cout << "Reed data graph and query graph" << std::endl;
 
-  mbsm::candidates::Signature* data_signatures = sycl::malloc_shared<mbsm::candidates::Signature>(data_nodes, queue);
+  mbsm::candidates::Signature<>* data_signatures = sycl::malloc_shared<mbsm::candidates::Signature<>>(data_nodes, queue);
   std::cout << "Data signatures allocated" << std::endl;
-  mbsm::candidates::Signature* query_signatures = sycl::malloc_shared<mbsm::candidates::Signature>(query_nodes, queue);
+  mbsm::candidates::Signature<>* query_signatures = sycl::malloc_shared<mbsm::candidates::Signature<>>(query_nodes, queue);
   std::cout << "Query signatures allocated" << std::endl;
 
   auto e2 = mbsm::isomorphism::filter::generateDataSignatures(queue, device_data_graph, data_signatures);
