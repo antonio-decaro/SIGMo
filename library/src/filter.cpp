@@ -1,18 +1,69 @@
 #include <mbsm.hpp>
 #include <sycl/sycl.hpp>
 
-struct Args {
+class Args {
+public:
   std::string fname = "/home/adecaro/subgraph-iso-soa/data/MBSM/pool.bin";
-  bool print_candidates;
+  bool print_candidates = false;
+  int refinement_steps = 1;
 
-  Args(int& argc, char**& argv) {
-    for (int i = 1; i < argc; ++i) {
-      if (std::string(argv[i]) == "-p") {
-        print_candidates = true;
+
+  Args(int& argc, char**& argv) : _argc(argc), _argv(argv) {
+    for (size_t i = 1; i < argc; ++i) {
+      std::string arg = argv[i];
+      if (arg[0] == '-') {
+        arg = arg.substr(1);
+        parseOption(arg, i);
       } else {
         fname = argv[i];
       }
     }
+  }
+
+private:
+  int& _argc;
+  char**& _argv;
+  void printHelp() {
+    std::cout << "Usage: " << this->_argv[0] << " [options] [pool.bin]" << std::endl;
+    std::cout << "Options:" << std::endl;
+    std::cout << "  -p: Print the number of candidates for each query node" << std::endl;
+    std::cout << "  -i: Print the number of refined iterations. Default = 1" << std::endl;
+  }
+
+  void parseOption(std::string& arg, size_t& idx) {
+    if (arg == "p") {
+      print_candidates = true;
+    } else if (arg == "i") {
+      if (idx + 1 >= _argc) {
+        printHelp();
+        std::exit(1);
+      }
+      refinement_steps = std::stoi(_argv[++idx]);
+    } else {
+      printHelp();
+      std::exit(1);
+    }
+  }
+};
+
+struct CandidatesInspector {
+  std::vector<size_t> candidates_sizes;
+  size_t total;
+  size_t avg;
+  size_t median;
+  size_t zero_count;
+
+  void add(size_t size) { candidates_sizes.push_back(size); }
+
+  void finalize() {
+    for (auto& size : candidates_sizes) {
+      total += size;
+      if (size == 0) zero_count++;
+    }
+
+    avg = total / candidates_sizes.size();
+    std::sort(candidates_sizes.begin(), candidates_sizes.end());
+    median = candidates_sizes[candidates_sizes.size() / 2];
   }
 };
 
@@ -35,16 +86,14 @@ int main(int argc, char** argv) {
   mbsm::candidates::Signature<>* query_signatures = sycl::malloc_shared<mbsm::candidates::Signature<>>(query_nodes, queue);
   std::cout << "Query signatures allocated" << std::endl;
 
-  auto e2 = mbsm::isomorphism::filter::generateDataSignatures(queue, device_data_graph, data_signatures);
+  auto e2 = mbsm::isomorphism::filter::generateDataSignatures(queue, device_data_graph, data_signatures, args.refinement_steps);
   e2.wait();
-  auto start = e2.get_profiling_info<sycl::info::event_profiling::command_start>();
-  auto end = e2.get_profiling_info<sycl::info::event_profiling::command_end>();
-  std::cout << "Data signatures generated in " << (end - start) * 1e-6 << " ms" << std::endl;
-  auto e1 = mbsm::isomorphism::filter::generateQuerySignatures(queue, device_query_graph, query_signatures);
+  auto time = e2.getProfilingInfo();
+  std::cout << "Data signatures generated in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
+  auto e1 = mbsm::isomorphism::filter::generateQuerySignatures(queue, device_query_graph, query_signatures, args.refinement_steps);
   e1.wait();
-  start = e1.get_profiling_info<sycl::info::event_profiling::command_start>();
-  end = e1.get_profiling_info<sycl::info::event_profiling::command_end>();
-  std::cout << "Query signatures generated in " << (end - start) * 1e-6 << " ms" << std::endl;
+  time = e1.getProfilingInfo();
+  std::cout << "Query signatures generated in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
 
   mbsm::candidates::Candidates candidates{query_nodes, data_nodes};
   candidates.candidates = sycl::malloc_shared<mbsm::types::candidates_t>(candidates.getAllocationSize(), queue);
@@ -53,18 +102,25 @@ int main(int argc, char** argv) {
 
   auto e3 = mbsm::isomorphism::filter::filterCandidates(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, candidates);
   e3.wait();
-  start = e3.get_profiling_info<sycl::info::event_profiling::command_start>();
-  end = e3.get_profiling_info<sycl::info::event_profiling::command_end>();
-  std::cout << "Candidates filtered in " << (end - start) * 1e-6 << " ms" << std::endl;
+  time = e3.getProfilingInfo();
 
-  if (args.print_candidates) {
-    std::cout << "Candidates on " << data_nodes << " data nodes:" << std::endl;
+  std::cout << "Candidates filtered in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
 
-    for (size_t i = 0; i < query_nodes; ++i) {
-      auto count = candidates.getCandidatesCount(i, data_nodes);
-      std::cout << "Node " << i << ": " << count << std::endl;
-    }
+  std::cout << "Candidates of " << query_nodes << " on " << data_nodes << " data nodes" << std::endl;
+
+  CandidatesInspector inspector;
+  for (size_t i = 0; i < query_nodes; ++i) {
+    auto count = candidates.getCandidatesCount(i, data_nodes);
+    inspector.add(count);
+    if (args.print_candidates) std::cout << "Node " << i << ": " << count << std::endl;
   }
+  inspector.finalize();
+  std::cout << "Info:" << std::endl;
+  std::cout << "- Total candidates: " << inspector.total << std::endl;
+  std::cout << "- Average candidates: " << inspector.avg << std::endl;
+  std::cout << "- Median candidates: " << inspector.median << std::endl;
+  std::cout << "- Zero candidates: " << inspector.zero_count << std::endl;
+
 
   sycl::free(query_signatures, queue);
   sycl::free(data_signatures, queue);

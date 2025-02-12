@@ -37,7 +37,7 @@ TEST(SignatureTest, CheckQuerySignatureGeneration) {
 
   auto e = mbsm::isomorphism::filter::generateQuerySignatures(queue, device_query_graph, signatures);
 
-  e.wait_and_throw();
+  e.wait();
 
   auto expected_query_signatures = getExpectedQuerySignatures(TEST_QUERY_PATH);
 
@@ -57,7 +57,7 @@ TEST(SignatureTest, CheckDataSignatureGeneration) {
 
   auto e = mbsm::isomorphism::filter::generateDataSignatures(queue, device_data_graph, signatures);
 
-  e.wait_and_throw();
+  e.wait();
 
   auto expected_data_signatures = getExpectedDataSignatures(TEST_DATA_PATH);
 

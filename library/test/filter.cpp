@@ -25,7 +25,7 @@ TEST(FilterTest, FilterTest) {
 
   auto e3 = mbsm::isomorphism::filter::filterCandidates(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, candidates);
 
-  e3.wait_and_throw();
+  e3.wait();
 
   // TODO add assertions
 

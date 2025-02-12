@@ -14,13 +14,24 @@ namespace filter {
 
 namespace detail {
 
-template<typename KernelName, typename LambdaT>
+template<typename LambdaT, typename AccessorT>
 struct IterateOverQueryNodes {
+  IterateOverQueryNodes(types::adjacency_t* adjacency,
+                        types::label_t* labels,
+                        uint32_t* graph_offsets,
+                        types::node_t* num_nodes,
+                        size_t total_nodes,
+                        size_t num_graphs,
+                        mbsm::candidates::Signature<>* signatures,
+                        AccessorT acc,
+                        LambdaT lambda)
+      : adjacency(adjacency), labels(labels), graph_offsets(graph_offsets), num_nodes(num_nodes), num_graphs(num_graphs), total_nodes(total_nodes),
+        signatures(signatures), lambda(lambda), acc(acc) {}
   void operator()(sycl::item<1> item) const {
     auto node_id = item.get_id(0);
 
     // Find the graph that the node belongs to
-    uint32_t graph_id = mbsm::utils::binarySearch(num_nodes, graphs.num_graphs, node_id);
+    uint32_t graph_id = mbsm::utils::binarySearch(num_nodes, num_graphs, node_id);
 
     // fetch the label, the adjacency matrix
     mbsm::types::label_t node_label = labels[node_id];
@@ -40,14 +51,17 @@ struct IterateOverQueryNodes {
     types::node_t neighbors[types::MAX_NEIGHBORS];
     mbsm::utils::adjacency_matrix::getNeighbors(adjacency_matrix, adjacency_integers, node, neighbors);
 
-    lambda(node_id, graph_id, node_label, prev_nodes, graph_size, adjacency_integers, node, neighbors);
+    lambda(node_id, graph_id, node_label, prev_nodes, graph_size, adjacency_integers, node, neighbors, acc);
   }
   types::adjacency_t* adjacency;
   types::label_t* labels;
-  types::node_t* graph_offsets;
+  uint32_t* graph_offsets;
   types::node_t* num_nodes;
   size_t total_nodes;
-  const LambdaT&& lambda;
+  size_t num_graphs;
+  mbsm::candidates::Signature<>* signatures;
+  LambdaT lambda;
+  AccessorT acc;
 };
 
 } // namespace detail
@@ -67,37 +81,33 @@ utils::BatchedEvent generateQuerySignatures(sycl::queue& queue,
     auto* graph_offsets = graphs.graph_offsets;
     auto* num_nodes = graphs.num_nodes;
     auto total_nodes = graphs.total_nodes;
+    sycl::accessor acc(buffer, cgh, sycl::no_init);
 
-    cgh.parallel_for<mbsm::device::kernels::GenerateQuerySignaturesKernel<1>>(global_range, [=](sycl::item<1> item) {
-      auto node_id = item.get_id(0);
-
-      // Find the graph that the node belongs to
-      uint32_t graph_id = mbsm::utils::binarySearch(num_nodes, graphs.num_graphs, node_id);
-
-      // fetch the label, the adjacency matrix
-      mbsm::types::label_t node_label = labels[node_id];
-      mbsm::types::adjacency_t* adjacency_matrix = adjacency + graph_offsets[graph_id];
-
-      // Calculate the number of nodes in the previous graphs and the number of nodes in the current graph
-      size_t prev_nodes = graph_id ? num_nodes[graph_id - 1] : 0;
-      auto graph_size = num_nodes[graph_id] - prev_nodes;
-
-      // Calculate the number of adjacency integers required to store the adjacency matrix
-      uint8_t adjacency_integers = mbsm::utils::getNumOfAdjacencyIntegers(graph_size);
-
-      // Calculate the node index in the current graph
-      types::node_t node = node_id - prev_nodes;
-
-      // Get the neighbors of the current node
-      types::node_t neighbors[types::MAX_NEIGHBORS];
-      mbsm::utils::adjacency_matrix::getNeighbors(adjacency_matrix, adjacency_integers, node, neighbors);
-
-      // Initialize the signature for the current node
-      for (uint8_t i = 0; neighbors[i] != types::NULL_NODE && i < types::MAX_NEIGHBORS; ++i) {
-        auto neighbor = neighbors[i] + prev_nodes;
-        signatures[node_id].incrementLabelCount(labels[neighbor]);
-      }
-    });
+    cgh.parallel_for<mbsm::device::kernels::GenerateQuerySignaturesKernel<1>>(
+        sycl::range<1>{graphs.total_nodes},
+        detail::IterateOverQueryNodes(adjacency,
+                                      labels,
+                                      graph_offsets,
+                                      num_nodes,
+                                      total_nodes,
+                                      graphs.num_graphs,
+                                      signatures,
+                                      acc,
+                                      [=](auto node_id,
+                                          auto graph_id,
+                                          auto node_label,
+                                          auto prev_nodes,
+                                          auto graph_size,
+                                          auto adjacency_integers,
+                                          auto node,
+                                          auto neighbors,
+                                          auto acc) {
+                                        // Initialize the signature for the current node
+                                        for (uint8_t i = 0; neighbors[i] != types::NULL_NODE && i < types::MAX_NEIGHBORS; ++i) {
+                                          auto neighbor = neighbors[i] + prev_nodes;
+                                          signatures[node_id].incrementLabelCount(labels[neighbor]);
+                                        }
+                                      }));
   });
   event.add(e);
   for (int step = 0; step < refinement_steps; step++) {
@@ -118,40 +128,35 @@ utils::BatchedEvent generateQuerySignatures(sycl::queue& queue,
       auto total_nodes = graphs.total_nodes;
       const uint16_t max_labels_count = mbsm::candidates::Signature<>::getMaxLabels();
 
-      cgh.parallel_for<mbsm::device::kernels::GenerateQuerySignaturesKernel<2>>(global_range, [=](sycl::item<1> item) {
-        auto node_id = item.get_id(0);
-
-        // Find the graph that the node belongs to
-        uint32_t graph_id = mbsm::utils::binarySearch(num_nodes, graphs.num_graphs, node_id);
-
-        // fetch the label, the adjacency matrix
-        mbsm::types::label_t node_label = labels[node_id];
-        mbsm::types::adjacency_t* adjacency_matrix = adjacency + graph_offsets[graph_id];
-
-        // Calculate the number of nodes in the previous graphs and the number of nodes in the current graph
-        size_t prev_nodes = graph_id ? num_nodes[graph_id - 1] : 0;
-        auto graph_size = num_nodes[graph_id] - prev_nodes;
-
-        // Calculate the number of adjacency integers required to store the adjacency matrix
-        uint8_t adjacency_integers = mbsm::utils::getNumOfAdjacencyIntegers(graph_size);
-
-        // Calculate the node index in the current graph
-        types::node_t node = node_id - prev_nodes;
-
-        // Get the neighbors of the current node
-        types::node_t neighbors[types::MAX_NEIGHBORS];
-        mbsm::utils::adjacency_matrix::getNeighbors(adjacency_matrix, adjacency_integers, node, neighbors);
-
-        // Initialize the signature for the current node
-        for (uint8_t i = 0; neighbors[i] != types::NULL_NODE && i < types::MAX_NEIGHBORS; ++i) {
-          auto neighbor = neighbors[i] + prev_nodes;
-          for (types::node_t l = 0; l < max_labels_count; l++) {
-            auto count = acc[neighbor].getLabelCount(l);
-            // if (l == node_label) { count -= 1; }
-            signatures[node_id].incrementLabelCount(l, count);
-          }
-        }
-      });
+      cgh.parallel_for<mbsm::device::kernels::GenerateQuerySignaturesKernel<2>>(
+          sycl::range<1>{graphs.total_nodes},
+          detail::IterateOverQueryNodes(adjacency,
+                                        labels,
+                                        graph_offsets,
+                                        num_nodes,
+                                        total_nodes,
+                                        graphs.num_graphs,
+                                        signatures,
+                                        acc,
+                                        [=](auto node_id,
+                                            auto graph_id,
+                                            auto node_label,
+                                            auto prev_nodes,
+                                            auto graph_size,
+                                            auto adjacency_integers,
+                                            auto node,
+                                            auto neighbors,
+                                            auto acc) {
+                                          // Initialize the signature for the current node
+                                          for (uint8_t i = 0; neighbors[i] != types::NULL_NODE && i < types::MAX_NEIGHBORS; ++i) {
+                                            auto neighbor = neighbors[i] + prev_nodes;
+                                            for (types::node_t l = 0; l < max_labels_count; l++) {
+                                              auto count = acc[neighbor].getLabelCount(l);
+                                              // if (l == node_label) { count -= 1; }
+                                              signatures[node_id].incrementLabelCount(l, count);
+                                            }
+                                          }
+                                        }));
     });
     event.add(e);
   }
