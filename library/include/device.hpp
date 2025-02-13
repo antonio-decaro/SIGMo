@@ -19,6 +19,7 @@ template<size_t Phase>
 class GenerateDataSignaturesKernel;
 
 class FilterCandidatesKernel;
+class RefineCandidatesKernel;
 
 } // namespace kernels
 } // namespace device

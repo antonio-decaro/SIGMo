@@ -239,29 +239,61 @@ utils::BatchedEvent filterCandidates(sycl::queue& queue,
   size_t total_data_nodes = data_graph.total_nodes;
   auto e = queue.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<mbsm::device::kernels::FilterCandidatesKernel>(
-        sycl::range<1>(total_query_nodes), [=, candidates = candidates](sycl::item<1> item) {
-          auto query_node_id = item.get_id(0);
-          auto query_signature = query_signatures[query_node_id];
+        sycl::range<1>(total_data_nodes), [=, candidates = candidates](sycl::item<1> item) {
+          auto data_node_id = item.get_id(0);
+          auto data_signature = data_signatures[data_node_id];
           auto query_labels = query_graph.labels;
           auto data_labels = data_graph.labels;
 
-          // if (query_labels[query_node_id] == static_cast<types::label_t>(1)) { // TODO optimize wildcard node filtering
-          //   for (size_t data_node_id = 0; data_node_id < total_data_nodes; ++data_node_id) { candidates.insert(query_node_id, data_node_id); }
-          // } else {
-          for (size_t data_node_id = 0; data_node_id < total_data_nodes; ++data_node_id) {
+          for (size_t query_node_id = 0; query_node_id < total_query_nodes; ++query_node_id) {
             if (query_labels[query_node_id] != data_labels[data_node_id]) { continue; }
-            auto data_signature = data_signatures[data_node_id];
+            auto query_signature = query_signatures[query_node_id];
 
             bool insert = true;
-            for (types::label_t l = 0; l < 16; l++) {
+            for (types::label_t l = 0; l < candidates::Signature<>::getMaxLabels(); l++) {
               insert &= query_signature.getLabelCount(l) <= data_signature.getLabelCount(l);
               if (!insert) break;
             }
-            if (insert) { candidates.insert(query_node_id, data_node_id); }
+            if (insert) { candidates.atomicInsert(query_node_id, data_node_id); }
           }
-          // }
         });
   });
+  utils::BatchedEvent be;
+  be.add(e);
+  return be;
+}
+utils::BatchedEvent refineCandidates(sycl::queue& queue,
+                                     mbsm::DeviceBatchedQueryGraph& query_graph,
+                                     mbsm::DeviceBatchedDataGraph& data_graph,
+                                     mbsm::candidates::Signature<>* query_signatures,
+                                     mbsm::candidates::Signature<>* data_signatures,
+                                     mbsm::candidates::Candidates& current_candidates,
+                                     mbsm::candidates::Candidates& previous_candidates) {
+  size_t total_query_nodes = query_graph.total_nodes;
+  size_t total_data_nodes = data_graph.total_nodes;
+  auto e = queue.submit([&](sycl::handler& cgh) {
+    cgh.parallel_for<mbsm::device::kernels::RefineCandidatesKernel>(
+        sycl::range<1>(total_data_nodes),
+        [=, previous_candidates = previous_candidates, current_candidates = current_candidates](sycl::item<1> item) {
+          auto data_node_id = item.get_id(0);
+          auto data_signature = data_signatures[data_node_id];
+          auto query_labels = query_graph.labels;
+          auto data_labels = data_graph.labels;
+
+          for (size_t query_node_id = 0; query_node_id < total_query_nodes; ++query_node_id) {
+            if (query_labels[query_node_id] != data_labels[data_node_id] || !previous_candidates.contains(query_node_id, data_node_id)) { continue; }
+            auto query_signature = query_signatures[query_node_id];
+
+            bool insert = true;
+            for (types::label_t l = 0; l < candidates::Signature<>::getMaxLabels(); l++) {
+              insert &= query_signature.getLabelCount(l) <= data_signature.getLabelCount(l);
+              if (!insert) break;
+            }
+            if (insert) { current_candidates.atomicInsert(query_node_id, data_node_id); }
+          }
+        });
+  });
+
   utils::BatchedEvent be;
   be.add(e);
   return be;

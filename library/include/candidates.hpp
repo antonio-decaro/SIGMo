@@ -66,6 +66,12 @@ struct Candidates {
     ref |= (static_cast<types::candidates_t>(1) << offset);
   }
 
+  SYCL_EXTERNAL bool contains(types::node_t query_node, types::node_t candidate) const {
+    types::candidates_t idx = candidate / num_bits;
+    types::candidates_t offset = candidate % num_bits;
+    return (candidates[query_node * this->single_node_size + idx] & (static_cast<types::candidates_t>(1) << offset)) != 0;
+  }
+
   SYCL_EXTERNAL void remove(types::node_t query_node, types::node_t candidate) const {
     types::candidates_t idx = candidate / num_bits;
     types::candidates_t offset = candidate % num_bits;
