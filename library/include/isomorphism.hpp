@@ -29,7 +29,6 @@ struct IterateOverQueryNodes {
         signatures(signatures), lambda(lambda), acc(acc) {}
   void operator()(sycl::item<1> item) const {
     auto node_id = item.get_id(0);
-
     // Find the graph that the node belongs to
     uint32_t graph_id = mbsm::utils::binarySearch(num_nodes, num_graphs, node_id);
 
@@ -227,61 +226,28 @@ utils::BatchedEvent generateDataSignatures(sycl::queue& queue,
   return event;
 }
 
-// TODO maybe invert the parallelization domain (data nodes in the outer loop) to improve memory access and reduce the number of iterations (requires
-// atomic operations on candidates)
 utils::BatchedEvent filterCandidates(sycl::queue& queue,
                                      mbsm::DeviceBatchedQueryGraph& query_graph,
                                      mbsm::DeviceBatchedDataGraph& data_graph,
                                      mbsm::candidates::Signature<>* query_signatures,
                                      mbsm::candidates::Signature<>* data_signatures,
-                                     mbsm::candidates::Candidates& candidates) {
-  size_t total_query_nodes = query_graph.total_nodes;
-  size_t total_data_nodes = data_graph.total_nodes;
-  auto e = queue.submit([&](sycl::handler& cgh) {
-    cgh.parallel_for<mbsm::device::kernels::FilterCandidatesKernel>(
-        sycl::range<1>(total_data_nodes), [=, candidates = candidates](sycl::item<1> item) {
-          auto data_node_id = item.get_id(0);
-          auto data_signature = data_signatures[data_node_id];
-          auto query_labels = query_graph.labels;
-          auto data_labels = data_graph.labels;
-
-          for (size_t query_node_id = 0; query_node_id < total_query_nodes; ++query_node_id) {
-            if (query_labels[query_node_id] != data_labels[data_node_id]) { continue; }
-            auto query_signature = query_signatures[query_node_id];
-
-            bool insert = true;
-            for (types::label_t l = 0; l < candidates::Signature<>::getMaxLabels(); l++) {
-              insert &= query_signature.getLabelCount(l) <= data_signature.getLabelCount(l);
-              if (!insert) break;
-            }
-            if (insert) { candidates.atomicInsert(query_node_id, data_node_id); }
-          }
-        });
-  });
-  utils::BatchedEvent be;
-  be.add(e);
-  return be;
-}
-utils::BatchedEvent refineCandidates(sycl::queue& queue,
-                                     mbsm::DeviceBatchedQueryGraph& query_graph,
-                                     mbsm::DeviceBatchedDataGraph& data_graph,
-                                     mbsm::candidates::Signature<>* query_signatures,
-                                     mbsm::candidates::Signature<>* data_signatures,
-                                     mbsm::candidates::Candidates& current_candidates,
-                                     mbsm::candidates::Candidates& previous_candidates) {
+                                     mbsm::candidates::Candidates current_candidates,
+                                     mbsm::candidates::Candidates previous_candidates = mbsm::candidates::Candidates()) {
   size_t total_query_nodes = query_graph.total_nodes;
   size_t total_data_nodes = data_graph.total_nodes;
   auto e = queue.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<mbsm::device::kernels::RefineCandidatesKernel>(
-        sycl::range<1>(total_data_nodes),
-        [=, previous_candidates = previous_candidates, current_candidates = current_candidates](sycl::item<1> item) {
+        sycl::range<1>(total_data_nodes), [=, current_candidates = current_candidates](sycl::item<1> item) {
           auto data_node_id = item.get_id(0);
           auto data_signature = data_signatures[data_node_id];
           auto query_labels = query_graph.labels;
           auto data_labels = data_graph.labels;
 
           for (size_t query_node_id = 0; query_node_id < total_query_nodes; ++query_node_id) {
-            if (query_labels[query_node_id] != data_labels[data_node_id] || !previous_candidates.contains(query_node_id, data_node_id)) { continue; }
+            if (query_labels[query_node_id] != data_labels[data_node_id]
+                || (previous_candidates.data_nodes > 0 && !previous_candidates.contains(query_node_id, data_node_id))) {
+              continue;
+            }
             auto query_signature = query_signatures[query_node_id];
 
             bool insert = true;

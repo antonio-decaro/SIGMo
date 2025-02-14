@@ -1,50 +1,6 @@
+#include "./arg_parse.hpp"
 #include <mbsm.hpp>
 #include <sycl/sycl.hpp>
-
-class Args {
-public:
-  std::string fname = "/home/adecaro/subgraph-iso-soa/data/MBSM/pool.bin";
-  bool print_candidates = false;
-  int refinement_steps = 1;
-
-
-  Args(int& argc, char**& argv) : _argc(argc), _argv(argv) {
-    for (size_t i = 1; i < argc; ++i) {
-      std::string arg = argv[i];
-      if (arg[0] == '-') {
-        arg = arg.substr(1);
-        parseOption(arg, i);
-      } else {
-        fname = argv[i];
-      }
-    }
-  }
-
-private:
-  int& _argc;
-  char**& _argv;
-  void printHelp() {
-    std::cout << "Usage: " << this->_argv[0] << " [options] [pool.bin]" << std::endl;
-    std::cout << "Options:" << std::endl;
-    std::cout << "  -p: Print the number of candidates for each query node" << std::endl;
-    std::cout << "  -i: Print the number of refined iterations. Default = 1" << std::endl;
-  }
-
-  void parseOption(std::string& arg, size_t& idx) {
-    if (arg == "p") {
-      print_candidates = true;
-    } else if (arg == "i") {
-      if (idx + 1 >= _argc) {
-        printHelp();
-        std::exit(1);
-      }
-      refinement_steps = std::stoi(_argv[++idx]);
-    } else {
-      printHelp();
-      std::exit(1);
-    }
-  }
-};
 
 struct CandidatesInspector {
   std::vector<size_t> candidates_sizes;
@@ -113,7 +69,7 @@ int main(int argc, char** argv) {
       filter_e = mbsm::isomorphism::filter::filterCandidates(
           queue, device_query_graph, device_data_graph, query_signatures, data_signatures, curr_candidates);
     } else {
-      filter_e = mbsm::isomorphism::filter::refineCandidates(
+      filter_e = mbsm::isomorphism::filter::filterCandidates(
           queue, device_query_graph, device_data_graph, query_signatures, data_signatures, curr_candidates, prev_candidates);
     }
     filter_e.wait();
@@ -137,10 +93,10 @@ int main(int argc, char** argv) {
   }
   inspector.finalize();
   std::cout << "Info:" << std::endl;
-  std::cout << "- Total candidates: " << inspector.total << std::endl;
-  std::cout << "- Average candidates: " << inspector.avg << std::endl;
-  std::cout << "- Median candidates: " << inspector.median << std::endl;
-  std::cout << "- Zero candidates: " << inspector.zero_count << std::endl;
+  std::cout << "- Total candidates: " << formatNumber(inspector.total) << std::endl;
+  std::cout << "- Average candidates: " << formatNumber(inspector.avg) << std::endl;
+  std::cout << "- Median candidates: " << formatNumber(inspector.median) << std::endl;
+  std::cout << "- Zero candidates: " << formatNumber(inspector.zero_count) << std::endl;
 
   sycl::free(prev_candidates.candidates, queue);
   sycl::free(curr_candidates.candidates, queue);

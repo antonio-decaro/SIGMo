@@ -45,6 +45,8 @@ struct Candidates {
   size_t data_nodes;
   size_t single_node_size;
 
+  Candidates() : query_nodes(0), data_nodes(0), single_node_size(0) {}
+
   Candidates(size_t query_nodes, size_t data_nodes)
       : query_nodes(query_nodes), data_nodes(data_nodes), single_node_size((data_nodes + (num_bits - 1)) / num_bits) {}
 
