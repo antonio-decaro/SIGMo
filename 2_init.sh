@@ -65,12 +65,12 @@ fi
 echo "Selected benchmarks: $benchmarks"
 
 # check if venv exists
-if [ ! -d "$SCRIPT_DIR/scripts/.venv" ]
+if [ ! -d "$SCRIPT_DIR/.venv" ]
 then
   echo "[*] Creating virtual environment..."
-  python3 -m venv $SCRIPT_DIR/scripts/.venv
-  source $SCRIPT_DIR/scripts/.venv/bin/activate
-  pip3 install -r $SCRIPT_DIR/scripts/requirements.txt
+  python3 -m venv $SCRIPT_DIR/.venv
+  source $SCRIPT_DIR/.venv/bin/activate
+  pip install -r $SCRIPT_DIR/scripts/requirements.txt
   deactivate
 fi
 
@@ -85,7 +85,7 @@ then
 fi
 
 # activate venv
-source $SCRIPT_DIR/scripts/.venv/bin/activate
+source $SCRIPT_DIR/.venv/bin/activate
 
 generate_files() {
   local bench=$1

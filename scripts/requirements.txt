@@ -3,3 +3,4 @@ networkx
 pandas
 pysmiles
 rdkit
+seaborn
