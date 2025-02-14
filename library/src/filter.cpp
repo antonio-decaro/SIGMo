@@ -30,8 +30,8 @@ int main(int argc, char** argv) {
 
   sycl::queue queue{sycl::gpu_selector_v, sycl::property::queue::enable_profiling{}};
 
-  auto device_query_graph = mbsm::createDeviceQueryGraph(queue, pool.getQueryGraphs());
-  auto device_data_graph = mbsm::createDeviceDataGraph(queue, pool.getDataGraphs());
+  auto device_query_graph = pool.transferQueryGraphsToDevice(queue);
+  auto device_data_graph = pool.transferDataGraphsToDevice(queue);
   size_t query_nodes = device_query_graph.total_nodes;
   size_t data_nodes = device_data_graph.total_nodes;
 

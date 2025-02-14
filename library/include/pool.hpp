@@ -20,33 +20,9 @@ public:
 
   std::vector<mbsm::QueryGraph>& getQueryGraphs() { return _query_graphs; }
 
-  void transferDataGraphsToDevice(sycl::queue& queue) {
-    for (auto& graph : _data_graphs) {
-      // TODO Implement transfer logic for DataGraph
-    }
-  }
+  DeviceBatchedDataGraph transferDataGraphsToDevice(sycl::queue& queue) { return createDeviceDataGraph(queue, _data_graphs); }
 
-  void transferQueryGraphsToDevice(sycl::queue& queue) {
-    for (auto& graph : _query_graphs) {
-      // TODO Implement transfer logic for QueryGraph
-    }
-  }
-
-  void transferDataGraphsToDeviceAsync(sycl::queue& queue, std::vector<sycl::event>& events) {
-    for (auto& graph : _data_graphs) {
-      // TODO Implement asynchronous transfer logic for DataGraph
-      sycl::event event; // Placeholder for actual event
-      events.push_back(event);
-    }
-  }
-
-  void transferQueryGraphsToDeviceAsync(sycl::queue& queue, std::vector<sycl::event>& events) {
-    for (auto& graph : _query_graphs) {
-      // TODO Implement asynchronous transfer logic for QueryGraph
-      sycl::event event; // Placeholder for actual event
-      events.push_back(event);
-    }
-  }
+  DeviceBatchedQueryGraph transferQueryGraphsToDevice(sycl::queue& queue) { return createDeviceQueryGraph(queue, _query_graphs); }
 
 private:
   std::vector<mbsm::DataGraph> _data_graphs;
