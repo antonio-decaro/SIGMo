@@ -15,13 +15,14 @@ git apply ../GSI.patch
 rm objs/*.o
 make
 
-echo "[*] Building EGSM"
-cd $SCRIPT_DIR/benchmarks/EGSM
-mkdir build
-cd build
-cmake ..
-make
+# echo "[*] Building EGSM"
+# cd $SCRIPT_DIR/benchmarks/EGSM
+# mkdir build
+# cd build
+# cmake ..
+# make
 
 echo "[*] Building CuTS"
 cd $SCRIPT_DIR/benchmarks/cuTS
 bash $SCRIPT_DIR/benchmarks/cuTS/build.sh 
+git apply ../cuTS.patch

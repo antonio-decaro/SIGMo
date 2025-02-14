@@ -9,6 +9,7 @@ if __name__ == '__main__':
     
   mol = sys.argv[1]
   g = smartsToGraph(mol)
+  g = g.to_directed()
   
   print(g.number_of_nodes())
   for a, b in g.edges():
