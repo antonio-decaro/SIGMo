@@ -4,10 +4,10 @@
 
 struct CandidatesInspector {
   std::vector<size_t> candidates_sizes;
-  size_t total;
-  size_t avg;
-  size_t median;
-  size_t zero_count;
+  size_t total = 0;
+  size_t avg = 0;
+  size_t median = 0;
+  size_t zero_count = 0;
 
   void add(size_t size) { candidates_sizes.push_back(size); }
 
