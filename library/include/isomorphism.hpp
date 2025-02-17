@@ -46,7 +46,7 @@ utils::BatchedEvent generateQuerySignatures(sycl::queue& queue, mbsm::DeviceBatc
       // Get the neighbors of the current node
       types::node_t neighbors[types::MAX_NEIGHBORS];
       mbsm::utils::adjacency_matrix::getNeighbors(adjacency_matrix, adjacency_integers, node, neighbors);
-      for (uint8_t i = 0; neighbors[i] != types::NULL_NODE && i < types::MAX_NEIGHBORS; ++i) {
+      for (types::node_t i = 0; neighbors[i] != types::NULL_NODE && i < types::MAX_NEIGHBORS; ++i) {
         auto neighbor = neighbors[i] + prev_nodes;
         signatures[node_id].incrementLabelCount(labels[neighbor]);
       }
@@ -102,9 +102,9 @@ utils::BatchedEvent refineQuerySignatures(sycl::queue& queue,
       // Get the neighbors of the current node
       types::node_t neighbors[types::MAX_NEIGHBORS];
       mbsm::utils::adjacency_matrix::getNeighbors(adjacency_matrix, adjacency_integers, node, neighbors);
-      for (uint8_t i = 0; neighbors[i] != types::NULL_NODE && i < types::MAX_NEIGHBORS; ++i) {
+      for (types::node_t i = 0; neighbors[i] != types::NULL_NODE && i < types::MAX_NEIGHBORS; ++i) {
         auto neighbor = neighbors[i] + prev_nodes;
-        for (types::node_t l = 0; l < max_labels_count; l++) {
+        for (types::label_t l = 0; l < max_labels_count; l++) {
           auto count = tmp_buff[neighbor].getLabelCount(l);
           if (l == node_label) { count -= 1; }
           if (count > 0) signatures[node_id].incrementLabelCount(l, count);
@@ -203,7 +203,7 @@ utils::BatchedEvent filterCandidates(sycl::queue& queue,
 
         bool insert = true;
         for (types::label_t l = 0; l < candidates::Signature<>::getMaxLabels(); l++) {
-          insert &= query_signature.getLabelCount(l) <= data_signature.getLabelCount(l);
+          insert = insert && (query_signature.getLabelCount(l) <= data_signature.getLabelCount(l));
           if (!insert) break;
         }
         if (insert) { candidates.atomicInsert(query_node_id, data_node_id); }

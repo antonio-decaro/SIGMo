@@ -2,6 +2,7 @@
 #include "./arg_parse.hpp"
 #include <mbsm.hpp>
 #include <sycl/sycl.hpp>
+
 struct CandidatesInspector {
   std::vector<size_t> candidates_sizes;
   size_t total = 0;
@@ -26,12 +27,21 @@ struct CandidatesInspector {
 int main(int argc, char** argv) {
   Args args{argc, argv};
 
-  auto pool = mbsm::io::loadPoolFromBinary(args.fname);
-
+  mbsm::DeviceBatchedDataGraph device_data_graph;
+  mbsm::DeviceBatchedQueryGraph device_query_graph;
   sycl::queue queue{sycl::gpu_selector_v, sycl::property::queue::enable_profiling{}};
 
-  auto device_query_graph = pool.transferQueryGraphsToDevice(queue);
-  auto device_data_graph = pool.transferDataGraphsToDevice(queue);
+  if (args.query_data) {
+    auto query_graphs = mbsm::io::loadQueryGraphsFromFile(args.query_file);
+    auto data_graphs = mbsm::io::loadDataGraphsFromFile(args.data_file);
+    device_query_graph = mbsm::createDeviceQueryGraph(queue, query_graphs);
+    device_data_graph = mbsm::createDeviceDataGraph(queue, data_graphs);
+  } else {
+    auto pool = mbsm::io::loadPoolFromBinary(args.fname);
+    device_query_graph = pool.transferQueryGraphsToDevice(queue);
+    device_data_graph = pool.transferDataGraphsToDevice(queue);
+  }
+
   size_t query_nodes = device_query_graph.total_nodes;
   size_t data_nodes = device_data_graph.total_nodes;
 
@@ -39,8 +49,7 @@ int main(int argc, char** argv) {
 
   mbsm::candidates::Candidates candidates{query_nodes, data_nodes};
   candidates.candidates = sycl::malloc_shared<mbsm::types::candidates_t>(candidates.getAllocationSize(), queue);
-  queue.fill(candidates.candidates, 0, candidates.getAllocationSize());
-  queue.wait_and_throw();
+  queue.fill(candidates.candidates, 0, candidates.getAllocationSize()).wait();
   std::cout << "Candidates allocated and initialized" << std::endl;
 
   mbsm::candidates::Signature<>* data_signatures = sycl::malloc_shared<mbsm::candidates::Signature<>>(data_nodes, queue);
@@ -82,9 +91,6 @@ int main(int argc, char** argv) {
     queue.wait_and_throw();
     time = e2.getProfilingInfo();
     std::cout << "Query signatures refined in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
-
-    auto expected_query_sig = getExpectedQuerySignatures("/home/adecaro/subgraph-iso-soa/data/MBSM/query.dat", ref_step + 1);
-    for (size_t i = 0; i < query_nodes; ++i) { assert(query_signatures[i].signature == expected_query_sig[i].signature); }
 
     auto e3
         = mbsm::isomorphism::filter::refineCandidates(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, candidates);

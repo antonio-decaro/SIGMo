@@ -13,6 +13,9 @@ public:
   bool print_candidates = false;
   int refinement_steps = 1;
   bool validate = false;
+  bool query_data = false;
+  std::string query_file;
+  std::string data_file;
 
 
   Args(int& argc, char**& argv) : _argc(argc), _argv(argv) {
@@ -35,6 +38,7 @@ private:
     std::cout << "Options:" << std::endl;
     std::cout << "  -p: Print the number of candidates for each query node" << std::endl;
     std::cout << "  -i: Print the number of refined iterations. Default = 1" << std::endl;
+    std::cout << "  -qd: Define the query file and the data file to read" << std::endl;
   }
 
   void parseOption(std::string& arg, size_t& idx) {
@@ -48,6 +52,14 @@ private:
       refinement_steps = std::stoi(_argv[++idx]);
     } else if (arg == "v") {
       validate = true;
+    } else if (arg == "qd") {
+      if (idx + 2 >= _argc) {
+        printHelp();
+        std::exit(1);
+      }
+      query_data = true;
+      query_file = _argv[++idx];
+      data_file = _argv[++idx];
     } else {
       printHelp();
       std::exit(1);
