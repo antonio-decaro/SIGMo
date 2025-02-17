@@ -74,6 +74,14 @@ struct Candidates {
     return (candidates[query_node * this->single_node_size + idx] & (static_cast<types::candidates_t>(1) << offset)) != 0;
   }
 
+  SYCL_EXTERNAL bool atomicContains(types::node_t query_node, types::node_t candidate) const {
+    types::candidates_t idx = candidate / num_bits;
+    types::candidates_t offset = candidate % num_bits;
+    sycl::atomic_ref<types::candidates_t, sycl::memory_order::relaxed, sycl::memory_scope::device> ref{
+        candidates[query_node * this->single_node_size + idx]};
+    return (ref & (static_cast<types::candidates_t>(1) << offset)) != 0;
+  }
+
   SYCL_EXTERNAL void remove(types::node_t query_node, types::node_t candidate) const {
     types::candidates_t idx = candidate / num_bits;
     types::candidates_t offset = candidate % num_bits;
@@ -88,7 +96,7 @@ struct Candidates {
     ref &= ~(static_cast<types::candidates_t>(1) << offset);
   }
 
-  SYCL_EXTERNAL uint32_t getCandidatesCount(types::node_t query_node, size_t data_nodes) const {
+  SYCL_EXTERNAL uint32_t getCandidatesCount(types::node_t query_node) const {
     uint32_t count = 0;
     for (size_t i = 0; i < single_node_size; ++i) { count += sycl::popcount(candidates[query_node * single_node_size + i]); }
     return count;

@@ -12,165 +12,116 @@ namespace mbsm {
 namespace isomorphism {
 namespace filter {
 
-namespace detail {
-
-template<typename LambdaT, typename AccessorT>
-struct IterateOverQueryNodes {
-  IterateOverQueryNodes(types::adjacency_t* adjacency,
-                        types::label_t* labels,
-                        uint32_t* graph_offsets,
-                        types::node_t* num_nodes,
-                        size_t total_nodes,
-                        size_t num_graphs,
-                        mbsm::candidates::Signature<>* signatures,
-                        AccessorT acc,
-                        LambdaT lambda)
-      : adjacency(adjacency), labels(labels), graph_offsets(graph_offsets), num_nodes(num_nodes), num_graphs(num_graphs), total_nodes(total_nodes),
-        signatures(signatures), lambda(lambda), acc(acc) {}
-  void operator()(sycl::item<1> item) const {
-    auto node_id = item.get_id(0);
-    // Find the graph that the node belongs to
-    uint32_t graph_id = mbsm::utils::binarySearch(num_nodes, num_graphs, node_id);
-
-    // fetch the label, the adjacency matrix
-    mbsm::types::label_t node_label = labels[node_id];
-    mbsm::types::adjacency_t* adjacency_matrix = adjacency + graph_offsets[graph_id];
-
-    // Calculate the number of nodes in the previous graphs and the number of nodes in the current graph
-    size_t prev_nodes = graph_id ? num_nodes[graph_id - 1] : 0;
-    auto graph_size = num_nodes[graph_id] - prev_nodes;
-
-    // Calculate the number of adjacency integers required to store the adjacency matrix
-    uint8_t adjacency_integers = mbsm::utils::getNumOfAdjacencyIntegers(graph_size);
-
-    // Calculate the node index in the current graph
-    types::node_t node = node_id - prev_nodes;
-
-    // Get the neighbors of the current node
-    types::node_t neighbors[types::MAX_NEIGHBORS];
-    mbsm::utils::adjacency_matrix::getNeighbors(adjacency_matrix, adjacency_integers, node, neighbors);
-
-    lambda(node_id, graph_id, node_label, prev_nodes, graph_size, adjacency_integers, node, neighbors, acc);
-  }
-  types::adjacency_t* adjacency;
-  types::label_t* labels;
-  uint32_t* graph_offsets;
-  types::node_t* num_nodes;
-  size_t total_nodes;
-  size_t num_graphs;
-  mbsm::candidates::Signature<>* signatures;
-  LambdaT lambda;
-  AccessorT acc;
-};
-
-} // namespace detail
-
 // TODO consider to use the shared memory to store the graph to avoid uncoallesced memory access
-utils::BatchedEvent generateQuerySignatures(sycl::queue& queue,
-                                            mbsm::DeviceBatchedQueryGraph& graphs,
-                                            mbsm::candidates::Signature<>* signatures,
-                                            size_t refinement_steps = 1) {
+utils::BatchedEvent generateQuerySignatures(sycl::queue& queue, mbsm::DeviceBatchedQueryGraph& graphs, mbsm::candidates::Signature<>* signatures) {
   utils::BatchedEvent event;
-  sycl::event e;
   sycl::range<1> global_range(graphs.total_nodes);
-  sycl::buffer<mbsm::candidates::Signature<>, 1> buffer(sycl::range{global_range});
-  e = queue.submit([&](sycl::handler& cgh) {
+  auto e = queue.submit([&](sycl::handler& cgh) {
     auto* adjacency = graphs.adjacency;
     auto* labels = graphs.labels;
     auto* graph_offsets = graphs.graph_offsets;
     auto* num_nodes = graphs.num_nodes;
+    auto num_graphs = graphs.num_graphs;
     auto total_nodes = graphs.total_nodes;
-    sycl::accessor acc(buffer, cgh, sycl::no_init);
 
-    cgh.parallel_for<mbsm::device::kernels::GenerateQuerySignaturesKernel<1>>(
-        sycl::range<1>{graphs.total_nodes},
-        detail::IterateOverQueryNodes(adjacency,
-                                      labels,
-                                      graph_offsets,
-                                      num_nodes,
-                                      total_nodes,
-                                      graphs.num_graphs,
-                                      signatures,
-                                      acc,
-                                      [=](auto node_id,
-                                          auto graph_id,
-                                          auto node_label,
-                                          auto prev_nodes,
-                                          auto graph_size,
-                                          auto adjacency_integers,
-                                          auto node,
-                                          auto neighbors,
-                                          auto acc) {
-                                        // Initialize the signature for the current node
-                                        for (uint8_t i = 0; neighbors[i] != types::NULL_NODE && i < types::MAX_NEIGHBORS; ++i) {
-                                          auto neighbor = neighbors[i] + prev_nodes;
-                                          signatures[node_id].incrementLabelCount(labels[neighbor]);
-                                        }
-                                      }));
+    cgh.parallel_for<mbsm::device::kernels::GenerateQuerySignaturesKernel<1>>(sycl::range<1>{graphs.total_nodes}, [=](sycl::item<1> item) {
+      auto node_id = item.get_id(0);
+      // Find the graph that the node belongs to
+      uint32_t graph_id = mbsm::utils::binarySearch(num_nodes, num_graphs, node_id);
+
+      // fetch the label, the adjacency matrix
+      mbsm::types::label_t node_label = labels[node_id];
+      mbsm::types::adjacency_t* adjacency_matrix = adjacency + graph_offsets[graph_id];
+
+      // Calculate the number of nodes in the previous graphs and the number of nodes in the current graph
+      size_t prev_nodes = graph_id ? num_nodes[graph_id - 1] : 0;
+      auto graph_size = num_nodes[graph_id] - prev_nodes;
+
+      // Calculate the number of adjacency integers required to store the adjacency matrix
+      uint8_t adjacency_integers = mbsm::utils::getNumOfAdjacencyIntegers(graph_size);
+
+      // Calculate the node index in the current graph
+      types::node_t node = node_id - prev_nodes;
+
+      // Get the neighbors of the current node
+      types::node_t neighbors[types::MAX_NEIGHBORS];
+      mbsm::utils::adjacency_matrix::getNeighbors(adjacency_matrix, adjacency_integers, node, neighbors);
+      for (uint8_t i = 0; neighbors[i] != types::NULL_NODE && i < types::MAX_NEIGHBORS; ++i) {
+        auto neighbor = neighbors[i] + prev_nodes;
+        signatures[node_id].incrementLabelCount(labels[neighbor]);
+      }
+    });
   });
   event.add(e);
-  for (int step = 0; step < refinement_steps; step++) {
-    e = queue.submit([&](sycl::handler& cgh) {
-      cgh.depends_on(event.getLastEvent());
-      sycl::accessor acc(buffer, cgh, sycl::write_only);
 
-      cgh.parallel_for(sycl::range<1>(graphs.total_nodes), [=](sycl::item<1> item) { acc[item] = signatures[item]; });
-    });
-    event.add(e);
-    e = queue.submit([&](sycl::handler& cgh) {
-      cgh.depends_on(event.getLastEvent());
-      sycl::accessor acc(buffer, cgh, sycl::read_only);
-      auto* adjacency = graphs.adjacency;
-      auto* labels = graphs.labels;
-      auto* graph_offsets = graphs.graph_offsets;
-      auto* num_nodes = graphs.num_nodes;
-      auto total_nodes = graphs.total_nodes;
-      const uint16_t max_labels_count = mbsm::candidates::Signature<>::getMaxLabels();
-
-      cgh.parallel_for<mbsm::device::kernels::GenerateQuerySignaturesKernel<2>>(
-          sycl::range<1>{graphs.total_nodes},
-          detail::IterateOverQueryNodes(adjacency,
-                                        labels,
-                                        graph_offsets,
-                                        num_nodes,
-                                        total_nodes,
-                                        graphs.num_graphs,
-                                        signatures,
-                                        acc,
-                                        [=](auto node_id,
-                                            auto graph_id,
-                                            auto node_label,
-                                            auto prev_nodes,
-                                            auto graph_size,
-                                            auto adjacency_integers,
-                                            auto node,
-                                            auto neighbors,
-                                            auto acc) {
-                                          // Initialize the signature for the current node
-                                          for (uint8_t i = 0; neighbors[i] != types::NULL_NODE && i < types::MAX_NEIGHBORS; ++i) {
-                                            auto neighbor = neighbors[i] + prev_nodes;
-                                            for (types::node_t l = 0; l < max_labels_count; l++) {
-                                              auto count = acc[neighbor].getLabelCount(l);
-                                              // if (l == node_label) { count -= 1; }
-                                              signatures[node_id].incrementLabelCount(l, count);
-                                            }
-                                          }
-                                        }));
-    });
-    event.add(e);
-  }
   return event;
 }
 
-utils::BatchedEvent generateDataSignatures(sycl::queue& queue,
-                                           mbsm::DeviceBatchedDataGraph& graphs,
-                                           mbsm::candidates::Signature<>* signatures,
-                                           size_t refinement_steps = 1) {
+utils::BatchedEvent refineQuerySignatures(sycl::queue& queue,
+                                          mbsm::DeviceBatchedQueryGraph& graphs,
+                                          mbsm::candidates::Signature<>* signatures,
+                                          mbsm::candidates::Signature<>* tmp_buff) {
   utils::BatchedEvent event;
-  sycl::event e;
+  sycl::range<1> global_range(graphs.total_nodes);
+
+  auto copy_event = queue.submit([&](sycl::handler& cgh) {
+    cgh.parallel_for(sycl::range<1>(graphs.total_nodes), [=](sycl::item<1> item) { tmp_buff[item] = signatures[item]; });
+  });
+  event.add(copy_event);
+  copy_event.wait();
+
+  auto refinement_event = queue.submit([&](sycl::handler& cgh) {
+    cgh.depends_on(copy_event);
+    auto* adjacency = graphs.adjacency;
+    auto* labels = graphs.labels;
+    auto* graph_offsets = graphs.graph_offsets;
+    auto* num_nodes = graphs.num_nodes;
+    auto num_graphs = graphs.num_graphs;
+    auto total_nodes = graphs.total_nodes;
+    const uint16_t max_labels_count = mbsm::candidates::Signature<>::getMaxLabels();
+
+    cgh.parallel_for<mbsm::device::kernels::GenerateQuerySignaturesKernel<2>>(sycl::range<1>{graphs.total_nodes}, [=](sycl::item<1> item) {
+      auto node_id = item.get_id(0);
+      // Find the graph that the node belongs to
+      uint32_t graph_id = mbsm::utils::binarySearch(num_nodes, num_graphs, node_id);
+
+      // fetch the label, the adjacency matrix
+      mbsm::types::label_t node_label = labels[node_id];
+      mbsm::types::adjacency_t* adjacency_matrix = adjacency + graph_offsets[graph_id];
+
+      // Calculate the number of nodes in the previous graphs and the number of nodes in the current graph
+      size_t prev_nodes = graph_id ? num_nodes[graph_id - 1] : 0;
+      auto graph_size = num_nodes[graph_id] - prev_nodes;
+
+      // Calculate the number of adjacency integers required to store the adjacency matrix
+      uint8_t adjacency_integers = mbsm::utils::getNumOfAdjacencyIntegers(graph_size);
+
+      // Calculate the node index in the current graph
+      types::node_t node = node_id - prev_nodes;
+
+      // Get the neighbors of the current node
+      types::node_t neighbors[types::MAX_NEIGHBORS];
+      mbsm::utils::adjacency_matrix::getNeighbors(adjacency_matrix, adjacency_integers, node, neighbors);
+      for (uint8_t i = 0; neighbors[i] != types::NULL_NODE && i < types::MAX_NEIGHBORS; ++i) {
+        auto neighbor = neighbors[i] + prev_nodes;
+        for (types::node_t l = 0; l < max_labels_count; l++) {
+          auto count = tmp_buff[neighbor].getLabelCount(l);
+          if (l == node_label) { count -= 1; }
+          if (count > 0) signatures[node_id].incrementLabelCount(l, count);
+        }
+      }
+    });
+  });
+  event.add(refinement_event);
+
+  return event;
+};
+
+utils::BatchedEvent generateDataSignatures(sycl::queue& queue, mbsm::DeviceBatchedDataGraph& graphs, mbsm::candidates::Signature<>* signatures) {
+  utils::BatchedEvent event;
   sycl::range<1> global_range(graphs.total_nodes);
   sycl::buffer<mbsm::candidates::Signature<>, 1> buffer(sycl::range{global_range});
-  e = queue.submit([&](sycl::handler& cgh) {
+  auto e = queue.submit([&](sycl::handler& cgh) {
     auto* row_offsets = graphs.row_offsets;
     auto* column_indices = graphs.column_indices;
     auto* labels = graphs.labels;
@@ -188,41 +139,46 @@ utils::BatchedEvent generateDataSignatures(sycl::queue& queue,
       }
     });
   });
-  for (int step = 0; step < refinement_steps; step++) {
-    event.add(e);
-    e = queue.submit([&](sycl::handler& cgh) {
-      cgh.depends_on(event.getLastEvent());
-      sycl::accessor acc(buffer, cgh, sycl::write_only);
+  event.add(e);
 
-      cgh.parallel_for(sycl::range<1>(graphs.total_nodes), [=](sycl::item<1> item) { acc[item] = signatures[item]; });
-    });
-    event.add(e);
-    e = queue.submit([&](sycl::handler& cgh) {
-      cgh.depends_on(event.getLastEvent());
-      auto* row_offsets = graphs.row_offsets;
-      auto* column_indices = graphs.column_indices;
-      auto* labels = graphs.labels;
-      sycl::accessor acc(buffer, cgh, sycl::read_only);
+  return event;
+}
 
-      cgh.parallel_for<mbsm::device::kernels::GenerateDataSignaturesKernel<2>>(global_range, [=](sycl::item<1> item) {
-        auto node_id = item.get_id(0);
+utils::BatchedEvent refineDataSignatures(sycl::queue& queue,
+                                         mbsm::DeviceBatchedDataGraph& graphs,
+                                         mbsm::candidates::Signature<>* signatures,
+                                         mbsm::candidates::Signature<>* tmp_buff) {
+  utils::BatchedEvent event;
+  sycl::range<1> global_range(graphs.total_nodes);
 
-        uint32_t start_neighbor = row_offsets[node_id];
-        uint32_t end_neighbor = row_offsets[node_id + 1];
-        mbsm::types::label_t node_label = labels[node_id];
+  auto copy_event = queue.submit([&](sycl::handler& cgh) {
+    cgh.parallel_for(sycl::range<1>(graphs.total_nodes), [=](sycl::item<1> item) { tmp_buff[item] = signatures[item]; });
+  });
+  event.add(copy_event);
+  auto refine_event = queue.submit([&](sycl::handler& cgh) {
+    cgh.depends_on(copy_event);
+    auto* row_offsets = graphs.row_offsets;
+    auto* column_indices = graphs.column_indices;
+    auto* labels = graphs.labels;
 
-        for (uint32_t i = start_neighbor; i < end_neighbor; ++i) {
-          auto neighbor = column_indices[i];
-          for (types::label_t l = 0; l < candidates::Signature<>::getMaxLabels(); l++) {
-            auto count = acc[neighbor].getLabelCount(l);
-            if (l == node_label) { count -= 1; }
-            if (count > 0) signatures[node_id].incrementLabelCount(l, count);
-          }
+    cgh.parallel_for<mbsm::device::kernels::GenerateDataSignaturesKernel<2>>(global_range, [=](sycl::item<1> item) {
+      auto node_id = item.get_id(0);
+
+      uint32_t start_neighbor = row_offsets[node_id];
+      uint32_t end_neighbor = row_offsets[node_id + 1];
+      mbsm::types::label_t node_label = labels[node_id];
+
+      for (uint32_t i = start_neighbor; i < end_neighbor; ++i) {
+        auto neighbor = column_indices[i];
+        for (types::label_t l = 0; l < candidates::Signature<>::getMaxLabels(); l++) {
+          auto count = tmp_buff[neighbor].getLabelCount(l);
+          if (l == node_label) { count -= 1; }
+          if (count > 0) signatures[node_id].incrementLabelCount(l, count);
         }
-      });
+      }
     });
-    event.add(e);
-  }
+  });
+  event.add(refine_event);
   return event;
 }
 
@@ -266,11 +222,9 @@ utils::BatchedEvent refineCandidates(sycl::queue& queue,
                                      mbsm::candidates::Signature<>* query_signatures,
                                      mbsm::candidates::Signature<>* data_signatures,
                                      mbsm::candidates::Candidates candidates) {
-  utils::BatchedEvent be;
   size_t total_query_nodes = query_graph.total_nodes;
   size_t total_data_nodes = data_graph.total_nodes;
   auto e = queue.submit([&](sycl::handler& cgh) {
-    if (be.numEvents()) { cgh.depends_on(be.getLastEvent()); }
     cgh.parallel_for<mbsm::device::kernels::RefineCandidatesKernel>(sycl::range<1>(total_data_nodes), [=](sycl::item<1> item) {
       auto data_node_id = item.get_id(0);
       auto data_signature = data_signatures[data_node_id];
@@ -278,18 +232,19 @@ utils::BatchedEvent refineCandidates(sycl::queue& queue,
       auto data_labels = data_graph.labels;
 
       for (size_t query_node_id = 0; query_node_id < total_query_nodes; ++query_node_id) {
-        if (!candidates.contains(query_node_id, data_node_id)) { continue; }
+        if (!candidates.atomicContains(query_node_id, data_node_id)) { continue; }
         auto query_signature = query_signatures[query_node_id];
 
-        bool keep = query_labels[query_node_id] == data_labels[data_node_id];
+        bool keep = data_labels[data_node_id] == query_labels[query_node_id];
         for (types::label_t l = 0; l < candidates::Signature<>::getMaxLabels() && keep; l++) {
-          keep &= query_signature.getLabelCount(l) <= data_signature.getLabelCount(l);
+          keep = keep && (query_signature.getLabelCount(l) <= data_signature.getLabelCount(l));
         }
         if (!keep) { candidates.atomicRemove(query_node_id, data_node_id); }
       }
     });
   });
 
+  utils::BatchedEvent be;
   be.add(e);
   return be;
 }

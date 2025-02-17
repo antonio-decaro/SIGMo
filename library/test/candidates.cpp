@@ -39,12 +39,38 @@ TEST(SignatureTest, CheckQuerySignatureGeneration) {
 
   e.wait();
 
-  auto expected_query_signatures = getExpectedQuerySignatures(TEST_QUERY_PATH);
+  auto expected_query_signatures = getExpectedQuerySignatures(TEST_QUERY_PATH, 0);
 
   for (size_t i = 0; i < device_query_graph.total_nodes; ++i) { ASSERT_EQ(signatures[i].signature, expected_query_signatures[i].signature); }
 
   sycl::free(signatures, queue);
 }
+
+TEST(SignatureTest, RefineQuerySignature) {
+  sycl::queue queue{sycl::gpu_selector_v};
+
+  auto query_graphs = mbsm::io::loadQueryGraphsFromFile(TEST_QUERY_PATH);
+
+  auto device_query_graph = mbsm::createDeviceQueryGraph(queue, query_graphs);
+
+  mbsm::candidates::Signature<>* signatures = sycl::malloc_shared<mbsm::candidates::Signature<>>(device_query_graph.total_nodes, queue);
+  mbsm::candidates::Signature<>* tmp = sycl::malloc_shared<mbsm::candidates::Signature<>>(device_query_graph.total_nodes, queue);
+
+  auto e = mbsm::isomorphism::filter::generateQuerySignatures(queue, device_query_graph, signatures);
+  e.wait();
+
+  for (int i = 0; i < 10; i++) {
+    e = mbsm::isomorphism::filter::refineQuerySignatures(queue, device_query_graph, signatures, tmp);
+    e.wait();
+    auto expected_query_signatures = getExpectedQuerySignatures(TEST_QUERY_PATH, i + 1);
+    for (size_t i = 0; i < device_query_graph.total_nodes; ++i) { ASSERT_EQ(signatures[i].signature, expected_query_signatures[i].signature); }
+  }
+
+
+  sycl::free(signatures, queue);
+  sycl::free(tmp, queue);
+}
+
 
 TEST(SignatureTest, CheckDataSignatureGeneration) {
   sycl::queue queue{sycl::gpu_selector_v};
@@ -59,11 +85,36 @@ TEST(SignatureTest, CheckDataSignatureGeneration) {
 
   e.wait();
 
-  auto expected_data_signatures = getExpectedDataSignatures(TEST_DATA_PATH);
+  auto expected_data_signatures = getExpectedDataSignatures(TEST_DATA_PATH, 0);
 
   for (size_t i = 0; i < device_data_graph.total_nodes; ++i) { ASSERT_EQ(signatures[i].signature, expected_data_signatures[i].signature); }
 
   sycl::free(signatures, queue);
+}
+
+TEST(SignatureTest, RefineDataSignature) {
+  sycl::queue queue{sycl::gpu_selector_v};
+
+  auto data_graphs = mbsm::io::loadDataGraphsFromFile(TEST_DATA_PATH);
+
+  auto device_data_graph = mbsm::createDeviceDataGraph(queue, data_graphs);
+
+  mbsm::candidates::Signature<>* signatures = sycl::malloc_shared<mbsm::candidates::Signature<>>(device_data_graph.total_nodes, queue);
+  mbsm::candidates::Signature<>* tmp = sycl::malloc_shared<mbsm::candidates::Signature<>>(device_data_graph.total_nodes, queue);
+
+  auto e = mbsm::isomorphism::filter::generateDataSignatures(queue, device_data_graph, signatures);
+  e.wait();
+
+  for (int i = 0; i < 10; i++) {
+    e = mbsm::isomorphism::filter::refineDataSignatures(queue, device_data_graph, signatures, tmp);
+    e.wait();
+    auto expected_data_signatures = getExpectedDataSignatures(TEST_DATA_PATH, i + 1);
+    for (size_t i = 0; i < device_data_graph.total_nodes; ++i) { ASSERT_EQ(signatures[i].signature, expected_data_signatures[i].signature); }
+  }
+
+
+  sycl::free(signatures, queue);
+  sycl::free(tmp, queue);
 }
 
 TEST(CandidateTest, CheckInsertAndRemove) {
@@ -79,12 +130,12 @@ TEST(CandidateTest, CheckInsertAndRemove) {
 
   ASSERT_EQ(candidates.candidates[0], 0b0000000000000000000000000000000110000000000000000000000000000001u);
   ASSERT_EQ(candidates.candidates[1], 0b0001000000000000000000000000000000000000000000000000000000000000u);
-  ASSERT_EQ(candidates.getCandidatesCount(0, num_nodes), 4);
+  ASSERT_EQ(candidates.getCandidatesCount(0), 4);
 
   candidates.remove(0, 32);
   ASSERT_EQ(candidates.candidates[0], 0b0000000000000000000000000000000010000000000000000000000000000001u);
 
-  ASSERT_EQ(candidates.getCandidatesCount(0, num_nodes), 3);
+  ASSERT_EQ(candidates.getCandidatesCount(0), 3);
 
   candidates.insert(1, 0);
   ASSERT_EQ(candidates.candidates[2], 0b0000000000000000000000000000000000000000000000000000000000000001u);

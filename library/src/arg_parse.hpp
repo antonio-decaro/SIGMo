@@ -12,6 +12,7 @@ public:
   std::string fname = "/home/adecaro/subgraph-iso-soa/data/MBSM/pool.bin";
   bool print_candidates = false;
   int refinement_steps = 1;
+  bool validate = false;
 
 
   Args(int& argc, char**& argv) : _argc(argc), _argv(argv) {
@@ -45,6 +46,8 @@ private:
         std::exit(1);
       }
       refinement_steps = std::stoi(_argv[++idx]);
+    } else if (arg == "v") {
+      validate = true;
     } else {
       printHelp();
       std::exit(1);

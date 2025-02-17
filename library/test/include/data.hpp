@@ -261,7 +261,7 @@ std::vector<mbsm::candidates::Signature<>> getExpectedQuerySignatures(std::strin
           auto neighbor = neighbors[j];
           for (int l = 0; l < mbsm::candidates::Signature<>::getMaxLabels(); ++l) {
             auto count = db_signatures[offset + neighbor].getLabelCount(l);
-            // if (l == graph.getLabels()[i]) { count -= 1; }
+            if (l == graph.getLabels()[i]) { count -= 1; }
             signatures[offset + i].incrementLabelCount(l, count);
           }
         }

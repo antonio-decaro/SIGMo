@@ -18,8 +18,8 @@ TEST(FilterTest, SingleFilter) {
   mbsm::candidates::Signature<>* query_signatures = sycl::malloc_shared<mbsm::candidates::Signature<>>(device_query_graph.total_nodes, queue);
   mbsm::candidates::Signature<>* data_signatures = sycl::malloc_shared<mbsm::candidates::Signature<>>(device_data_graph.total_nodes, queue);
 
-  auto e1 = mbsm::isomorphism::filter::generateQuerySignatures(queue, device_query_graph, query_signatures, 0);
-  auto e2 = mbsm::isomorphism::filter::generateDataSignatures(queue, device_data_graph, data_signatures, 0);
+  auto e1 = mbsm::isomorphism::filter::generateQuerySignatures(queue, device_query_graph, query_signatures);
+  auto e2 = mbsm::isomorphism::filter::generateDataSignatures(queue, device_data_graph, data_signatures);
 
   queue.wait();
 
@@ -75,26 +75,21 @@ TEST(FilterTest, RefinementTest) {
 
   mbsm::candidates::Signature<>* query_signatures = sycl::malloc_shared<mbsm::candidates::Signature<>>(device_query_graph.total_nodes, queue);
   mbsm::candidates::Signature<>* data_signatures = sycl::malloc_shared<mbsm::candidates::Signature<>>(device_data_graph.total_nodes, queue);
+  mbsm::candidates::Signature<>* tmp_buff
+      = sycl::malloc_shared<mbsm::candidates::Signature<>>(std::max(device_data_graph.total_nodes, device_query_graph.total_nodes), queue);
 
-  auto e1 = mbsm::isomorphism::filter::generateQuerySignatures(queue, device_query_graph, query_signatures, 0);
-  auto e2 = mbsm::isomorphism::filter::generateDataSignatures(queue, device_data_graph, data_signatures, 0);
+  mbsm::isomorphism::filter::generateQuerySignatures(queue, device_query_graph, query_signatures).wait();
+  mbsm::isomorphism::filter::generateDataSignatures(queue, device_data_graph, data_signatures).wait();
 
-  queue.wait();
 
   mbsm::candidates::Candidates candidates{device_query_graph.total_nodes, device_data_graph.total_nodes};
   candidates.candidates = sycl::malloc_shared<mbsm::types::candidates_t>(candidates.getAllocationSize(), queue);
-  queue.fill(candidates.candidates, 0, candidates.getAllocationSize());
-  queue.wait();
+  queue.fill(candidates.candidates, 0, candidates.getAllocationSize()).wait();
 
   mbsm::isomorphism::filter::filterCandidates(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, candidates).wait();
 
-  mbsm::isomorphism::filter::refineCandidates(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, candidates).wait();
-
-  // creating a temporary vector to store the candidates
-  std::unordered_map<mbsm::types::node_t, std::set<mbsm::types::node_t>> expected_prev_candidates;
-  std::unordered_map<mbsm::types::node_t, std::set<mbsm::types::node_t>> expected_curr_candidates;
-  for (int i = 0; i < device_query_graph.total_nodes; i++) { expected_prev_candidates[i] = std::set<mbsm::types::node_t>(); }
-  for (int i = 0; i < device_query_graph.total_nodes; i++) { expected_curr_candidates[i] = std::set<mbsm::types::node_t>(); }
+  std::unordered_map<mbsm::types::node_t, std::set<mbsm::types::node_t>> expected_candidates;
+  for (int i = 0; i < device_query_graph.total_nodes; i++) { expected_candidates[i] = std::set<mbsm::types::node_t>(); }
 
   for (int data_node = 0; data_node < device_data_graph.total_nodes; data_node++) {
     for (int query_node = 0; query_node < device_query_graph.total_nodes; query_node++) {
@@ -106,40 +101,47 @@ TEST(FilterTest, RefinementTest) {
       if (data_label != query_label) { continue; }
       bool insert = true;
       for (mbsm::types::label_t l = 0; l < mbsm::candidates::Signature<>::getMaxLabels(); l++) {
-        insert &= query_signature.getLabelCount(l) <= data_signature.getLabelCount(l);
+        insert = insert && (query_signature.getLabelCount(l) <= data_signature.getLabelCount(l));
         if (!insert) break;
       }
-      if (insert) { expected_prev_candidates[query_node].insert(data_node); }
+      if (insert) { expected_candidates[query_node].insert(data_node); }
     }
   }
 
+
+  mbsm::isomorphism::filter::refineDataSignatures(queue, device_data_graph, data_signatures, tmp_buff).wait();
+  mbsm::isomorphism::filter::refineQuerySignatures(queue, device_query_graph, query_signatures, tmp_buff).wait();
+
+  mbsm::isomorphism::filter::refineCandidates(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, candidates).wait();
+
+  auto expected_query_signatures = getExpectedQuerySignatures(TEST_QUERY_PATH, 1);
+  auto expected_data_signatures = getExpectedDataSignatures(TEST_DATA_PATH, 1);
   for (int data_node = 0; data_node < device_data_graph.total_nodes; data_node++) {
     for (int query_node = 0; query_node < device_query_graph.total_nodes; query_node++) {
-      auto query_signature = query_signatures[query_node];
-      auto data_signature = data_signatures[data_node];
+      auto query_signature = expected_query_signatures[query_node];
+      auto data_signature = expected_data_signatures[data_node];
       auto data_label = device_data_graph.labels[data_node];
       auto query_label = device_query_graph.labels[query_node];
 
-      std::find(expected_prev_candidates[query_node].begin(), expected_prev_candidates[query_node].end(), data_node);
-      if (data_label != query_label || expected_prev_candidates[query_node].find(data_node) != expected_prev_candidates[query_node].end()) {
-        continue;
+      if (expected_candidates[query_node].find(data_node) == expected_candidates[query_node].end()) { continue; }
+
+      bool keep = query_label == data_label;
+      for (mbsm::types::label_t l = 0; l < mbsm::candidates::Signature<>::getMaxLabels() && keep; l++) {
+        keep = keep && (query_signature.getLabelCount(l) <= data_signature.getLabelCount(l));
       }
-      bool insert = true;
-      for (mbsm::types::label_t l = 0; l < mbsm::candidates::Signature<>::getMaxLabels(); l++) {
-        insert &= query_signature.getLabelCount(l) <= data_signature.getLabelCount(l);
-        if (!insert) break;
-      }
-      if (insert) { expected_curr_candidates[query_node].insert(data_node); }
+      if (!keep) { expected_candidates[query_node].erase(data_node); }
     }
   }
 
   for (int i = 0; i < device_query_graph.total_nodes; i++) {
-    auto expected = expected_curr_candidates[i];
+    ASSERT_EQ(expected_candidates[i].size(), candidates.getCandidatesCount(i));
+    auto expected = expected_candidates[i];
     for (auto data_node : expected) { ASSERT_TRUE(candidates.contains(i, data_node)); }
   }
 
   sycl::free(query_signatures, queue);
   sycl::free(data_signatures, queue);
+  sycl::free(tmp_buff, queue);
   sycl::free(candidates.candidates, queue);
   mbsm::destroyDeviceDataGraph(device_data_graph, queue);
   mbsm::destroyDeviceQueryGraph(device_query_graph, queue);
