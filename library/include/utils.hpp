@@ -75,6 +75,8 @@ public:
 
   sycl::event getLastEvent() { return events.back(); }
 
+  size_t numEvents() { return events.size(); }
+
   std::chrono::duration<double> getProfilingInfo() {
     std::chrono::nanoseconds total_time(0);
     for (auto& e : events) {

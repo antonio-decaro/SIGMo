@@ -64,7 +64,7 @@ TEST(FilterTest, SingleFilter) {
 }
 
 
-TEST(FilterTest, DoubleFilter) {
+TEST(FilterTest, RefinementTest) {
   auto query_graphs = mbsm::io::loadQueryGraphsFromFile(TEST_QUERY_PATH);
   auto data_graphs = mbsm::io::loadDataGraphsFromFile(TEST_DATA_PATH);
 
@@ -81,22 +81,14 @@ TEST(FilterTest, DoubleFilter) {
 
   queue.wait();
 
-  mbsm::candidates::Candidates curr_candidates{device_query_graph.total_nodes, device_data_graph.total_nodes};
-  mbsm::candidates::Candidates prev_candidates{device_query_graph.total_nodes, device_data_graph.total_nodes};
-  curr_candidates.candidates = sycl::malloc_shared<mbsm::types::candidates_t>(curr_candidates.getAllocationSize(), queue);
-  queue.fill(curr_candidates.candidates, 0, curr_candidates.getAllocationSize());
-  prev_candidates.candidates = sycl::malloc_shared<mbsm::types::candidates_t>(prev_candidates.getAllocationSize(), queue);
-  queue.fill(prev_candidates.candidates, 0, prev_candidates.getAllocationSize());
+  mbsm::candidates::Candidates candidates{device_query_graph.total_nodes, device_data_graph.total_nodes};
+  candidates.candidates = sycl::malloc_shared<mbsm::types::candidates_t>(candidates.getAllocationSize(), queue);
+  queue.fill(candidates.candidates, 0, candidates.getAllocationSize());
   queue.wait();
 
-  mbsm::isomorphism::filter::filterCandidates(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, curr_candidates)
-      .wait();
+  mbsm::isomorphism::filter::filterCandidates(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, candidates).wait();
 
-  queue.copy(curr_candidates.candidates, prev_candidates.candidates, curr_candidates.getAllocationSize()).wait();
-  queue.fill(curr_candidates.candidates, 0, curr_candidates.getAllocationSize()).wait();
-  mbsm::isomorphism::filter::filterCandidates(
-      queue, device_query_graph, device_data_graph, query_signatures, data_signatures, curr_candidates, prev_candidates)
-      .wait();
+  mbsm::isomorphism::filter::refineCandidates(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, candidates).wait();
 
   // creating a temporary vector to store the candidates
   std::unordered_map<mbsm::types::node_t, std::set<mbsm::types::node_t>> expected_prev_candidates;
@@ -143,13 +135,12 @@ TEST(FilterTest, DoubleFilter) {
 
   for (int i = 0; i < device_query_graph.total_nodes; i++) {
     auto expected = expected_curr_candidates[i];
-    for (auto data_node : expected) { ASSERT_TRUE(curr_candidates.contains(i, data_node)); }
+    for (auto data_node : expected) { ASSERT_TRUE(candidates.contains(i, data_node)); }
   }
 
   sycl::free(query_signatures, queue);
   sycl::free(data_signatures, queue);
-  sycl::free(curr_candidates.candidates, queue);
-  sycl::free(prev_candidates.candidates, queue);
+  sycl::free(candidates.candidates, queue);
   mbsm::destroyDeviceDataGraph(device_data_graph, queue);
   mbsm::destroyDeviceQueryGraph(device_query_graph, queue);
 }

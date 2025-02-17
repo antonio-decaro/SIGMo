@@ -37,12 +37,9 @@ int main(int argc, char** argv) {
 
   std::cout << "Reed data graph and query graph" << std::endl;
 
-  mbsm::candidates::Candidates curr_candidates{query_nodes, data_nodes};
-  mbsm::candidates::Candidates prev_candidates{query_nodes, data_nodes};
-  curr_candidates.candidates = sycl::malloc_shared<mbsm::types::candidates_t>(curr_candidates.getAllocationSize(), queue);
-  prev_candidates.candidates = sycl::malloc_shared<mbsm::types::candidates_t>(prev_candidates.getAllocationSize(), queue);
-  queue.fill(curr_candidates.candidates, 0, curr_candidates.getAllocationSize());
-  queue.fill(prev_candidates.candidates, 0, prev_candidates.getAllocationSize());
+  mbsm::candidates::Candidates candidates{query_nodes, data_nodes};
+  candidates.candidates = sycl::malloc_shared<mbsm::types::candidates_t>(candidates.getAllocationSize(), queue);
+  queue.fill(candidates.candidates, 0, candidates.getAllocationSize());
   queue.wait_and_throw();
   std::cout << "Candidates allocated" << std::endl;
 
@@ -66,18 +63,15 @@ int main(int argc, char** argv) {
 
     mbsm::utils::BatchedEvent filter_e;
     if (ref_step == 0) {
-      filter_e = mbsm::isomorphism::filter::filterCandidates(
-          queue, device_query_graph, device_data_graph, query_signatures, data_signatures, curr_candidates);
+      filter_e
+          = mbsm::isomorphism::filter::filterCandidates(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, candidates);
     } else {
-      filter_e = mbsm::isomorphism::filter::filterCandidates(
-          queue, device_query_graph, device_data_graph, query_signatures, data_signatures, curr_candidates, prev_candidates);
+      filter_e
+          = mbsm::isomorphism::filter::refineCandidates(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, candidates);
     }
     filter_e.wait();
     time = filter_e.getProfilingInfo();
     std::cout << "Candidates filtered in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
-
-    queue.copy(curr_candidates.candidates, prev_candidates.candidates, curr_candidates.getAllocationSize()).wait();
-    if (ref_step + 1 < args.refinement_steps) { queue.fill(curr_candidates.candidates, 0, curr_candidates.getAllocationSize()).wait(); }
 
     sycl::free(query_signatures, queue);
     sycl::free(data_signatures, queue);
@@ -87,7 +81,7 @@ int main(int argc, char** argv) {
 
   CandidatesInspector inspector;
   for (size_t i = 0; i < query_nodes; ++i) {
-    auto count = curr_candidates.getCandidatesCount(i, data_nodes);
+    auto count = candidates.getCandidatesCount(i, data_nodes);
     inspector.add(count);
     if (args.print_candidates) std::cerr << "Node " << i << ": " << count << std::endl;
   }
@@ -98,8 +92,7 @@ int main(int argc, char** argv) {
   std::cout << "- Median candidates: " << formatNumber(inspector.median) << std::endl;
   std::cout << "- Zero candidates: " << formatNumber(inspector.zero_count) << std::endl;
 
-  sycl::free(prev_candidates.candidates, queue);
-  sycl::free(curr_candidates.candidates, queue);
+  sycl::free(candidates.candidates, queue);
   mbsm::destroyDeviceDataGraph(device_data_graph, queue);
   mbsm::destroyDeviceQueryGraph(device_query_graph, queue);
 }
