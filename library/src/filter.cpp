@@ -34,17 +34,25 @@ int main(int argc, char** argv) {
   if (args.query_data) {
     auto query_graphs = mbsm::io::loadQueryGraphsFromFile(args.query_file);
     auto data_graphs = mbsm::io::loadDataGraphsFromFile(args.data_file);
-    for (size_t i = 1; i < args.multiply_factor; ++i) {
-      query_graphs.insert(query_graphs.end(), query_graphs.begin(), query_graphs.end());
-      data_graphs.insert(data_graphs.end(), data_graphs.begin(), data_graphs.end());
+    size_t num_query_graphs = query_graphs.size();
+    for (size_t i = 1; i < args.multiply_factor_query; ++i) {
+      query_graphs.insert(query_graphs.end(), query_graphs.begin(), query_graphs.begin() + num_query_graphs);
+    }
+    size_t num_data_graphs = data_graphs.size();
+    for (size_t i = 1; i < args.multiply_factor_data; ++i) {
+      data_graphs.insert(data_graphs.end(), data_graphs.begin(), data_graphs.begin() + num_data_graphs);
     }
     device_query_graph = mbsm::createDeviceQueryGraph(queue, query_graphs);
     device_data_graph = mbsm::createDeviceDataGraph(queue, data_graphs);
   } else {
     auto pool = mbsm::io::loadPoolFromBinary(args.fname);
-    for (size_t i = 1; i < args.multiply_factor; ++i) {
-      pool.getQueryGraphs().insert(pool.getQueryGraphs().end(), pool.getQueryGraphs().begin(), pool.getQueryGraphs().end());
-      pool.getDataGraphs().insert(pool.getDataGraphs().end(), pool.getDataGraphs().begin(), pool.getDataGraphs().end());
+    size_t num_query_graphs = pool.getQueryGraphs().size();
+    for (size_t i = 1; i < args.multiply_factor_query; ++i) {
+      pool.getQueryGraphs().insert(pool.getQueryGraphs().end(), pool.getQueryGraphs().begin(), pool.getQueryGraphs().begin() + num_query_graphs);
+    }
+    size_t num_data_graphs = pool.getDataGraphs().size();
+    for (size_t i = 1; i < args.multiply_factor_data; ++i) {
+      pool.getDataGraphs().insert(pool.getDataGraphs().end(), pool.getDataGraphs().begin(), pool.getDataGraphs().begin() + num_data_graphs);
     }
     device_query_graph = pool.transferQueryGraphsToDevice(queue);
     device_data_graph = pool.transferDataGraphsToDevice(queue);
@@ -137,7 +145,7 @@ int main(int argc, char** argv) {
   std::chrono::duration<double> total_filter_time = std::accumulate(filter_times.begin(), filter_times.end(), std::chrono::duration<double>(0));
   std::chrono::duration<double> total_time = total_sig_data_time + total_filter_time + total_sig_query_time;
 
-  std::cout << "Total data signature time: " << std::chrono::duration_cast<std::chrono::milliseconds>(total_sig_data_time).count() << " ms"
+  std::cout << "Total data signature time: " << std::chrono::duration_cast<std::chrono::microseconds>(total_sig_data_time).count() << " us"
             << std::endl;
   std::cout << "Total query signature time: " << std::chrono::duration_cast<std::chrono::microseconds>(total_sig_query_time).count() << " us"
             << std::endl;

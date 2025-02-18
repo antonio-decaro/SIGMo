@@ -16,7 +16,8 @@ public:
   bool query_data = false;
   std::string query_file;
   std::string data_file;
-  size_t multiply_factor = 1;
+  size_t multiply_factor_query = 1;
+  size_t multiply_factor_data = 1;
 
 
   Args(int& argc, char**& argv) : _argc(argc), _argv(argv) {
@@ -40,7 +41,9 @@ private:
     std::cout << "   -p: Print the number of candidates for each query node" << std::endl;
     std::cout << "   -i: Print the number of refined iterations. Default = 1" << std::endl;
     std::cout << "  -qd: Define the query file and the data file to read" << std::endl;
-    std::cout << "   -m: Multiply the number of graphs by a factor. Default = 1" << std::endl;
+    std::cout << "   -m: Multiply the number of all graphs by a factor. Default = 1" << std::endl;
+    std::cout << "  -mq: Multiply the number of query graphs by a factor. Default = 1" << std::endl;
+    std::cout << "  -md: Multiply the number of data graphs by a factor. Default = 1" << std::endl;
   }
 
   void parseOption(std::string& arg, size_t& idx) {
@@ -59,7 +62,19 @@ private:
         printHelp();
         std::exit(1);
       }
-      multiply_factor = std::stoi(_argv[++idx]);
+      multiply_factor_data = multiply_factor_query = std::stoi(_argv[++idx]);
+    } else if (arg == "md") {
+      if (idx + 1 >= _argc) {
+        printHelp();
+        std::exit(1);
+      }
+      multiply_factor_data = std::stoi(_argv[++idx]);
+    } else if (arg == "mq") {
+      if (idx + 1 >= _argc) {
+        printHelp();
+        std::exit(1);
+      }
+      multiply_factor_query = std::stoi(_argv[++idx]);
     } else if (arg == "qd") {
       if (idx + 2 >= _argc) {
         printHelp();
