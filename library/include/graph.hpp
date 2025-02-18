@@ -14,7 +14,8 @@ namespace mbsm {
 
 class QueryGraph {
 public:
-  // implement getters
+  QueryGraph(const QueryGraph& other) = default;
+
   QueryGraph(std::vector<types::adjacency_t> adjacency, std::vector<types::label_t> labels, uint8_t num_nodes)
       : _adjacency(adjacency), _labels(labels), _num_nodes(num_nodes) {}
 
@@ -25,11 +26,13 @@ public:
 private:
   std::vector<types::adjacency_t> _adjacency;
   std::vector<types::label_t> _labels;
-  const uint8_t _num_nodes;
+  uint8_t _num_nodes;
 };
 
 class DataGraph {
 public:
+  DataGraph(const DataGraph& other) = default;
+
   DataGraph(std::vector<types::row_offset_t> row_offsets,
             std::vector<types::col_index_t> column_indices,
             std::vector<types::label_t> labels,

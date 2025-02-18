@@ -34,13 +34,23 @@ int main(int argc, char** argv) {
   if (args.query_data) {
     auto query_graphs = mbsm::io::loadQueryGraphsFromFile(args.query_file);
     auto data_graphs = mbsm::io::loadDataGraphsFromFile(args.data_file);
+    for (size_t i = 1; i < args.multiply_factor; ++i) {
+      query_graphs.insert(query_graphs.end(), query_graphs.begin(), query_graphs.end());
+      data_graphs.insert(data_graphs.end(), data_graphs.begin(), data_graphs.end());
+    }
     device_query_graph = mbsm::createDeviceQueryGraph(queue, query_graphs);
     device_data_graph = mbsm::createDeviceDataGraph(queue, data_graphs);
   } else {
     auto pool = mbsm::io::loadPoolFromBinary(args.fname);
+    for (size_t i = 1; i < args.multiply_factor; ++i) {
+      pool.getQueryGraphs().insert(pool.getQueryGraphs().end(), pool.getQueryGraphs().begin(), pool.getQueryGraphs().end());
+      pool.getDataGraphs().insert(pool.getDataGraphs().end(), pool.getDataGraphs().begin(), pool.getDataGraphs().end());
+    }
     device_query_graph = pool.transferQueryGraphsToDevice(queue);
     device_data_graph = pool.transferDataGraphsToDevice(queue);
   }
+
+  std::vector<std::chrono::duration<double>> data_sig_times, query_sig_times, filter_times;
 
   size_t query_nodes = device_query_graph.total_nodes;
   size_t data_nodes = device_data_graph.total_nodes;
@@ -48,8 +58,9 @@ int main(int argc, char** argv) {
   std::cout << "Reed data graph and query graph" << std::endl;
 
   mbsm::candidates::Candidates candidates{query_nodes, data_nodes};
-  candidates.candidates = sycl::malloc_shared<mbsm::types::candidates_t>(candidates.getAllocationSize(), queue);
-  queue.fill(candidates.candidates, 0, candidates.getAllocationSize()).wait();
+  size_t alloc_size = candidates.getAllocationSize();
+  candidates.candidates = sycl::malloc_shared<mbsm::types::candidates_t>(alloc_size, queue);
+  queue.fill(candidates.candidates, 0, alloc_size).wait();
   std::cout << "Candidates allocated and initialized" << std::endl;
 
   mbsm::signature::Signature<>* data_signatures = sycl::malloc_shared<mbsm::signature::Signature<>>(data_nodes, queue);
@@ -64,16 +75,19 @@ int main(int argc, char** argv) {
   auto e1 = mbsm::signature::generateDataSignatures(queue, device_data_graph, data_signatures);
   queue.wait_and_throw();
   auto time = e1.getProfilingInfo();
+  data_sig_times.push_back(time);
   std::cout << "Data signatures generated in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
 
   auto e2 = mbsm::signature::generateQuerySignatures(queue, device_query_graph, query_signatures);
   queue.wait_and_throw();
   time = e2.getProfilingInfo();
+  query_sig_times.push_back(time);
   std::cout << "Query signatures generated in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
 
   auto e3 = mbsm::isomorphism::filter::filterCandidates(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, candidates);
   queue.wait_and_throw();
   time = e3.getProfilingInfo();
+  filter_times.push_back(time);
   std::cout << "Candidates filtered in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
 
   // start refining candidate set
@@ -85,17 +99,20 @@ int main(int argc, char** argv) {
     auto e1 = mbsm::signature::refineDataSignatures(queue, device_data_graph, data_signatures, tmp_buff);
     queue.wait_and_throw();
     time = e1.getProfilingInfo();
+    data_sig_times.push_back(time);
     std::cout << "Data signatures refined in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
 
     auto e2 = mbsm::signature::refineQuerySignatures(queue, device_query_graph, query_signatures, tmp_buff);
     queue.wait_and_throw();
     time = e2.getProfilingInfo();
+    query_sig_times.push_back(time);
     std::cout << "Query signatures refined in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
 
     auto e3
         = mbsm::isomorphism::filter::refineCandidates(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, candidates);
     queue.wait_and_throw();
     time = e3.getProfilingInfo();
+    filter_times.push_back(time);
     std::cout << "Candidates refined in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
   }
   std::cout << "Candidates of " << query_nodes << " on " << data_nodes << " data nodes" << std::endl;
@@ -112,6 +129,20 @@ int main(int argc, char** argv) {
   std::cout << "- Average candidates: " << formatNumber(inspector.avg) << std::endl;
   std::cout << "- Median candidates: " << formatNumber(inspector.median) << std::endl;
   std::cout << "- Zero candidates: " << formatNumber(inspector.zero_count) << std::endl;
+
+  // print the sum of all times
+  std::chrono::duration<double> total_sig_query_time
+      = std::accumulate(query_sig_times.begin(), query_sig_times.end(), std::chrono::duration<double>(0));
+  std::chrono::duration<double> total_sig_data_time = std::accumulate(data_sig_times.begin(), data_sig_times.end(), std::chrono::duration<double>(0));
+  std::chrono::duration<double> total_filter_time = std::accumulate(filter_times.begin(), filter_times.end(), std::chrono::duration<double>(0));
+  std::chrono::duration<double> total_time = total_sig_data_time + total_filter_time + total_sig_query_time;
+
+  std::cout << "Total data signature time: " << std::chrono::duration_cast<std::chrono::milliseconds>(total_sig_data_time).count() << " ms"
+            << std::endl;
+  std::cout << "Total query signature time: " << std::chrono::duration_cast<std::chrono::microseconds>(total_sig_query_time).count() << " us"
+            << std::endl;
+  std::cout << "Total filter time: " << std::chrono::duration_cast<std::chrono::milliseconds>(total_filter_time).count() << " ms" << std::endl;
+  std::cout << "Total time: " << std::chrono::duration_cast<std::chrono::milliseconds>(total_time).count() << " ms" << std::endl;
 
   sycl::free(tmp_buff, queue);
   sycl::free(query_signatures, queue);
