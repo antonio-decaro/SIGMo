@@ -52,21 +52,21 @@ int main(int argc, char** argv) {
   queue.fill(candidates.candidates, 0, candidates.getAllocationSize()).wait();
   std::cout << "Candidates allocated and initialized" << std::endl;
 
-  mbsm::candidates::Signature<>* data_signatures = sycl::malloc_shared<mbsm::candidates::Signature<>>(data_nodes, queue);
+  mbsm::signature::Signature<>* data_signatures = sycl::malloc_shared<mbsm::signature::Signature<>>(data_nodes, queue);
   queue.fill(data_signatures, 0, data_nodes).wait();
   std::cout << "Data signatures allocated" << std::endl;
-  mbsm::candidates::Signature<>* query_signatures = sycl::malloc_shared<mbsm::candidates::Signature<>>(query_nodes, queue);
+  mbsm::signature::Signature<>* query_signatures = sycl::malloc_shared<mbsm::signature::Signature<>>(query_nodes, queue);
   queue.fill(query_signatures, 0, query_nodes).wait();
   std::cout << "Query signatures allocated" << std::endl;
-  mbsm::candidates::Signature<>* tmp_buff = sycl::malloc_shared<mbsm::candidates::Signature<>>(std::max(query_nodes, data_nodes), queue);
+  mbsm::signature::Signature<>* tmp_buff = sycl::malloc_shared<mbsm::signature::Signature<>>(std::max(query_nodes, data_nodes), queue);
   std::cout << "Temporary buffer allocated" << std::endl;
 
-  auto e1 = mbsm::isomorphism::filter::generateDataSignatures(queue, device_data_graph, data_signatures);
+  auto e1 = mbsm::signature::generateDataSignatures(queue, device_data_graph, data_signatures);
   queue.wait_and_throw();
   auto time = e1.getProfilingInfo();
   std::cout << "Data signatures generated in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
 
-  auto e2 = mbsm::isomorphism::filter::generateQuerySignatures(queue, device_query_graph, query_signatures);
+  auto e2 = mbsm::signature::generateQuerySignatures(queue, device_query_graph, query_signatures);
   queue.wait_and_throw();
   time = e2.getProfilingInfo();
   std::cout << "Query signatures generated in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
@@ -82,12 +82,12 @@ int main(int argc, char** argv) {
     std::cout << "Refinement step: " << (ref_step + 1) << std::endl;
     std::cout << "-----------------------" << std::endl;
 
-    auto e1 = mbsm::isomorphism::filter::refineDataSignatures(queue, device_data_graph, data_signatures, tmp_buff);
+    auto e1 = mbsm::signature::refineDataSignatures(queue, device_data_graph, data_signatures, tmp_buff);
     queue.wait_and_throw();
     time = e1.getProfilingInfo();
     std::cout << "Data signatures refined in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
 
-    auto e2 = mbsm::isomorphism::filter::refineQuerySignatures(queue, device_query_graph, query_signatures, tmp_buff);
+    auto e2 = mbsm::signature::refineQuerySignatures(queue, device_query_graph, query_signatures, tmp_buff);
     queue.wait_and_throw();
     time = e2.getProfilingInfo();
     std::cout << "Query signatures refined in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;

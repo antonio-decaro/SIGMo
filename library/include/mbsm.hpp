@@ -6,5 +6,6 @@
 #include "io.hpp"
 #include "isomorphism.hpp"
 #include "pool.hpp"
+#include "signature.hpp"
 #include "types.hpp"
 #include "utils.hpp"

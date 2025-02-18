@@ -6,7 +6,7 @@
 #include <sycl/sycl.hpp>
 
 TEST(SignatureTest, CheckSignatureMethods) {
-  mbsm::candidates::Signature<> signature;
+  mbsm::signature::Signature<> signature;
 
   signature.setLabelCount(0, 1);
   signature.setLabelCount(2, 3);
@@ -33,9 +33,9 @@ TEST(SignatureTest, CheckQuerySignatureGeneration) {
 
   auto device_query_graph = mbsm::createDeviceQueryGraph(queue, query_graphs);
 
-  mbsm::candidates::Signature<>* signatures = sycl::malloc_shared<mbsm::candidates::Signature<>>(device_query_graph.total_nodes, queue);
+  mbsm::signature::Signature<>* signatures = sycl::malloc_shared<mbsm::signature::Signature<>>(device_query_graph.total_nodes, queue);
 
-  auto e = mbsm::isomorphism::filter::generateQuerySignatures(queue, device_query_graph, signatures);
+  auto e = mbsm::signature::generateQuerySignatures(queue, device_query_graph, signatures);
 
   e.wait();
 
@@ -53,14 +53,14 @@ TEST(SignatureTest, RefineQuerySignature) {
 
   auto device_query_graph = mbsm::createDeviceQueryGraph(queue, query_graphs);
 
-  mbsm::candidates::Signature<>* signatures = sycl::malloc_shared<mbsm::candidates::Signature<>>(device_query_graph.total_nodes, queue);
-  mbsm::candidates::Signature<>* tmp = sycl::malloc_shared<mbsm::candidates::Signature<>>(device_query_graph.total_nodes, queue);
+  mbsm::signature::Signature<>* signatures = sycl::malloc_shared<mbsm::signature::Signature<>>(device_query_graph.total_nodes, queue);
+  mbsm::signature::Signature<>* tmp = sycl::malloc_shared<mbsm::signature::Signature<>>(device_query_graph.total_nodes, queue);
 
-  auto e = mbsm::isomorphism::filter::generateQuerySignatures(queue, device_query_graph, signatures);
+  auto e = mbsm::signature::generateQuerySignatures(queue, device_query_graph, signatures);
   e.wait();
 
   for (int i = 0; i < 10; i++) {
-    e = mbsm::isomorphism::filter::refineQuerySignatures(queue, device_query_graph, signatures, tmp);
+    e = mbsm::signature::refineQuerySignatures(queue, device_query_graph, signatures, tmp);
     e.wait();
     auto expected_query_signatures = getExpectedQuerySignatures(TEST_QUERY_PATH, i + 1);
     for (size_t i = 0; i < device_query_graph.total_nodes; ++i) { ASSERT_EQ(signatures[i].signature, expected_query_signatures[i].signature); }
@@ -79,9 +79,9 @@ TEST(SignatureTest, CheckDataSignatureGeneration) {
 
   auto device_data_graph = mbsm::createDeviceDataGraph(queue, data_graphs);
 
-  mbsm::candidates::Signature<>* signatures = sycl::malloc_shared<mbsm::candidates::Signature<>>(device_data_graph.total_nodes, queue);
+  mbsm::signature::Signature<>* signatures = sycl::malloc_shared<mbsm::signature::Signature<>>(device_data_graph.total_nodes, queue);
 
-  auto e = mbsm::isomorphism::filter::generateDataSignatures(queue, device_data_graph, signatures);
+  auto e = mbsm::signature::generateDataSignatures(queue, device_data_graph, signatures);
 
   e.wait();
 
@@ -99,14 +99,14 @@ TEST(SignatureTest, RefineDataSignature) {
 
   auto device_data_graph = mbsm::createDeviceDataGraph(queue, data_graphs);
 
-  mbsm::candidates::Signature<>* signatures = sycl::malloc_shared<mbsm::candidates::Signature<>>(device_data_graph.total_nodes, queue);
-  mbsm::candidates::Signature<>* tmp = sycl::malloc_shared<mbsm::candidates::Signature<>>(device_data_graph.total_nodes, queue);
+  mbsm::signature::Signature<>* signatures = sycl::malloc_shared<mbsm::signature::Signature<>>(device_data_graph.total_nodes, queue);
+  mbsm::signature::Signature<>* tmp = sycl::malloc_shared<mbsm::signature::Signature<>>(device_data_graph.total_nodes, queue);
 
-  auto e = mbsm::isomorphism::filter::generateDataSignatures(queue, device_data_graph, signatures);
+  auto e = mbsm::signature::generateDataSignatures(queue, device_data_graph, signatures);
   e.wait();
 
   for (int i = 0; i < 10; i++) {
-    e = mbsm::isomorphism::filter::refineDataSignatures(queue, device_data_graph, signatures, tmp);
+    e = mbsm::signature::refineDataSignatures(queue, device_data_graph, signatures, tmp);
     e.wait();
     auto expected_data_signatures = getExpectedDataSignatures(TEST_DATA_PATH, i + 1);
     for (size_t i = 0; i < device_data_graph.total_nodes; ++i) { ASSERT_EQ(signatures[i].signature, expected_data_signatures[i].signature); }
