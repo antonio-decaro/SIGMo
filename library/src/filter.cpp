@@ -32,6 +32,8 @@ int main(int argc, char** argv) {
   size_t num_data_graphs;
 
   sycl::queue queue{sycl::gpu_selector_v, sycl::property::queue::enable_profiling{}};
+  size_t gpu_mem = queue.get_device().get_info<sycl::info::device::global_mem_size>();
+  std::string gpu_name = queue.get_device().get_info<sycl::info::device::name>();
 
   if (args.query_data) {
     auto query_graphs = mbsm::io::loadQueryGraphsFromFile(args.query_file);
@@ -77,19 +79,25 @@ int main(int argc, char** argv) {
   size_t alloc_size = candidates.getAllocationSize();
   candidates.candidates = sycl::malloc_shared<mbsm::types::candidates_t>(alloc_size, queue);
   queue.fill(candidates.candidates, 0, alloc_size).wait();
-  std::cout << "Allocated " << getBytesSize(alloc_size * sizeof(mbsm::types::candidates_t)) << " for candidates" << std::endl;
+  size_t candidates_bytes = alloc_size * sizeof(mbsm::types::candidates_t);
+  std::cout << "Allocated " << getBytesSize(candidates_bytes) << " for candidates" << std::endl;
 
   mbsm::signature::Signature<>* data_signatures = sycl::malloc_shared<mbsm::signature::Signature<>>(data_nodes, queue);
   queue.fill(data_signatures, 0, data_nodes).wait();
-  std::cout << "Allocated " << getBytesSize(data_nodes * sizeof(mbsm::signature::Signature<>)) << " for data signatures" << std::endl;
+  size_t data_signatures_bytes = data_nodes * sizeof(mbsm::signature::Signature<>);
+  std::cout << "Allocated " << getBytesSize(data_signatures_bytes) << " for data signatures" << std::endl;
 
   mbsm::signature::Signature<>* query_signatures = sycl::malloc_shared<mbsm::signature::Signature<>>(query_nodes, queue);
   queue.fill(query_signatures, 0, query_nodes).wait();
-  std::cout << "Allocated " << getBytesSize(query_nodes * sizeof(mbsm::signature::Signature<>)) << " for query signatures" << std::endl;
+  size_t query_signatures_bytes = query_nodes * sizeof(mbsm::signature::Signature<>);
+  std::cout << "Allocated " << getBytesSize(query_signatures_bytes) << " for query signatures" << std::endl;
 
   mbsm::signature::Signature<>* tmp_buff = sycl::malloc_shared<mbsm::signature::Signature<>>(std::max(query_nodes, data_nodes), queue);
-  std::cout << "Allocated " << getBytesSize(std::max(query_nodes, data_nodes) * sizeof(mbsm::signature::Signature<>)) << " for temporary buffer"
-            << std::endl;
+  size_t tmp_buff_bytes = std::max(query_nodes, data_nodes) * sizeof(mbsm::signature::Signature<>);
+  std::cout << "Allocated " << getBytesSize(tmp_buff_bytes) << " for temporary buffer" << std::endl;
+
+  std::cout << "Total allocated memory: " << getBytesSize(data_signatures_bytes + query_signatures_bytes + candidates_bytes + tmp_buff_bytes)
+            << " out of " << getBytesSize(gpu_mem) << " available on " << gpu_name << std::endl;
 
   std::cout << "------------- Initialization Step -------------" << std::endl;
   auto e1 = mbsm::signature::generateDataSignatures(queue, device_data_graph, data_signatures);
