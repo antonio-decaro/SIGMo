@@ -1,5 +1,4 @@
-#include "../../library/test/include/data.hpp"
-#include "./arg_parse.hpp"
+#include "./utils.hpp"
 #include <mbsm.hpp>
 #include <sycl/sycl.hpp>
 
@@ -29,16 +28,19 @@ int main(int argc, char** argv) {
 
   mbsm::DeviceBatchedDataGraph device_data_graph;
   mbsm::DeviceBatchedQueryGraph device_query_graph;
+  size_t num_query_graphs;
+  size_t num_data_graphs;
+
   sycl::queue queue{sycl::gpu_selector_v, sycl::property::queue::enable_profiling{}};
 
   if (args.query_data) {
     auto query_graphs = mbsm::io::loadQueryGraphsFromFile(args.query_file);
     auto data_graphs = mbsm::io::loadDataGraphsFromFile(args.data_file);
-    size_t num_query_graphs = query_graphs.size();
+    num_query_graphs = query_graphs.size();
     for (size_t i = 1; i < args.multiply_factor_query; ++i) {
       query_graphs.insert(query_graphs.end(), query_graphs.begin(), query_graphs.begin() + num_query_graphs);
     }
-    size_t num_data_graphs = data_graphs.size();
+    num_data_graphs = data_graphs.size();
     for (size_t i = 1; i < args.multiply_factor_data; ++i) {
       data_graphs.insert(data_graphs.end(), data_graphs.begin(), data_graphs.begin() + num_data_graphs);
     }
@@ -46,11 +48,11 @@ int main(int argc, char** argv) {
     device_data_graph = mbsm::createDeviceDataGraph(queue, data_graphs);
   } else {
     auto pool = mbsm::io::loadPoolFromBinary(args.fname);
-    size_t num_query_graphs = pool.getQueryGraphs().size();
+    num_query_graphs = pool.getQueryGraphs().size();
     for (size_t i = 1; i < args.multiply_factor_query; ++i) {
       pool.getQueryGraphs().insert(pool.getQueryGraphs().end(), pool.getQueryGraphs().begin(), pool.getQueryGraphs().begin() + num_query_graphs);
     }
-    size_t num_data_graphs = pool.getDataGraphs().size();
+    num_data_graphs = pool.getDataGraphs().size();
     for (size_t i = 1; i < args.multiply_factor_data; ++i) {
       pool.getDataGraphs().insert(pool.getDataGraphs().end(), pool.getDataGraphs().begin(), pool.getDataGraphs().begin() + num_data_graphs);
     }
@@ -63,23 +65,33 @@ int main(int argc, char** argv) {
   size_t query_nodes = device_query_graph.total_nodes;
   size_t data_nodes = device_data_graph.total_nodes;
 
+  std::cout << "------------- Input Data -------------" << std::endl;
   std::cout << "Reed data graph and query graph" << std::endl;
+  std::cout << "# Query Nodes " << query_nodes << std::endl;
+  std::cout << "# Query Graphs " << num_query_graphs << std::endl;
+  std::cout << "# Data Nodes " << data_nodes << std::endl;
+  std::cout << "# Data Graphs " << num_data_graphs << std::endl;
+  std::cout << "------------- Setup Data -------------" << std::endl;
 
   mbsm::candidates::Candidates candidates{query_nodes, data_nodes};
   size_t alloc_size = candidates.getAllocationSize();
   candidates.candidates = sycl::malloc_shared<mbsm::types::candidates_t>(alloc_size, queue);
   queue.fill(candidates.candidates, 0, alloc_size).wait();
-  std::cout << "Candidates allocated and initialized" << std::endl;
+  std::cout << "Allocated " << getBytesSize(alloc_size * sizeof(mbsm::types::candidates_t)) << " for candidates" << std::endl;
 
   mbsm::signature::Signature<>* data_signatures = sycl::malloc_shared<mbsm::signature::Signature<>>(data_nodes, queue);
   queue.fill(data_signatures, 0, data_nodes).wait();
-  std::cout << "Data signatures allocated" << std::endl;
+  std::cout << "Allocated " << getBytesSize(data_nodes * sizeof(mbsm::signature::Signature<>)) << " for data signatures" << std::endl;
+
   mbsm::signature::Signature<>* query_signatures = sycl::malloc_shared<mbsm::signature::Signature<>>(query_nodes, queue);
   queue.fill(query_signatures, 0, query_nodes).wait();
-  std::cout << "Query signatures allocated" << std::endl;
-  mbsm::signature::Signature<>* tmp_buff = sycl::malloc_shared<mbsm::signature::Signature<>>(std::max(query_nodes, data_nodes), queue);
-  std::cout << "Temporary buffer allocated" << std::endl;
+  std::cout << "Allocated " << getBytesSize(query_nodes * sizeof(mbsm::signature::Signature<>)) << " for query signatures" << std::endl;
 
+  mbsm::signature::Signature<>* tmp_buff = sycl::malloc_shared<mbsm::signature::Signature<>>(std::max(query_nodes, data_nodes), queue);
+  std::cout << "Allocated " << getBytesSize(std::max(query_nodes, data_nodes) * sizeof(mbsm::signature::Signature<>)) << " for temporary buffer"
+            << std::endl;
+
+  std::cout << "------------- Initialization Step -------------" << std::endl;
   auto e1 = mbsm::signature::generateDataSignatures(queue, device_data_graph, data_signatures);
   queue.wait_and_throw();
   auto time = e1.getProfilingInfo();
@@ -100,9 +112,7 @@ int main(int argc, char** argv) {
 
   // start refining candidate set
   for (size_t ref_step = 0; ref_step < args.refinement_steps; ++ref_step) {
-    std::cout << "-----------------------" << std::endl;
-    std::cout << "Refinement step: " << (ref_step + 1) << std::endl;
-    std::cout << "-----------------------" << std::endl;
+    std::cout << "------------- Refinement step " << (ref_step + 1) << " -------------" << std::endl;
 
     auto e1 = mbsm::signature::refineDataSignatures(queue, device_data_graph, data_signatures, tmp_buff);
     queue.wait_and_throw();
@@ -123,7 +133,19 @@ int main(int argc, char** argv) {
     filter_times.push_back(time);
     std::cout << "Candidates refined in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
   }
-  std::cout << "Candidates of " << query_nodes << " on " << data_nodes << " data nodes" << std::endl;
+
+  std::cout << "------------- Overall Stats -------------" << std::endl;
+  std::chrono::duration<double> total_sig_query_time
+      = std::accumulate(query_sig_times.begin(), query_sig_times.end(), std::chrono::duration<double>(0));
+  std::chrono::duration<double> total_sig_data_time = std::accumulate(data_sig_times.begin(), data_sig_times.end(), std::chrono::duration<double>(0));
+  std::chrono::duration<double> total_filter_time = std::accumulate(filter_times.begin(), filter_times.end(), std::chrono::duration<double>(0));
+  std::chrono::duration<double> total_time = total_sig_data_time + total_filter_time + total_sig_query_time;
+  std::cout << "Total data signature time: " << std::chrono::duration_cast<std::chrono::microseconds>(total_sig_data_time).count() << " us"
+            << std::endl;
+  std::cout << "Total query signature time: " << std::chrono::duration_cast<std::chrono::microseconds>(total_sig_query_time).count() << " us"
+            << std::endl;
+  std::cout << "Total filter time: " << std::chrono::duration_cast<std::chrono::milliseconds>(total_filter_time).count() << " ms" << std::endl;
+  std::cout << "Total time: " << std::chrono::duration_cast<std::chrono::milliseconds>(total_time).count() << " ms" << std::endl;
 
   CandidatesInspector inspector;
   for (size_t i = 0; i < query_nodes; ++i) {
@@ -132,25 +154,11 @@ int main(int argc, char** argv) {
     if (args.print_candidates) std::cerr << "Node " << i << ": " << count << std::endl;
   }
   inspector.finalize();
-  std::cout << "Info:" << std::endl;
-  std::cout << "- Total candidates: " << formatNumber(inspector.total) << std::endl;
-  std::cout << "- Average candidates: " << formatNumber(inspector.avg) << std::endl;
-  std::cout << "- Median candidates: " << formatNumber(inspector.median) << std::endl;
-  std::cout << "- Zero candidates: " << formatNumber(inspector.zero_count) << std::endl;
-
-  // print the sum of all times
-  std::chrono::duration<double> total_sig_query_time
-      = std::accumulate(query_sig_times.begin(), query_sig_times.end(), std::chrono::duration<double>(0));
-  std::chrono::duration<double> total_sig_data_time = std::accumulate(data_sig_times.begin(), data_sig_times.end(), std::chrono::duration<double>(0));
-  std::chrono::duration<double> total_filter_time = std::accumulate(filter_times.begin(), filter_times.end(), std::chrono::duration<double>(0));
-  std::chrono::duration<double> total_time = total_sig_data_time + total_filter_time + total_sig_query_time;
-
-  std::cout << "Total data signature time: " << std::chrono::duration_cast<std::chrono::microseconds>(total_sig_data_time).count() << " us"
-            << std::endl;
-  std::cout << "Total query signature time: " << std::chrono::duration_cast<std::chrono::microseconds>(total_sig_query_time).count() << " us"
-            << std::endl;
-  std::cout << "Total filter time: " << std::chrono::duration_cast<std::chrono::milliseconds>(total_filter_time).count() << " ms" << std::endl;
-  std::cout << "Total time: " << std::chrono::duration_cast<std::chrono::milliseconds>(total_time).count() << " ms" << std::endl;
+  std::cout << "------------- Filter Results -------------" << std::endl;
+  std::cout << "# Total candidates: " << formatNumber(inspector.total) << std::endl;
+  std::cout << "# Average candidates: " << formatNumber(inspector.avg) << std::endl;
+  std::cout << "# Median candidates: " << formatNumber(inspector.median) << std::endl;
+  std::cout << "# Zero candidates: " << formatNumber(inspector.zero_count) << std::endl;
 
   sycl::free(tmp_buff, queue);
   sycl::free(query_signatures, queue);

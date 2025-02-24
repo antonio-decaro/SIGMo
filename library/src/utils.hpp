@@ -1,5 +1,4 @@
 #pragma once
-
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
@@ -89,6 +88,8 @@ private:
     }
   }
 };
+
+
 struct DotSeparated : std::numpunct<char> {
 protected:
   char do_thousands_sep() const override { return '.'; }
@@ -100,4 +101,13 @@ std::string formatNumber(size_t number) {
   ss.imbue(std::locale(std::locale(), new DotSeparated));
   ss << std::fixed << number;
   return ss.str();
+}
+
+std::string getBytesSize(size_t num_bytes) {
+  // convert to the largest unit
+  double bytes = static_cast<double>(num_bytes);
+  if (num_bytes >= 1024 * 1024 * 1024) { return std::to_string(bytes / (1024 * 1024 * 1024)) + " GB"; }
+  if (num_bytes >= 1024 * 1024) { return std::to_string(bytes / (1024 * 1024)) + " MB"; }
+  if (num_bytes >= 1024) { return std::to_string(bytes / 1024) + " KB"; }
+  return std::to_string(num_bytes) + " B";
 }
