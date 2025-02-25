@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 import sys
+import networkx as nx
 from utils import *
 
 if __name__ == '__main__':
-  if len(sys.argv) < 2:
-    print('Usage: python smarts2cuTS.py <smarts>')
+  if sys.stdin.isatty():
+    print(f'Usage: python {sys.argv[0]} < smarts_file')
     sys.exit(1)
-    
-  mol = sys.argv[1]
-  g = smartsToGraph(mol)
-  g = g.to_directed()
+
+  lines = sys.stdin.readlines()
+  g = process_graph(lines)
   
   print(g.number_of_nodes())
   for a, b in g.edges():
     print(a, b)
-

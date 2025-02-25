@@ -2,6 +2,7 @@ import fileinput
 import networkx as nx
 from rdkit import Chem
 import sys
+from tqdm import tqdm
 
 organic_subset = {l: (i+1) for i, l in enumerate('* H B C N O P S F Cl Br I b c n o s p'.split())}
 
@@ -41,3 +42,22 @@ def getLabel(g: dict, digit: bool = True):
   return g['atom_symbol']
 
 NUM_LABELS = len(organic_subset) + 1
+
+def process_single_graph(mol):
+  g = smartsToGraph(mol)
+  g = g.to_directed()
+  return g
+
+def process_graph(lines):
+  g = nx.DiGraph()
+  # for each line in input
+  for el in tqdm(lines, desc="Processing graph", file=sys.stderr):
+    el = el.strip()
+    
+    if not el:
+      continue
+
+    tmp = smartsToGraph(el)
+    tmp = tmp.to_directed()
+    g = nx.disjoint_union(g, tmp)
+  return g

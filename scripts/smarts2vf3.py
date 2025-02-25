@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 
 import sys
-from utils import smartsToGraph, getLabel
+from utils import *
 
 if __name__ == '__main__':
-  if len(sys.argv) != 2:
-    print('Usage: python3 smarts2vf2.py <smarts>')
+  if sys.stdin.isatty():
+    print(f'Usage: python {sys.argv[0]} < smarts_file')
     sys.exit(1)
-  mol = sys.argv[1]
-  
-  g = smartsToGraph(mol)
+
+  lines = sys.stdin.readlines()
+  g = process_graph(lines)
   
   print(len(g.nodes))
   for n in g.nodes:

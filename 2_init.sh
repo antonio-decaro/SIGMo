@@ -98,23 +98,32 @@ generate_files() {
   mkdir -p $OUT_DIR
 
   if [ "$bench" == "MBSM" ]; then
-    out=$(python3 $SCRIPT_DIR/scripts/smarts2${bench}.py $DATA_DIR/${type}.smarts)
+    out=$(python3 $SCRIPT_DIR/scripts/smarts2${bench}.py < $DATA_DIR/${type}.smarts)
     if [ "$out" ]
     then
       echo "$out" > $OUT_DIR/${type}.dat
     fi
   else
     mkdir -p $OUT_DIR/$type
-    while read -r line && [ $i -lt $limit ];
-    do
-      out=$(python3 $SCRIPT_DIR/scripts/smarts2${bench}.py $line)
+    if [ "$type" == "data" ]; then
+      lines=$(head -n $limit $DATA_DIR/${type}.smarts)
+      out=$(python3 $SCRIPT_DIR/scripts/smarts2${bench}.py <<< "$lines")
       if [ "$out" ]
       then
-        echo "$out" > $OUT_DIR/$type/${type}_$i.dat
-        i=$((i+1))
+        echo "$out" > $OUT_DIR/${type}.dat
       fi
-      printf "\rProgress ($type): %d/%d" $i $total
-    done < $DATA_DIR/${type}.smarts
+    else
+      while read -r line && [ $i -lt $limit ];
+      do
+        out=$(python3 $SCRIPT_DIR/scripts/smarts2${bench}.py <<< "$line")
+        if [ "$out" ]
+        then
+          echo "$out" > $OUT_DIR/$type/${type}_$i.dat
+          i=$((i+1))
+        fi
+        printf "\rProgress ($type): %d/%d" $i $total
+      done < $DATA_DIR/${type}.smarts
+    fi
   fi
   echo # new line after progress bar
 }

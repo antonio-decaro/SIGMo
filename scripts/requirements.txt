@@ -4,3 +4,4 @@ pandas
 pysmiles
 rdkit
 seaborn
+tqdm
