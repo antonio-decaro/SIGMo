@@ -35,6 +35,8 @@ int main(int argc, char** argv) {
   size_t gpu_mem = queue.get_device().get_info<sycl::info::device::global_mem_size>();
   std::string gpu_name = queue.get_device().get_info<sycl::info::device::name>();
 
+  HostTimeEvents host_time_events;
+
   if (args.query_data) {
     auto query_graphs = mbsm::io::loadQueryGraphsFromFile(args.query_file);
     auto data_graphs = mbsm::io::loadDataGraphsFromFile(args.data_file);
@@ -76,8 +78,9 @@ int main(int argc, char** argv) {
   std::cout << "# Query Graphs " << num_query_graphs << std::endl;
   std::cout << "# Data Nodes " << data_nodes << std::endl;
   std::cout << "# Data Graphs " << num_data_graphs << std::endl;
-  std::cout << "------------- Setup Data -------------" << std::endl;
 
+  host_time_events.add("setup_data_start");
+  std::cout << "------------- Setup Data -------------" << std::endl;
   std::cout << "Allocated " << getBytesSize(data_graph_bytes) << " for graph data" << std::endl;
   std::cout << "Allocated " << getBytesSize(query_graphs_bytes) << " for query data" << std::endl;
 
@@ -101,13 +104,15 @@ int main(int argc, char** argv) {
   mbsm::signature::Signature<>* tmp_buff = sycl::malloc_shared<mbsm::signature::Signature<>>(std::max(query_nodes, data_nodes), queue);
   size_t tmp_buff_bytes = std::max(query_nodes, data_nodes) * sizeof(mbsm::signature::Signature<>);
   std::cout << "Allocated " << getBytesSize(tmp_buff_bytes) << " for temporary buffer" << std::endl;
+  host_time_events.add("setup_data_end");
 
   std::cout << "Total allocated memory: "
             << getBytesSize(
                    data_signatures_bytes + query_signatures_bytes + candidates_bytes + tmp_buff_bytes + data_graph_bytes + query_graphs_bytes, false)
             << " out of " << getBytesSize(gpu_mem) << " available on " << gpu_name << std::endl;
 
-  std::cout << "------------- Runtime -------------" << std::endl;
+  std::cout << "------------- Runtime Filter Phase -------------" << std::endl;
+  host_time_events.add("filter_start");
   std::cout << "Initialization Step:" << std::endl;
   auto e1 = mbsm::signature::generateDataSignatures(queue, device_data_graph, data_signatures);
   queue.wait_and_throw();
@@ -150,32 +155,43 @@ int main(int argc, char** argv) {
     filter_times.push_back(time);
     std::cout << "- Candidates refined in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
   }
+  host_time_events.add("filter_end");
 
-  std::cout << "------------- Overall Stats -------------" << std::endl;
+  std::cout << "------------- Overall GPU Stats -------------" << std::endl;
   std::chrono::duration<double> total_sig_query_time
       = std::accumulate(query_sig_times.begin(), query_sig_times.end(), std::chrono::duration<double>(0));
   std::chrono::duration<double> total_sig_data_time = std::accumulate(data_sig_times.begin(), data_sig_times.end(), std::chrono::duration<double>(0));
   std::chrono::duration<double> total_filter_time = std::accumulate(filter_times.begin(), filter_times.end(), std::chrono::duration<double>(0));
   std::chrono::duration<double> total_time = total_sig_data_time + total_filter_time + total_sig_query_time;
-  std::cout << "Total data signature time: " << std::chrono::duration_cast<std::chrono::microseconds>(total_sig_data_time).count() << " us"
-            << std::endl;
-  std::cout << "Total query signature time: " << std::chrono::duration_cast<std::chrono::microseconds>(total_sig_query_time).count() << " us"
-            << std::endl;
-  std::cout << "Total filter time: " << std::chrono::duration_cast<std::chrono::milliseconds>(total_filter_time).count() << " ms" << std::endl;
+  std::cout << "Data signature time: " << std::chrono::duration_cast<std::chrono::microseconds>(total_sig_data_time).count() << " us" << std::endl;
+  std::cout << "Query signature time: " << std::chrono::duration_cast<std::chrono::microseconds>(total_sig_query_time).count() << " us" << std::endl;
+  std::cout << "Filter time: " << std::chrono::duration_cast<std::chrono::milliseconds>(total_filter_time).count() << " ms" << std::endl;
   std::cout << "Total time: " << std::chrono::duration_cast<std::chrono::milliseconds>(total_time).count() << " ms" << std::endl;
 
-  CandidatesInspector inspector;
-  for (size_t i = 0; i < data_nodes; ++i) {
-    auto count = candidates.getCandidatesCount(i);
-    inspector.add(count);
-    if (args.print_candidates) std::cerr << "Node " << i << ": " << count << std::endl;
+  std::cout << "------------- Overall Host Stats -------------" << std::endl;
+  std::cout << "Setup Data time: "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(host_time_events.getRangeTime("setup_data_start", "setup_data_end")).count()
+            << " ms" << std::endl;
+  std::cout << "Filter time: "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(host_time_events.getRangeTime("filter_start", "filter_end")).count() << " ms"
+            << std::endl;
+  std::cout << "Total time: " << std::chrono::duration_cast<std::chrono::milliseconds>(host_time_events.getOverallTime()).count() << " ms"
+            << std::endl;
+
+  if (args.print_candidates) {
+    CandidatesInspector inspector;
+    for (size_t i = 0; i < data_nodes; ++i) {
+      auto count = candidates.getCandidatesCount(i);
+      inspector.add(count);
+      if (args.print_candidates) std::cerr << "Node " << i << ": " << count << std::endl;
+    }
+    inspector.finalize();
+    std::cout << "------------- Filter Results -------------" << std::endl;
+    std::cout << "# Total candidates: " << formatNumber(inspector.total) << std::endl;
+    std::cout << "# Average candidates: " << formatNumber(inspector.avg) << std::endl;
+    std::cout << "# Median candidates: " << formatNumber(inspector.median) << std::endl;
+    std::cout << "# Zero candidates: " << formatNumber(inspector.zero_count) << std::endl;
   }
-  inspector.finalize();
-  std::cout << "------------- Filter Results -------------" << std::endl;
-  std::cout << "# Total candidates: " << formatNumber(inspector.total) << std::endl;
-  std::cout << "# Average candidates: " << formatNumber(inspector.avg) << std::endl;
-  std::cout << "# Median candidates: " << formatNumber(inspector.median) << std::endl;
-  std::cout << "# Zero candidates: " << formatNumber(inspector.zero_count) << std::endl;
 
   sycl::free(tmp_buff, queue);
   sycl::free(query_signatures, queue);

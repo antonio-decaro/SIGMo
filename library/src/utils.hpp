@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <iostream>
@@ -57,6 +58,8 @@ private:
       refinement_steps = std::stoi(_argv[++idx]);
     } else if (arg == "v") {
       validate = true;
+    } else if (arg == "p") {
+      print_candidates = true;
     } else if (arg == "m") {
       if (idx + 1 >= _argc) {
         printHelp();
@@ -91,6 +94,35 @@ private:
 };
 
 
+struct HostTimeEvents {
+  std::vector<std::pair<std::string, std::chrono::time_point<std::chrono::high_resolution_clock>>> events;
+
+  void add(std::string name) {
+    auto now = std::chrono::high_resolution_clock::now();
+    this->events.emplace_back(name, now);
+  }
+
+  std::chrono::duration<double> getOverallTime() { return this->events.back().second - this->events.front().second; }
+  std::chrono::duration<double> getTimeTill(std::string event) {
+    auto it = std::find_if(this->events.begin(), this->events.end(), [event](auto& e) { return e.first == event; });
+    if (it == this->events.end()) throw std::runtime_error("Event not found");
+    return it->second - this->events.front().second;
+  }
+  std::chrono::duration<double> getEventTime(std::string event) {
+    auto it = std::find_if(this->events.begin(), this->events.end(), [event](auto& e) { return e.first == event; });
+    if (it == this->events.end()) throw std::runtime_error("Event not found");
+    return it->second - (it - 1)->second;
+  }
+  std::chrono::duration<double> getRangeTime(std::string first_event, std::string last_event) {
+    auto first = std::find_if(this->events.begin(), this->events.end(), [first_event](auto& e) { return e.first == first_event; });
+    auto last = std::find_if(this->events.begin(), this->events.end(), [last_event](auto& e) { return e.first == last_event; });
+    if (first == this->events.end() || last == this->events.end()) throw std::runtime_error("Event not found");
+    // check also if first is before last
+    if (first - last > 0) throw std::runtime_error("First event is after last event");
+    return last->second - first->second;
+  }
+  void clear() { this->events.clear(); }
+};
 struct DotSeparated : std::numpunct<char> {
 protected:
   char do_thousands_sep() const override { return '.'; }
