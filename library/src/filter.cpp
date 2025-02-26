@@ -62,6 +62,9 @@ int main(int argc, char** argv) {
     device_data_graph = pool.transferDataGraphsToDevice(queue);
   }
 
+  size_t data_graph_bytes = mbsm::getDeviceGraphAllocSize(device_data_graph);
+  size_t query_graphs_bytes = mbsm::getDeviceGraphAllocSize(device_query_graph);
+
   std::vector<std::chrono::duration<double>> data_sig_times, query_sig_times, filter_times;
 
   size_t query_nodes = device_query_graph.total_nodes;
@@ -75,7 +78,10 @@ int main(int argc, char** argv) {
   std::cout << "# Data Graphs " << num_data_graphs << std::endl;
   std::cout << "------------- Setup Data -------------" << std::endl;
 
-  mbsm::candidates::Candidates candidates{query_nodes, data_nodes};
+  std::cout << "Allocated " << getBytesSize(data_graph_bytes) << " for graph data" << std::endl;
+  std::cout << "Allocated " << getBytesSize(query_graphs_bytes) << " for query data" << std::endl;
+
+  mbsm::candidates::Candidates candidates{data_nodes, query_nodes};
   size_t alloc_size = candidates.getAllocationSize();
   candidates.candidates = sycl::malloc_shared<mbsm::types::candidates_t>(alloc_size, queue);
   queue.fill(candidates.candidates, 0, alloc_size).wait();
@@ -96,50 +102,53 @@ int main(int argc, char** argv) {
   size_t tmp_buff_bytes = std::max(query_nodes, data_nodes) * sizeof(mbsm::signature::Signature<>);
   std::cout << "Allocated " << getBytesSize(tmp_buff_bytes) << " for temporary buffer" << std::endl;
 
-  std::cout << "Total allocated memory: " << getBytesSize(data_signatures_bytes + query_signatures_bytes + candidates_bytes + tmp_buff_bytes)
+  std::cout << "Total allocated memory: "
+            << getBytesSize(
+                   data_signatures_bytes + query_signatures_bytes + candidates_bytes + tmp_buff_bytes + data_graph_bytes + query_graphs_bytes, false)
             << " out of " << getBytesSize(gpu_mem) << " available on " << gpu_name << std::endl;
 
-  std::cout << "------------- Initialization Step -------------" << std::endl;
+  std::cout << "------------- Runtime -------------" << std::endl;
+  std::cout << "Initialization Step:" << std::endl;
   auto e1 = mbsm::signature::generateDataSignatures(queue, device_data_graph, data_signatures);
   queue.wait_and_throw();
   auto time = e1.getProfilingInfo();
   data_sig_times.push_back(time);
-  std::cout << "Data signatures generated in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
+  std::cout << "- Data signatures generated in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
 
   auto e2 = mbsm::signature::generateQuerySignatures(queue, device_query_graph, query_signatures);
   queue.wait_and_throw();
   time = e2.getProfilingInfo();
   query_sig_times.push_back(time);
-  std::cout << "Query signatures generated in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
+  std::cout << "- Query signatures generated in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
 
   auto e3 = mbsm::isomorphism::filter::filterCandidates(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, candidates);
   queue.wait_and_throw();
   time = e3.getProfilingInfo();
   filter_times.push_back(time);
-  std::cout << "Candidates filtered in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
+  std::cout << "- Candidates filtered in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
 
   // start refining candidate set
   for (size_t ref_step = 0; ref_step < args.refinement_steps; ++ref_step) {
-    std::cout << "------------- Refinement step " << (ref_step + 1) << " -------------" << std::endl;
+    std::cout << "Refinement step " << (ref_step + 1) << ":" << std::endl;
 
-    auto e1 = mbsm::signature::refineDataSignatures(queue, device_data_graph, data_signatures, tmp_buff);
+    auto e1 = mbsm::signature::refineDataSignatures(queue, device_data_graph, data_signatures, tmp_buff, ref_step + 1);
     queue.wait_and_throw();
     time = e1.getProfilingInfo();
     data_sig_times.push_back(time);
-    std::cout << "Data signatures refined in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
+    std::cout << "- Data signatures refined in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
 
-    auto e2 = mbsm::signature::refineQuerySignatures(queue, device_query_graph, query_signatures, tmp_buff);
+    auto e2 = mbsm::signature::refineQuerySignatures(queue, device_query_graph, query_signatures, tmp_buff, ref_step + 1);
     queue.wait_and_throw();
     time = e2.getProfilingInfo();
     query_sig_times.push_back(time);
-    std::cout << "Query signatures refined in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
+    std::cout << "- Query signatures refined in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
 
     auto e3
         = mbsm::isomorphism::filter::refineCandidates(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, candidates);
     queue.wait_and_throw();
     time = e3.getProfilingInfo();
     filter_times.push_back(time);
-    std::cout << "Candidates refined in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
+    std::cout << "- Candidates refined in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
   }
 
   std::cout << "------------- Overall Stats -------------" << std::endl;
@@ -156,7 +165,7 @@ int main(int argc, char** argv) {
   std::cout << "Total time: " << std::chrono::duration_cast<std::chrono::milliseconds>(total_time).count() << " ms" << std::endl;
 
   CandidatesInspector inspector;
-  for (size_t i = 0; i < query_nodes; ++i) {
+  for (size_t i = 0; i < data_nodes; ++i) {
     auto count = candidates.getCandidatesCount(i);
     inspector.add(count);
     if (args.print_candidates) std::cerr << "Node " << i << ": " << count << std::endl;

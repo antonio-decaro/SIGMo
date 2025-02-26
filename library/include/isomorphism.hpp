@@ -37,7 +37,7 @@ utils::BatchedEvent filterCandidates(sycl::queue& queue,
           insert = insert && (query_signature.getLabelCount(l) <= data_signature.getLabelCount(l));
           if (!insert) break;
         }
-        if (insert) { candidates.atomicInsert(query_node_id, data_node_id); }
+        if (insert) { candidates.insert(data_node_id, query_node_id); }
       }
     });
   });
@@ -63,14 +63,14 @@ utils::BatchedEvent refineCandidates(sycl::queue& queue,
       auto data_labels = data_graph.labels;
 
       for (size_t query_node_id = 0; query_node_id < total_query_nodes; ++query_node_id) {
-        if (!candidates.atomicContains(query_node_id, data_node_id)) { continue; }
+        if (!candidates.contains(data_node_id, query_node_id)) { continue; }
         auto query_signature = query_signatures[query_node_id];
 
         bool keep = true;
         for (types::label_t l = 0; l < signature::Signature<>::getMaxLabels() && keep; l++) {
           keep = keep && (query_signature.getLabelCount(l) <= data_signature.getLabelCount(l));
         }
-        if (!keep) { candidates.atomicRemove(query_node_id, data_node_id); }
+        if (!keep) { candidates.remove(data_node_id, query_node_id); }
       }
     });
   });

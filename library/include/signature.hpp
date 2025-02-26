@@ -85,7 +85,8 @@ utils::BatchedEvent generateQuerySignatures(sycl::queue& queue, DeviceBatchedQue
   return event;
 }
 
-utils::BatchedEvent refineQuerySignatures(sycl::queue& queue, DeviceBatchedQueryGraph& graphs, Signature<>* signatures, Signature<>* tmp_buff) {
+utils::BatchedEvent
+refineQuerySignatures(sycl::queue& queue, DeviceBatchedQueryGraph& graphs, Signature<>* signatures, Signature<>* tmp_buff, size_t iter = 1) {
   utils::BatchedEvent event;
   sycl::range<1> global_range(graphs.total_nodes);
 
@@ -131,7 +132,7 @@ utils::BatchedEvent refineQuerySignatures(sycl::queue& queue, DeviceBatchedQuery
         auto neighbor = neighbors[i] + prev_nodes;
         for (types::label_t l = 0; l < max_labels_count; l++) {
           auto count = tmp_buff[neighbor].getLabelCount(l);
-          if (l == node_label) { count -= 1; }
+          if (l == node_label) { count -= iter; }
           if (count > 0) signatures[node_id].incrementLabelCount(l, count);
         }
       }
@@ -169,7 +170,8 @@ utils::BatchedEvent generateDataSignatures(sycl::queue& queue, DeviceBatchedData
   return event;
 }
 
-utils::BatchedEvent refineDataSignatures(sycl::queue& queue, DeviceBatchedDataGraph& graphs, Signature<>* signatures, Signature<>* tmp_buff) {
+utils::BatchedEvent
+refineDataSignatures(sycl::queue& queue, DeviceBatchedDataGraph& graphs, Signature<>* signatures, Signature<>* tmp_buff, size_t iter = 1) {
   utils::BatchedEvent event;
   sycl::range<1> global_range(graphs.total_nodes);
 
@@ -194,7 +196,7 @@ utils::BatchedEvent refineDataSignatures(sycl::queue& queue, DeviceBatchedDataGr
         auto neighbor = column_indices[i];
         for (types::label_t l = 0; l < Signature<>::getMaxLabels(); l++) {
           auto count = tmp_buff[neighbor].getLabelCount(l);
-          if (l == node_label) { count -= 1; }
+          if (l == node_label) { count -= iter; }
           if (count > 0) signatures[node_id].incrementLabelCount(l, count);
         }
       }

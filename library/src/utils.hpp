@@ -1,4 +1,5 @@
 #pragma once
+#include <cmath>
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
@@ -103,11 +104,21 @@ std::string formatNumber(size_t number) {
   return ss.str();
 }
 
-std::string getBytesSize(size_t num_bytes) {
+std::string getBytesSize(size_t num_bytes, bool round = true) {
   // convert to the largest unit
   double bytes = static_cast<double>(num_bytes);
-  if (num_bytes >= 1024 * 1024 * 1024) { return std::to_string(bytes / (1024 * 1024 * 1024)) + " GB"; }
-  if (num_bytes >= 1024 * 1024) { return std::to_string(bytes / (1024 * 1024)) + " MB"; }
-  if (num_bytes >= 1024) { return std::to_string(bytes / 1024) + " KB"; }
-  return std::to_string(num_bytes) + " B";
+  std::string unit = "B";
+  if (num_bytes >= 1024 * 1024 * 1024) {
+    bytes /= 1024 * 1024 * 1024;
+    unit = "GB";
+  } else if (num_bytes >= 1024 * 1024) {
+    bytes /= 1024 * 1024;
+    unit = "MB";
+  } else if (num_bytes >= 1024) {
+    bytes /= 1024;
+    unit = "KB";
+  }
+
+  if (round) return std::to_string(static_cast<int>(std::round(bytes))) + " " + unit;
+  return std::to_string(bytes) + " " + unit;
 }

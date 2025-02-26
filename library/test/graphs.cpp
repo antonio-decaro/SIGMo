@@ -71,6 +71,7 @@ TEST(GraphTest, IntoDataDevice) {
   ASSERT_EQ(device_data_graph.row_offsets[0], 0);
 
   // create a vector with all the labels, row_offsets and column_indices
+  std::vector<mbsm::types::row_offset_t> graph_offsets(data_graphs.size() + 1);
   std::vector<mbsm::types::row_offset_t> row_offsets(total_nodes + 1);
   std::vector<mbsm::types::col_index_t> column_indices(total_edges);
   std::vector<mbsm::types::label_t> labels(total_nodes);
@@ -78,11 +79,15 @@ TEST(GraphTest, IntoDataDevice) {
   size_t ro_offset = 0;
   size_t col_offset = 0;
   size_t label_offset = 0;
+  graph_offsets[0] = 0;
 
-  for (auto& graph : data_graphs) {
+  for (int i = 0; i < data_graphs.size(); i++) {
+    auto& graph = data_graphs[i];
     size_t num_nodes = graph.getNumNodes();
     size_t num_row_offsets = num_nodes + 1;
     size_t num_column_indices = graph.getRowOffsets()[num_nodes];
+
+    graph_offsets[i + 1] = graph_offsets[i] + num_nodes;
 
     for (size_t j = 0; j < num_row_offsets; ++j) { row_offsets[ro_offset + j] = graph.getRowOffsets()[j] + col_offset; }
 
@@ -99,6 +104,8 @@ TEST(GraphTest, IntoDataDevice) {
   ASSERT_EQ(row_offsets.size(), total_nodes + 1);
   ASSERT_EQ(column_indices.size(), total_edges);
   ASSERT_EQ(labels.size(), total_nodes);
+
+  for (size_t i = 0; i < graph_offsets.size(); ++i) { ASSERT_EQ(graph_offsets[i], device_data_graph.graph_offsets[i]); }
 
   for (size_t i = 0; i < total_nodes; ++i) { ASSERT_EQ(labels[i], device_data_graph.labels[i]); }
 
