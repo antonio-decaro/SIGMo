@@ -12,8 +12,8 @@ class Args {
 public:
   std::string fname = "/home/adecaro/subgraph-iso-soa/data/MBSM/pool.bin";
   bool print_candidates = false;
-  int refinement_steps = 1;
-  bool validate = false;
+  bool inspect_candidates = false;
+  int refinement_steps = 0;
   bool query_data = false;
   std::string query_file;
   std::string data_file;
@@ -39,6 +39,7 @@ private:
   void printHelp() {
     std::cout << "Usage: " << this->_argv[0] << " [options] [pool.bin]" << std::endl;
     std::cout << "Options:" << std::endl;
+    std::cout << "   -v: Inspect the candidates" << std::endl;
     std::cout << "   -p: Print the number of candidates for each query node" << std::endl;
     std::cout << "   -i: Print the number of refined iterations. Default = 1" << std::endl;
     std::cout << "  -qd: Define the query file and the data file to read" << std::endl;
@@ -50,6 +51,7 @@ private:
   void parseOption(std::string& arg, size_t& idx) {
     if (arg == "p") {
       print_candidates = true;
+      print_candidates = true;
     } else if (arg == "i") {
       if (idx + 1 >= _argc) {
         printHelp();
@@ -57,9 +59,10 @@ private:
       }
       refinement_steps = std::stoi(_argv[++idx]);
     } else if (arg == "v") {
-      validate = true;
+      inspect_candidates = true;
     } else if (arg == "p") {
       print_candidates = true;
+      inspect_candidates = true;
     } else if (arg == "m") {
       if (idx + 1 >= _argc) {
         printHelp();

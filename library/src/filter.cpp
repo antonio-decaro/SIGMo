@@ -178,7 +178,7 @@ int main(int argc, char** argv) {
   std::cout << "Total time: " << std::chrono::duration_cast<std::chrono::milliseconds>(host_time_events.getOverallTime()).count() << " ms"
             << std::endl;
 
-  if (args.print_candidates) {
+  if (args.inspect_candidates) {
     CandidatesInspector inspector;
     for (size_t i = 0; i < data_nodes; ++i) {
       auto count = candidates.getCandidatesCount(i);
