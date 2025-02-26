@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
   size_t gpu_mem = queue.get_device().get_info<sycl::info::device::global_mem_size>();
   std::string gpu_name = queue.get_device().get_info<sycl::info::device::name>();
 
-  HostTimeEvents host_time_events;
+  TimeEvents host_time_events;
 
   if (args.query_data) {
     auto query_graphs = mbsm::io::loadQueryGraphsFromFile(args.query_file);

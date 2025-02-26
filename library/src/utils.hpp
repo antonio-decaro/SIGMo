@@ -94,7 +94,7 @@ private:
 };
 
 
-struct HostTimeEvents {
+struct TimeEvents {
   std::vector<std::pair<std::string, std::chrono::time_point<std::chrono::high_resolution_clock>>> events;
 
   void add(std::string name) {
