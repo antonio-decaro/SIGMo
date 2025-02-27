@@ -72,19 +72,38 @@ int main(int argc, char** argv) {
   size_t query_nodes = device_query_graph.total_nodes;
   size_t data_nodes = device_data_graph.total_nodes;
 
+  // get the right filter domain method
+  std::function<mbsm::utils::BatchedEvent(sycl::queue&,
+                                          mbsm::DeviceBatchedQueryGraph&,
+                                          mbsm::DeviceBatchedDataGraph&,
+                                          mbsm::signature::Signature<>*,
+                                          mbsm::signature::Signature<>*,
+                                          mbsm::candidates::Candidates)>
+      filter_method, refine_method;
+  if (args.isCandidateDomainData()) {
+    filter_method = mbsm::isomorphism::filter::filterCandidates<mbsm::candidates::CandidatesDomain::Data>;
+    refine_method = mbsm::isomorphism::filter::refineCandidates<mbsm::candidates::CandidatesDomain::Data>;
+  } else {
+    filter_method = mbsm::isomorphism::filter::filterCandidates<mbsm::candidates::CandidatesDomain::Query>;
+    refine_method = mbsm::isomorphism::filter::refineCandidates<mbsm::candidates::CandidatesDomain::Query>;
+  }
+
   std::cout << "------------- Input Data -------------" << std::endl;
   std::cout << "Reed data graph and query graph" << std::endl;
   std::cout << "# Query Nodes " << query_nodes << std::endl;
   std::cout << "# Query Graphs " << num_query_graphs << std::endl;
   std::cout << "# Data Nodes " << data_nodes << std::endl;
   std::cout << "# Data Graphs " << num_data_graphs << std::endl;
+  std::cout << "Filter domain: " << args.candidates_domain << std::endl;
 
   host_time_events.add("setup_data_start");
   std::cout << "------------- Setup Data -------------" << std::endl;
   std::cout << "Allocated " << getBytesSize(data_graph_bytes) << " for graph data" << std::endl;
   std::cout << "Allocated " << getBytesSize(query_graphs_bytes) << " for query data" << std::endl;
 
-  mbsm::candidates::Candidates candidates{data_nodes, query_nodes};
+  size_t source_nodes = args.isCandidateDomainData() ? data_nodes : query_nodes;
+  size_t target_nodes = args.isCandidateDomainData() ? query_nodes : data_nodes;
+  mbsm::candidates::Candidates candidates{source_nodes, target_nodes};
   size_t alloc_size = candidates.getAllocationSize();
   candidates.candidates = sycl::malloc_shared<mbsm::types::candidates_t>(alloc_size, queue);
   queue.fill(candidates.candidates, 0, alloc_size).wait();
@@ -126,7 +145,7 @@ int main(int argc, char** argv) {
   query_sig_times.push_back(time);
   std::cout << "- Query signatures generated in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
 
-  auto e3 = mbsm::isomorphism::filter::filterCandidates(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, candidates);
+  auto e3 = filter_method(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, candidates);
   queue.wait_and_throw();
   time = e3.getProfilingInfo();
   filter_times.push_back(time);
@@ -148,8 +167,7 @@ int main(int argc, char** argv) {
     query_sig_times.push_back(time);
     std::cout << "- Query signatures refined in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
 
-    auto e3
-        = mbsm::isomorphism::filter::refineCandidates(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, candidates);
+    auto e3 = refine_method(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, candidates);
     queue.wait_and_throw();
     time = e3.getProfilingInfo();
     filter_times.push_back(time);
@@ -180,7 +198,7 @@ int main(int argc, char** argv) {
 
   if (args.inspect_candidates) {
     CandidatesInspector inspector;
-    for (size_t i = 0; i < data_nodes; ++i) {
+    for (size_t i = 0; i < (args.isCandidateDomainData() ? data_nodes : query_nodes); ++i) {
       auto count = candidates.getCandidatesCount(i);
       inspector.add(count);
       if (args.print_candidates) std::cerr << "Node " << i << ": " << count << std::endl;

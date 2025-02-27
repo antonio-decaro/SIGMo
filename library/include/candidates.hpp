@@ -6,6 +6,8 @@
 namespace mbsm {
 namespace candidates {
 
+enum class CandidatesDomain { Query, Data };
+
 struct Candidates {
   types::candidates_t* candidates;
   constexpr static types::candidates_t num_bits = sizeof(types::candidates_t) * 8;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "candidates.hpp"
 #include <cstdint>
 #include <sycl/sycl.hpp>
 
@@ -18,8 +19,11 @@ class GenerateQuerySignaturesKernel;
 template<size_t Phase>
 class GenerateDataSignaturesKernel;
 
+template<candidates::CandidatesDomain D>
 class FilterCandidatesKernel;
+template<candidates::CandidatesDomain D>
 class RefineCandidatesKernel;
+class JoinCandidatesKernel;
 
 } // namespace kernels
 } // namespace device
