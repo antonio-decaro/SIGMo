@@ -67,6 +67,20 @@ struct DeviceBatchedQueryGraph {
   size_t total_nodes;
   uint32_t num_graphs;
   uint32_t* graph_offsets;
+
+  SYCL_EXTERNAL inline uint32_t getGraphId(types::node_t node_id) const { return utils::binarySearch(num_nodes, num_graphs, node_id); }
+  SYCL_EXTERNAL inline void getNeighbors(types::node_t node_id, types::node_t* neighbors) const {
+    auto graph_id = getGraphId(node_id);
+    auto previous_nodes = graph_id ? num_nodes[graph_id - 1] : 0;
+    getNeighbors(node_id, neighbors, graph_id, previous_nodes);
+  }
+  SYCL_EXTERNAL inline void getNeighbors(types::node_t node_id, types::node_t* neighbors, uint32_t graph_id, uint32_t previous_nodes) const {
+    utils::adjacency_matrix::getNeighbors(adjacency + graph_offsets[graph_id],
+                                          utils::getNumOfAdjacencyIntegers(num_nodes[graph_id] - previous_nodes),
+                                          node_id,
+                                          neighbors,
+                                          previous_nodes);
+  }
 };
 
 

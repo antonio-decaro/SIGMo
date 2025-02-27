@@ -10,7 +10,7 @@ namespace mbsm {
 namespace utils {
 
 template<typename TypeT = types::adjacency_t>
-SYCL_EXTERNAL uint8_t getNumOfAdjacencyIntegers(uint8_t num_nodes) {
+SYCL_EXTERNAL inline uint8_t getNumOfAdjacencyIntegers(uint8_t num_nodes) {
   uint8_t num_bits = sizeof(TypeT) * 8;
   return (num_nodes * num_nodes + num_bits - 1) / num_bits;
 }
@@ -27,16 +27,20 @@ SYCL_EXTERNAL void setBit(TypeT* adjacency_matrix, uint8_t adjacency_matrix_size
 }
 
 template<typename TypeT>
-SYCL_EXTERNAL void getNeighbors(TypeT* adjacency_matrix, uint8_t adjacency_matrix_size, uint8_t u, types::node_t* neighbors) {
+SYCL_EXTERNAL void getNeighbors(
+    TypeT* adjacency_matrix, uint8_t adjacency_matrix_size, types::node_t node_id, types::node_t* neighbors, types::node_t previous_nodes = 0) {
+  uint8_t u = node_id - previous_nodes;
   uint16_t num_bits = sizeof(TypeT) * 8;
   uint16_t num_nodes = sycl::sqrt(static_cast<float>(num_bits * adjacency_matrix_size));
   uint16_t neighbor_count = 0;
 
   for (uint8_t v = 0; v < num_nodes; ++v) {
     uint16_t idx = (u * num_nodes + v);
-    if (adjacency_matrix[idx / num_bits] & static_cast<TypeT>(static_cast<TypeT>(1) << (idx % num_bits))) { neighbors[neighbor_count++] = v; }
+    if (adjacency_matrix[idx / num_bits] & static_cast<TypeT>(static_cast<TypeT>(1) << (idx % num_bits))) {
+      neighbors[neighbor_count++] = v + previous_nodes;
+    }
   }
-  neighbors[neighbor_count] = types::NULL_NODE; // Null-terminate the list of neighbors
+  if (neighbor_count < types::MAX_NEIGHBORS) neighbors[neighbor_count] = types::NULL_NODE; // Null-terminate the list of neighbors
 }
 
 } // namespace adjacency_matrix
