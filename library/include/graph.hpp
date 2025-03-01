@@ -58,6 +58,18 @@ struct DeviceBatchedDataGraph {
   types::label_t* labels;
   uint32_t num_graphs;
   size_t total_nodes;
+
+  SYCL_EXTERNAL inline bool isNeighbor(types::node_t node_id, types::node_t neighbor_id) const {
+    for (size_t i = row_offsets[node_id]; i < row_offsets[node_id + 1]; ++i) {
+      if (column_indices[i] == neighbor_id) { return true; }
+    }
+    return false;
+  }
+
+  SYCL_EXTERNAL inline bool isNeighbor(uint32_t graph_id, types::node_t node_id, types::node_t neighbor_id) const {
+    auto previous_nodes = graph_offsets[graph_id];
+    return isNeighbor(node_id + previous_nodes, neighbor_id + previous_nodes);
+  }
 };
 
 struct DeviceBatchedQueryGraph {
@@ -69,10 +81,22 @@ struct DeviceBatchedQueryGraph {
   uint32_t* graph_offsets;
 
   SYCL_EXTERNAL inline uint32_t getGraphId(types::node_t node_id) const { return utils::binarySearch(num_nodes, num_graphs, node_id); }
+  SYCL_EXTERNAL inline uint32_t getPreviousNodes(uint32_t graph_id) const { return graph_id ? num_nodes[graph_id - 1] : 0; }
+  SYCL_EXTERNAL inline uint32_t getGraphNodes(uint32_t graph_id) const {
+    return graph_id ? num_nodes[graph_id] - num_nodes[graph_id - 1] : num_nodes[graph_id];
+  }
   SYCL_EXTERNAL inline void getNeighbors(types::node_t node_id, types::node_t* neighbors) const {
     auto graph_id = getGraphId(node_id);
-    auto previous_nodes = graph_id ? num_nodes[graph_id - 1] : 0;
+    auto previous_nodes = getPreviousNodes(graph_id);
     getNeighbors(node_id, neighbors, graph_id, previous_nodes);
+  }
+  SYCL_EXTERNAL inline bool isNeighbor(types::node_t node_id, types::node_t neighbor_id) const {
+    auto graph_id = getGraphId(node_id);
+    auto previous_nodes = getPreviousNodes(graph_id);
+    return utils::adjacency_matrix::isNeighbor(adjacency + graph_offsets[graph_id],
+                                               utils::getNumOfAdjacencyIntegers(num_nodes[graph_id]),
+                                               node_id - previous_nodes,
+                                               neighbor_id - previous_nodes);
   }
   SYCL_EXTERNAL inline void getNeighbors(types::node_t node_id, types::node_t* neighbors, uint32_t graph_id, uint32_t previous_nodes) const {
     utils::adjacency_matrix::getNeighbors(adjacency + graph_offsets[graph_id],

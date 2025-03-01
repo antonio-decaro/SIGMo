@@ -66,10 +66,84 @@ struct Candidates {
     ref &= ~(static_cast<types::candidates_t>(1) << offset);
   }
 
+  /**
+   * Get the overall number of candidates for a given source node.
+   */
   SYCL_EXTERNAL uint32_t getCandidatesCount(types::node_t source_node) const {
     uint32_t count = 0;
     for (size_t i = 0; i < single_node_size; ++i) { count += sycl::popcount(candidates[source_node * single_node_size + i]); }
     return count;
+  }
+
+  /**
+   * Get the number of candidates for a given source node in a given range.
+   */
+  SYCL_EXTERNAL uint32_t getCandidatesCount(types::node_t source_node, uint32_t graph_start, uint32_t graph_end) const {
+    uint32_t count = 0;
+    uint32_t start_idx = graph_start / num_bits;
+    uint32_t end_idx = (graph_end + num_bits - 1) / num_bits;
+
+    for (size_t i = start_idx; i < end_idx; ++i) {
+      types::candidates_t mask = ~static_cast<types::candidates_t>(0);
+      if (i == start_idx) { mask <<= (graph_start % num_bits); }
+      if (i == end_idx - 1) { mask >>= (num_bits - (graph_end % num_bits)); }
+      count += sycl::popcount(candidates[source_node * single_node_size + i] & mask);
+    }
+
+    return count;
+  }
+
+  /**
+   * Get the candidate in position idx of a query node.
+   */
+  SYCL_EXTERNAL types::node_t getCandidateAt(types::node_t source_node, uint32_t idx) const {
+    uint32_t count = 0;
+    for (size_t i = 0; i < single_node_size; ++i) {
+      types::candidates_t candidates_block = candidates[source_node * single_node_size + i];
+      uint32_t block_count = sycl::popcount(candidates_block);
+      if (count + block_count > idx) {
+        for (uint32_t bit = 0; bit < num_bits; ++bit) {
+          if (candidates_block & (static_cast<types::candidates_t>(1) << bit)) {
+            if (count == idx) { return i * num_bits + bit; }
+            ++count;
+          }
+        }
+      } else {
+        count += block_count;
+      }
+    }
+    // If idx is out of range, return an invalid node ID (assuming -1 is invalid)
+    return static_cast<types::node_t>(-1);
+  }
+
+  /**
+   * Get the candidate in position idx of a query node in a given range.
+   */
+  SYCL_EXTERNAL types::node_t getCandidateAt(types::node_t source_node, uint32_t idx, uint32_t graph_start, uint32_t graph_end) const {
+    uint32_t count = 0;
+    uint32_t start_idx = graph_start / num_bits;
+    uint32_t end_idx = (graph_end + num_bits - 1) / num_bits;
+
+    for (size_t i = start_idx; i < end_idx; ++i) {
+      types::candidates_t mask = ~static_cast<types::candidates_t>(0);
+      if (i == start_idx) { mask <<= (graph_start % num_bits); }
+      if (i == end_idx - 1) { mask >>= (num_bits - (graph_end % num_bits)); }
+
+      types::candidates_t candidates_block = candidates[source_node * single_node_size + i] & mask;
+      uint32_t block_count = sycl::popcount(candidates_block);
+      if (count + block_count > idx) {
+        for (uint32_t bit = 0; bit < num_bits; ++bit) {
+          if (candidates_block & (static_cast<types::candidates_t>(1) << bit)) {
+            if (count == idx) { return i * num_bits + bit; }
+            ++count;
+          }
+        }
+      } else {
+        count += block_count;
+      }
+    }
+    // If idx is out of range, return an invalid node ID (assuming -1 is invalid)
+    return static_cast<types::node_t>(-1);
   }
 };
 

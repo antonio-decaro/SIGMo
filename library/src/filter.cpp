@@ -211,6 +211,12 @@ int main(int argc, char** argv) {
     std::cout << "# Zero candidates: " << formatNumber(inspector.zero_count) << std::endl;
   }
 
+  auto join_e = mbsm::isomorphism::join::joinCandidates(queue, device_query_graph, device_data_graph, candidates);
+  join_e.wait();
+  std::cout << "------------- Join Results -------------" << std::endl;
+  std::cout << "Join time: " << std::chrono::duration_cast<std::chrono::milliseconds>(join_e.getProfilingInfo()).count() << " ms" << std::endl;
+
+
   sycl::free(tmp_buff, queue);
   sycl::free(query_signatures, queue);
   sycl::free(data_signatures, queue);
