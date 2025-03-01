@@ -166,7 +166,7 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
 
   sycl::nd_range<1> nd_range{total_data_graphs * preferred_workgroup_size, preferred_workgroup_size};
 
-  sycl::buffer<Mapping, 1> solution_buf{sycl::range<1>{100}};
+  sycl::buffer<Mapping, 1> solution_buf{sycl::range<1>{100}}; // TODO make it dynamic
   sycl::buffer<uint, 1> solution_tail_buf{sycl::range<1>{1}};
 
   auto e1 = queue.submit([&](sycl::handler& cgh) {
@@ -182,12 +182,12 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
       const auto wg = item.get_group();
       const size_t wgid = wg.get_group_linear_id();
       const size_t wglid = wg.get_local_id();
-      const size_t wgsize = wg.get_local_range()[0];
+      const size_t wgsize = wg.get_group_linear_range();
 
       const auto sg = item.get_sub_group();
-      const size_t sgid = sg.get_group_id();
+      const size_t sgid = sg.get_group_linear_id();
       const size_t sglid = sg.get_local_id();
-      const size_t sgsize = sg.get_local_range()[0];
+      const size_t sgsize = sg.get_group_linear_range();
 
       size_t start_data_graph = data_graphs.graph_offsets[wgid];
       size_t end_data_graph = data_graphs.graph_offsets[wgid + 1];
