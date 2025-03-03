@@ -85,8 +85,13 @@ struct Candidates {
 
     for (size_t i = start_idx; i < end_idx; ++i) {
       types::candidates_t mask = ~static_cast<types::candidates_t>(0);
-      if (i == start_idx) { mask <<= (graph_start % num_bits); }
-      if (i == end_idx - 1) { mask >>= (num_bits - (graph_end % num_bits)); }
+      if (start_idx == end_idx - 1) {
+        mask = (mask >> (num_bits - (graph_end - graph_start))) << (graph_start % num_bits);
+      } else if (i == start_idx) {
+        mask <<= (graph_start % num_bits);
+      } else if (i == end_idx - 1) {
+        mask >>= (num_bits - (graph_end % num_bits));
+      }
       count += sycl::popcount(candidates[source_node * single_node_size + i] & mask);
     }
 
@@ -126,17 +131,22 @@ struct Candidates {
 
     for (size_t i = start_idx; i < end_idx; ++i) {
       types::candidates_t mask = ~static_cast<types::candidates_t>(0);
-      if (i == start_idx) { mask <<= (graph_start % num_bits); }
-      if (i == end_idx - 1) { mask >>= (num_bits - (graph_end % num_bits)); }
+      if (start_idx == end_idx - 1) {
+        mask = (mask >> (num_bits - (graph_end - graph_start))) << (graph_start % num_bits);
+      } else if (i == start_idx) {
+        mask <<= (graph_start % num_bits);
+      } else if (i == end_idx - 1) {
+        mask >>= (num_bits - (graph_end % num_bits));
+      }
 
       types::candidates_t candidates_block = candidates[source_node * single_node_size + i] & mask;
       uint32_t block_count = sycl::popcount(candidates_block);
       if (count + block_count > idx) {
-        for (uint32_t bit = 0; bit < num_bits; ++bit) {
-          if (candidates_block & (static_cast<types::candidates_t>(1) << bit)) {
-            if (count == idx) { return i * num_bits + bit; }
-            ++count;
-          }
+        while (candidates_block != 0) {
+          uint32_t trailing_bits = sycl::ctz(candidates_block);
+          if (count == idx) { return i * num_bits + trailing_bits; }
+          candidates_block ^= (static_cast<types::candidates_t>(1) << trailing_bits);
+          ++count;
         }
       } else {
         count += block_count;
