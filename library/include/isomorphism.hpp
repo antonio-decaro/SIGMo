@@ -125,9 +125,8 @@ struct Visited {
 struct Mapping { // TODO: make it SOA
   size_t query_graph_id;
   size_t data_graph_id;
-  types::node_t query_nodes[12];
-  types::node_t data_nodes[12];
-  bool init = false;
+  types::node_t query_nodes[10];
+  types::node_t data_nodes[10];
 };
 
 SYCL_EXTERNAL bool isValidMapping(types::node_t candidate,
@@ -161,12 +160,12 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
   const size_t total_query_graphs = query_graphs.num_graphs;
   const size_t total_data_graphs = data_graphs.num_graphs;
 
-  const size_t preferred_workgroup_size = 256; // TODO get from device
-  const size_t subgroup_size = 32;             // TODO get from device
+  const size_t preferred_workgroup_size = 32; // TODO get from device
+  const size_t subgroup_size = 32;            // TODO get from device
 
   sycl::nd_range<1> nd_range{total_data_graphs * preferred_workgroup_size, preferred_workgroup_size};
 
-  sycl::buffer<Mapping, 1> solution_buf{sycl::range<1>{100}}; // TODO make it dynamic
+  sycl::buffer<Mapping, 1> solution_buf{sycl::range<1>{10}}; // TODO make it dynamic
   sycl::buffer<uint, 1> solution_tail_buf{sycl::range<1>{1}};
 
   auto e1 = queue.submit([&](sycl::handler& cgh) {
@@ -176,17 +175,17 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
     cgh.parallel_for(nd_range, [=, query_graphs = query_graphs, data_graphs = data_graphs](sycl::nd_item<1> item) {
       sycl::atomic_ref<uint, sycl::memory_order::relaxed, sycl::memory_scope::device> solution_tail{solution_tail_acc[0]};
 
-      const size_t lid = item.get_local_id(0);
-      const size_t gid = item.get_global_id(0);
+      const size_t lid = item.get_local_linear_id();
+      const size_t gid = item.get_global_linear_id();
 
       const auto wg = item.get_group();
       const size_t wgid = wg.get_group_linear_id();
-      const size_t wglid = wg.get_local_id();
+      const size_t wglid = wg.get_local_linear_id();
       const size_t wgsize = wg.get_group_linear_range();
 
       const auto sg = item.get_sub_group();
       const size_t sgid = sg.get_group_linear_id();
-      const size_t sglid = sg.get_local_id();
+      const size_t sglid = sg.get_local_linear_id();
       const size_t sgsize = sg.get_group_linear_range();
 
       size_t start_data_graph = data_graphs.graph_offsets[wgid];
@@ -195,6 +194,7 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
       auto data_graph_row_offsets = data_graphs.row_offsets + start_data_graph;
       auto data_graph_column_indices = data_graphs.column_indices;
 
+      if (gid == 0) { solution_tail = 0; }
       sycl::group_barrier(wg);
 
       Stack stack[12]; // TODO: assume max depth of 12 but make it dynamic
@@ -216,18 +216,16 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
         // starting_node = sycl::reduce_over_group(sg, starting_node, sycl::maximum<>());
         // if (starting_node == -1) { continue; } // no starting node
         int starting_node = 0;
-        size_t starting_node_candidates = candidates.getCandidatesCount(starting_node, start_data_graph, end_data_graph);
+        size_t starting_node_candidates = candidates.getCandidatesCount(starting_node + offset_query_nodes, start_data_graph, end_data_graph);
 
         for (size_t target_root_id = sglid; target_root_id < starting_node_candidates; target_root_id += sgsize) {
           // start DFS
           Visited visited{start_data_graph};
           uint top = 0;
-          auto target_root = candidates.getCandidateAt(starting_node, target_root_id, start_data_graph, end_data_graph);
+          auto target_root = candidates.getCandidateAt(starting_node + offset_query_nodes, target_root_id, start_data_graph, end_data_graph);
           mapping[0] = target_root;
           visited.set(target_root);
-
-          stack[top++] = {1, target_root_id}; // initialize stack with the first node
-          size_t iter = 0;
+          stack[top++] = {1, 0}; // initialize stack with the first node
           // DFS loop
           while (top > 0) {
             // get the top frame
@@ -238,7 +236,6 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
                 auto solution_idx = solution_tail++;
                 solution_acc[solution_idx].query_graph_id = query_graph_id;
                 solution_acc[solution_idx].data_graph_id = wgid;
-                solution_acc[solution_idx].init = true;
                 for (int i = 0; i < num_query_nodes; i++) {
                   solution_acc[solution_idx].query_nodes[i] = i;
                   solution_acc[solution_idx].data_nodes[i] = mapping[i];
@@ -263,8 +260,6 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
             // increment the candidate index for the next iteration
             stack[top - 1].candidateIdx++;
 
-            // acc[sglid + 2] = isValidMapping(candidate, frame.depth, mapping, query_graphs, query_graph_id, data_graphs, wgid) ? 21 : 20;
-
             if (!visited.get(candidate) && isValidMapping(candidate, frame.depth, mapping, query_graphs, query_graph_id, data_graphs, wgid)) {
               mapping[frame.depth] = candidate;
               visited.set(candidate);
@@ -278,9 +273,9 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
 
   e1.wait();
   sycl::host_accessor acc{solution_buf};
+  sycl::host_accessor tail{solution_tail_buf};
   std::cout << "Solutions: " << std::endl;
-  for (int i = 0; i < 100; i++) {
-    if (!acc[i].init) { break; }
+  for (int i = 0; i < tail[0]; i++) {
     std::cout << "\t" << acc[i].query_graph_id << " -> " << acc[i].data_graph_id << ": ";
     for (int j = 0; j < 12; j++) {
       if (acc[i].query_nodes[j] == -1) { break; }
