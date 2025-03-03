@@ -175,15 +175,21 @@ int main(int argc, char** argv) {
   }
   host_time_events.add("filter_end");
 
+  auto join_e = mbsm::isomorphism::join::joinCandidates(queue, device_query_graph, device_data_graph, candidates);
+  join_e.wait();
+
+  host_time_events.add("join_end");
+
   std::cout << "------------- Overall GPU Stats -------------" << std::endl;
   std::chrono::duration<double> total_sig_query_time
       = std::accumulate(query_sig_times.begin(), query_sig_times.end(), std::chrono::duration<double>(0));
   std::chrono::duration<double> total_sig_data_time = std::accumulate(data_sig_times.begin(), data_sig_times.end(), std::chrono::duration<double>(0));
   std::chrono::duration<double> total_filter_time = std::accumulate(filter_times.begin(), filter_times.end(), std::chrono::duration<double>(0));
-  std::chrono::duration<double> total_time = total_sig_data_time + total_filter_time + total_sig_query_time;
+  std::chrono::duration<double> total_time = total_sig_data_time + total_filter_time + total_sig_query_time + join_e.getProfilingInfo();
   std::cout << "Data signature time: " << std::chrono::duration_cast<std::chrono::microseconds>(total_sig_data_time).count() << " us" << std::endl;
   std::cout << "Query signature time: " << std::chrono::duration_cast<std::chrono::microseconds>(total_sig_query_time).count() << " us" << std::endl;
   std::cout << "Filter time: " << std::chrono::duration_cast<std::chrono::milliseconds>(total_filter_time).count() << " ms" << std::endl;
+  std::cout << "Join time: " << std::chrono::duration_cast<std::chrono::milliseconds>(join_e.getProfilingInfo()).count() << " ms" << std::endl;
   std::cout << "Total time: " << std::chrono::duration_cast<std::chrono::milliseconds>(total_time).count() << " ms" << std::endl;
 
   std::cout << "------------- Overall Host Stats -------------" << std::endl;
@@ -193,6 +199,8 @@ int main(int argc, char** argv) {
   std::cout << "Filter time: "
             << std::chrono::duration_cast<std::chrono::milliseconds>(host_time_events.getRangeTime("filter_start", "filter_end")).count() << " ms"
             << std::endl;
+  std::cout << "Join time: " << std::chrono::duration_cast<std::chrono::milliseconds>(host_time_events.getRangeTime("filter_end", "join_end")).count()
+            << " ms" << std::endl;
   std::cout << "Total time: " << std::chrono::duration_cast<std::chrono::milliseconds>(host_time_events.getOverallTime()).count() << " ms"
             << std::endl;
 
@@ -210,11 +218,6 @@ int main(int argc, char** argv) {
     std::cout << "# Median candidates: " << formatNumber(inspector.median) << std::endl;
     std::cout << "# Zero candidates: " << formatNumber(inspector.zero_count) << std::endl;
   }
-
-  auto join_e = mbsm::isomorphism::join::joinCandidates(queue, device_query_graph, device_data_graph, candidates);
-  join_e.wait();
-  std::cout << "------------- Join Results -------------" << std::endl;
-  std::cout << "Join time: " << std::chrono::duration_cast<std::chrono::milliseconds>(join_e.getProfilingInfo()).count() << " ms" << std::endl;
 
 
   sycl::free(tmp_buff, queue);
