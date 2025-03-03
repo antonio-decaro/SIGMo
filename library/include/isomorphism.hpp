@@ -181,12 +181,11 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
       const auto wg = item.get_group();
       const size_t wgid = wg.get_group_linear_id();
       const size_t wglid = wg.get_local_linear_id();
-      const size_t wgsize = wg.get_group_linear_range();
 
       const auto sg = item.get_sub_group();
       const size_t sgid = sg.get_group_linear_id();
       const size_t sglid = sg.get_local_linear_id();
-      const size_t sgsize = sg.get_group_linear_range();
+      const size_t sgsize = sg.get_local_range()[0];
 
       size_t start_data_graph = data_graphs.graph_offsets[wgid];
       size_t end_data_graph = data_graphs.graph_offsets[wgid + 1];
@@ -200,7 +199,8 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
       Stack stack[12]; // TODO: assume max depth of 12 but make it dynamic
       uint32_t mapping[12];
 
-      for (size_t query_graph_id = sgid; query_graph_id < total_query_graphs; query_graph_id += (wgsize / sgsize)) { // iterate over all query graphs
+      for (size_t query_graph_id = sgid; query_graph_id < total_query_graphs;
+           query_graph_id += sg.get_group_linear_range()) { // iterate over all query graphs
         const size_t offset_query_nodes = query_graphs.getPreviousNodes(query_graph_id);
         const uint num_query_nodes = query_graphs.getGraphNodes(query_graph_id);
         // int starting_node = sglid;
