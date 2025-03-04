@@ -10,6 +10,12 @@
 
 class Args {
 public:
+  struct Filter {
+    bool active = false;
+    size_t max_nodes = 0;
+    size_t min_nodes = static_cast<size_t>(-1);
+  };
+
   std::string fname = "/home/adecaro/subgraph-iso-soa/data/MBSM/pool.bin";
   bool print_candidates = false;
   bool inspect_candidates = false;
@@ -20,6 +26,7 @@ public:
   size_t multiply_factor_query = 1;
   size_t multiply_factor_data = 1;
   std::string candidates_domain = "data";
+  Args::Filter query_filter;
 
 
   Args(int& argc, char**& argv) : _argc(argc), _argv(argv) {
@@ -51,6 +58,8 @@ private:
     std::cout << "   -m: Multiply the number of all graphs by a factor. Default = 1" << std::endl;
     std::cout << "  -mq: Multiply the number of query graphs by a factor. Default = 1" << std::endl;
     std::cout << "  -md: Multiply the number of data graphs by a factor. Default = 1" << std::endl;
+    std::cout << "  --query-filter: Apply a filter to the query graphs." << std::endl;
+    std::cout << "                  min[:max]" << std::endl;
   }
 
   void parseOption(std::string& arg, size_t& idx) {
@@ -104,6 +113,20 @@ private:
       query_data = true;
       query_file = _argv[++idx];
       data_file = _argv[++idx];
+    } else if (arg == "-query-filter") {
+      query_filter.active = true;
+      if (idx + 1 >= _argc) {
+        printHelp();
+        std::exit(1);
+      }
+      std::string filter_arg = _argv[++idx];
+      size_t colon_pos = filter_arg.find(':');
+      if (colon_pos != std::string::npos) {
+        query_filter.min_nodes = std::stoi(filter_arg.substr(0, colon_pos));
+        query_filter.max_nodes = std::stoi(filter_arg.substr(colon_pos + 1));
+      } else {
+        query_filter.min_nodes = std::stoi(filter_arg);
+      }
     } else {
       printHelp();
       std::exit(1);

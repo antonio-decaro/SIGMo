@@ -40,6 +40,14 @@ int main(int argc, char** argv) {
   if (args.query_data) {
     auto query_graphs = mbsm::io::loadQueryGraphsFromFile(args.query_file);
     auto data_graphs = mbsm::io::loadDataGraphsFromFile(args.data_file);
+    if (args.query_filter.active) {
+      for (int i = 0; i < query_graphs.size(); ++i) {
+        if (query_graphs[i].getNumNodes() > args.query_filter.max_nodes || query_graphs[i].getNumNodes() < args.query_filter.min_nodes) {
+          query_graphs.erase(query_graphs.begin() + i);
+          i--;
+        }
+      }
+    }
     num_query_graphs = query_graphs.size();
     for (size_t i = 1; i < args.multiply_factor_query; ++i) {
       query_graphs.insert(query_graphs.end(), query_graphs.begin(), query_graphs.begin() + num_query_graphs);
@@ -175,10 +183,26 @@ int main(int argc, char** argv) {
   }
   host_time_events.add("filter_end");
 
+  if (args.inspect_candidates) {
+    CandidatesInspector inspector;
+    for (size_t i = 0; i < (args.isCandidateDomainData() ? data_nodes : query_nodes); ++i) {
+      auto count = candidates.getCandidatesCount(i);
+      inspector.add(count);
+      if (args.print_candidates) std::cerr << "Node " << i << ": " << count << std::endl;
+    }
+    inspector.finalize();
+    std::cout << "------------- Filter Results -------------" << std::endl;
+    std::cout << "# Total candidates: " << formatNumber(inspector.total) << std::endl;
+    std::cout << "# Average candidates: " << formatNumber(inspector.avg) << std::endl;
+    std::cout << "# Median candidates: " << formatNumber(inspector.median) << std::endl;
+    std::cout << "# Zero candidates: " << formatNumber(inspector.zero_count) << std::endl;
+  }
+
+  host_time_events.add("join_start");
   auto join_e = mbsm::isomorphism::join::joinCandidates(queue, device_query_graph, device_data_graph, candidates);
   join_e.wait();
-
   host_time_events.add("join_end");
+
 
   std::cout << "------------- Overall GPU Stats -------------" << std::endl;
   std::chrono::duration<double> total_sig_query_time
@@ -199,25 +223,10 @@ int main(int argc, char** argv) {
   std::cout << "Filter time: "
             << std::chrono::duration_cast<std::chrono::milliseconds>(host_time_events.getRangeTime("filter_start", "filter_end")).count() << " ms"
             << std::endl;
-  std::cout << "Join time: " << std::chrono::duration_cast<std::chrono::milliseconds>(host_time_events.getRangeTime("filter_end", "join_end")).count()
+  std::cout << "Join time: " << std::chrono::duration_cast<std::chrono::milliseconds>(host_time_events.getRangeTime("join_start", "join_end")).count()
             << " ms" << std::endl;
   std::cout << "Total time: " << std::chrono::duration_cast<std::chrono::milliseconds>(host_time_events.getOverallTime()).count() << " ms"
             << std::endl;
-
-  if (args.inspect_candidates) {
-    CandidatesInspector inspector;
-    for (size_t i = 0; i < (args.isCandidateDomainData() ? data_nodes : query_nodes); ++i) {
-      auto count = candidates.getCandidatesCount(i);
-      inspector.add(count);
-      if (args.print_candidates) std::cerr << "Node " << i << ": " << count << std::endl;
-    }
-    inspector.finalize();
-    std::cout << "------------- Filter Results -------------" << std::endl;
-    std::cout << "# Total candidates: " << formatNumber(inspector.total) << std::endl;
-    std::cout << "# Average candidates: " << formatNumber(inspector.avg) << std::endl;
-    std::cout << "# Median candidates: " << formatNumber(inspector.median) << std::endl;
-    std::cout << "# Zero candidates: " << formatNumber(inspector.zero_count) << std::endl;
-  }
 
 
   sycl::free(tmp_buff, queue);
