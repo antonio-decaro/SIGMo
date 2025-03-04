@@ -95,6 +95,11 @@ generate_files() {
   local i=0
   local OUT_DIR=$DATA_DIR/$bench
 
+  if [ $limit -eq 0 ]
+  then
+    return
+  fi
+
   mkdir -p $OUT_DIR
 
   if [ "$type" == "data" ]; then
