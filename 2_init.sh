@@ -126,7 +126,7 @@ do
 
   # generate query and data files in parallel
   echo "[*] Generating query files..."
-  generate_files $bench "query" $query_limit &
+  generate_files $bench "query" $query_limit
   echo "[*] Generating data files..."
   generate_files $bench "data" $data_limit
   wait
