@@ -3,7 +3,7 @@
 # Setting up variables
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DATA_DIR=$SCRIPT_DIR/data
-AVAILABLE_BENCHMARKS="vf3,cuTS,GSI,MBSM"
+AVAILABLE_BENCHMARKS="VF3,cuTS,GSI,MBSM"
 
 data_limit=-1
 query_limit=-1
