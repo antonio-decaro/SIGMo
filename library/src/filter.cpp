@@ -145,13 +145,13 @@ int main(int argc, char** argv) {
   queue.wait_and_throw();
   auto time = e1.getProfilingInfo();
   data_sig_times.push_back(time);
-  std::cout << "- Data signatures generated in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
+  std::cout << "- Data signatures generated in " << std::chrono::duration_cast < std::chrono::milliseconds(time).count() << " ms" << std::endl;
 
   auto e2 = mbsm::signature::generateQuerySignatures(queue, device_query_graph, query_signatures);
   queue.wait_and_throw();
   time = e2.getProfilingInfo();
   query_sig_times.push_back(time);
-  std::cout << "- Query signatures generated in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
+  std::cout << "- Query signatures generated in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
 
   auto e3 = filter_method(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, candidates);
   queue.wait_and_throw();
@@ -167,13 +167,13 @@ int main(int argc, char** argv) {
     queue.wait_and_throw();
     time = e1.getProfilingInfo();
     data_sig_times.push_back(time);
-    std::cout << "- Data signatures refined in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
+    std::cout << "- Data signatures refined in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
 
     auto e2 = mbsm::signature::refineQuerySignatures(queue, device_query_graph, query_signatures, tmp_buff, ref_step + 1);
     queue.wait_and_throw();
     time = e2.getProfilingInfo();
     query_sig_times.push_back(time);
-    std::cout << "- Query signatures refined in " << std::chrono::duration_cast<std::chrono::microseconds>(time).count() << " us" << std::endl;
+    std::cout << "- Query signatures refined in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
 
     auto e3 = refine_method(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, candidates);
     queue.wait_and_throw();
@@ -210,8 +210,8 @@ int main(int argc, char** argv) {
   std::chrono::duration<double> total_sig_data_time = std::accumulate(data_sig_times.begin(), data_sig_times.end(), std::chrono::duration<double>(0));
   std::chrono::duration<double> total_filter_time = std::accumulate(filter_times.begin(), filter_times.end(), std::chrono::duration<double>(0));
   std::chrono::duration<double> total_time = total_sig_data_time + total_filter_time + total_sig_query_time + join_e.getProfilingInfo();
-  std::cout << "Data signature time: " << std::chrono::duration_cast<std::chrono::microseconds>(total_sig_data_time).count() << " us" << std::endl;
-  std::cout << "Query signature time: " << std::chrono::duration_cast<std::chrono::microseconds>(total_sig_query_time).count() << " us" << std::endl;
+  std::cout << "Data signature time: " << std::chrono::duration_cast<std::chrono::milliseconds>(total_sig_data_time).count() << " ms" << std::endl;
+  std::cout << "Query signature time: " << std::chrono::duration_cast<std::chrono::milliseconds>(total_sig_query_time).count() << " ms" << std::endl;
   std::cout << "Filter time: " << std::chrono::duration_cast<std::chrono::milliseconds>(total_filter_time).count() << " ms" << std::endl;
   std::cout << "Join time: " << std::chrono::duration_cast<std::chrono::milliseconds>(join_e.getProfilingInfo()).count() << " ms" << std::endl;
   std::cout << "Total time: " << std::chrono::duration_cast<std::chrono::milliseconds>(total_time).count() << " ms" << std::endl;
