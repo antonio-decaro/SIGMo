@@ -184,91 +184,93 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
   auto e1 = queue.submit([&](sycl::handler& cgh) {
     // sycl::accessor solution_acc{solution_buf, cgh, sycl::read_write};
 
-    cgh.parallel_for(nd_range, [=, query_graphs = query_graphs, data_graphs = data_graphs](sycl::nd_item<1> item) {
-      const size_t lid = item.get_local_linear_id();
-      const size_t gid = item.get_global_linear_id();
+    cgh.parallel_for<device::kernels::JoinCandidatesKernel>(
+        nd_range, [=, query_graphs = query_graphs, data_graphs = data_graphs](sycl::nd_item<1> item) {
+          const size_t lid = item.get_local_linear_id();
+          const size_t gid = item.get_global_linear_id();
 
-      const auto wg = item.get_group();
-      const size_t wgid = wg.get_group_linear_id();
-      const size_t wglid = wg.get_local_linear_id();
+          const auto wg = item.get_group();
+          const size_t wgid = wg.get_group_linear_id();
+          const size_t wglid = wg.get_local_linear_id();
 
-      const auto sg = item.get_sub_group();
-      const size_t sgid = sg.get_group_linear_id();
-      const size_t sglid = sg.get_local_linear_id();
-      const size_t sgsize = sg.get_local_range()[0];
+          const auto sg = item.get_sub_group();
+          const size_t sgid = sg.get_group_linear_id();
+          const size_t sglid = sg.get_local_linear_id();
+          const size_t sgsize = sg.get_local_range()[0];
 
-      sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> num_matches_ref{num_matches[0]};
+          sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> num_matches_ref{num_matches[0]};
 
-      Stack stack[30]; // TODO: assume max depth of 30 but make it dynamic
-      uint32_t mapping[30];
-      types::node_t matching_order[30];
+          Stack stack[30]; // TODO: assume max depth of 30 but make it dynamic
+          uint32_t mapping[30];
+          types::node_t matching_order[30];
 
-      for (size_t data_graph_id = wgid; data_graph_id < total_data_graphs; data_graph_id += wg.get_group_linear_range()) {
-        size_t start_data_graph = data_graphs.graph_offsets[data_graph_id];
-        size_t end_data_graph = data_graphs.graph_offsets[data_graph_id + 1];
-        size_t num_data_nodes = end_data_graph - start_data_graph;
-        auto data_graph_row_offsets = data_graphs.row_offsets + start_data_graph;
-        auto data_graph_column_indices = data_graphs.column_indices;
+          for (size_t data_graph_id = wgid; data_graph_id < total_data_graphs; data_graph_id += wg.get_group_linear_range()) {
+            size_t start_data_graph = data_graphs.graph_offsets[data_graph_id];
+            size_t end_data_graph = data_graphs.graph_offsets[data_graph_id + 1];
+            size_t num_data_nodes = end_data_graph - start_data_graph;
+            auto data_graph_row_offsets = data_graphs.row_offsets + start_data_graph;
+            auto data_graph_column_indices = data_graphs.column_indices;
 
-        sycl::group_barrier(wg);
+            sycl::group_barrier(wg);
 
 
-        for (size_t query_graph_id = sgid; query_graph_id < total_query_graphs;
-             query_graph_id += sg.get_group_linear_range()) { // iterate over all query graphs
-          const size_t offset_query_nodes = query_graphs.getPreviousNodes(query_graph_id);
-          const uint num_query_nodes = query_graphs.getGraphNodes(query_graph_id);
+            for (size_t query_graph_id = sgid; query_graph_id < total_query_graphs;
+                 query_graph_id += sg.get_group_linear_range()) { // iterate over all query graphs
+              const size_t offset_query_nodes = query_graphs.getPreviousNodes(query_graph_id);
+              const uint num_query_nodes = query_graphs.getGraphNodes(query_graph_id);
 
-          size_t starting_node_candidates = 0;
-          if (sglid < num_query_nodes) {
-            starting_node_candidates = candidates.getCandidatesCount(sglid + offset_query_nodes, start_data_graph, end_data_graph);
-          }
-          if (sycl::any_of_group(sg, sglid < num_query_nodes && starting_node_candidates == 0)) { continue; }
-          defineMatchingOrder(sg, num_query_nodes, matching_order, starting_node_candidates);
-
-          for (size_t target_root_id = sglid; target_root_id < starting_node_candidates; target_root_id += sgsize) {
-            // start DFS
-            Visited visited{start_data_graph};
-            auto target_root = candidates.getCandidateAt(matching_order[0] + offset_query_nodes, target_root_id, start_data_graph, end_data_graph);
-            uint top = 0;
-            mapping[0] = target_root;
-            visited.set(target_root);
-            stack[top++] = {1, 0}; // initialize stack with the first node
-            // DFS loop
-            while (top > 0) {
-              // get the top frame
-              auto frame = stack[top - 1];
-              auto query_node = matching_order[frame.depth];
-
-              if (frame.depth == num_query_nodes) { // found a match and output solution
-                num_matches_ref++;
-                top--;
-                continue;
+              size_t starting_node_candidates = 0;
+              if (sglid < num_query_nodes) {
+                starting_node_candidates = candidates.getCandidatesCount(sglid + offset_query_nodes, start_data_graph, end_data_graph);
               }
-              // no more candidates
-              if (frame.candidateIdx >= candidates.getCandidatesCount(query_node + offset_query_nodes, start_data_graph, end_data_graph)) {
-                // backtrack
-                top--;
-                // free the failed mapping
-                if (top > 0) { visited.unset(mapping[query_node]); }
-                continue;
-              }
+              if (sycl::any_of_group(sg, sglid < num_query_nodes && starting_node_candidates == 0)) { continue; }
+              defineMatchingOrder(sg, num_query_nodes, matching_order, starting_node_candidates);
 
-              // try the next candidate
-              auto candidate = candidates.getCandidateAt(query_node + offset_query_nodes, frame.candidateIdx, start_data_graph, end_data_graph);
-              // increment the candidate index for the next iteration
-              stack[top - 1].candidateIdx++;
+              for (size_t target_root_id = sglid; target_root_id < starting_node_candidates; target_root_id += sgsize) {
+                // start DFS
+                Visited visited{start_data_graph};
+                auto target_root
+                    = candidates.getCandidateAt(matching_order[0] + offset_query_nodes, target_root_id, start_data_graph, end_data_graph);
+                uint top = 0;
+                mapping[0] = target_root;
+                visited.set(target_root);
+                stack[top++] = {1, 0}; // initialize stack with the first node
+                // DFS loop
+                while (top > 0) {
+                  // get the top frame
+                  auto frame = stack[top - 1];
+                  auto query_node = matching_order[frame.depth];
 
-              if (!visited.get(candidate)
-                  && isValidMapping(candidate, frame.depth, mapping, matching_order, query_graphs, query_graph_id, data_graphs, wgid)) {
-                mapping[frame.depth] = candidate;
-                visited.set(candidate);
-                stack[top++] = {frame.depth + 1, 0};
+                  if (frame.depth == num_query_nodes) { // found a match and output solution
+                    num_matches_ref++;
+                    top--;
+                    continue;
+                  }
+                  // no more candidates
+                  if (frame.candidateIdx >= candidates.getCandidatesCount(query_node + offset_query_nodes, start_data_graph, end_data_graph)) {
+                    // backtrack
+                    top--;
+                    // free the failed mapping
+                    if (top > 0) { visited.unset(mapping[query_node]); }
+                    continue;
+                  }
+
+                  // try the next candidate
+                  auto candidate = candidates.getCandidateAt(query_node + offset_query_nodes, frame.candidateIdx, start_data_graph, end_data_graph);
+                  // increment the candidate index for the next iteration
+                  stack[top - 1].candidateIdx++;
+
+                  if (!visited.get(candidate)
+                      && isValidMapping(candidate, frame.depth, mapping, matching_order, query_graphs, query_graph_id, data_graphs, wgid)) {
+                    mapping[frame.depth] = candidate;
+                    visited.set(candidate);
+                    stack[top++] = {frame.depth + 1, 0};
+                  }
+                }
               }
             }
           }
-        }
-      }
-    });
+        });
   });
 
   e.add(e1);
