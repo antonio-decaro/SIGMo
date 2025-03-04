@@ -145,7 +145,7 @@ int main(int argc, char** argv) {
   queue.wait_and_throw();
   auto time = e1.getProfilingInfo();
   data_sig_times.push_back(time);
-  std::cout << "- Data signatures generated in " << std::chrono::duration_cast < std::chrono::milliseconds(time).count() << " ms" << std::endl;
+  std::cout << "- Data signatures generated in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
 
   auto e2 = mbsm::signature::generateQuerySignatures(queue, device_query_graph, query_signatures);
   queue.wait_and_throw();
@@ -191,7 +191,7 @@ int main(int argc, char** argv) {
       if (args.print_candidates) std::cerr << "Node " << i << ": " << count << std::endl;
     }
     inspector.finalize();
-    std::cout << "------------- Filter Results -------------" << std::endl;
+    std::cout << "------------- Results -------------" << std::endl;
     std::cout << "# Total candidates: " << formatNumber(inspector.total) << std::endl;
     std::cout << "# Average candidates: " << formatNumber(inspector.avg) << std::endl;
     std::cout << "# Median candidates: " << formatNumber(inspector.median) << std::endl;
@@ -199,9 +199,12 @@ int main(int argc, char** argv) {
   }
 
   host_time_events.add("join_start");
-  auto join_e = mbsm::isomorphism::join::joinCandidates(queue, device_query_graph, device_data_graph, candidates);
+  size_t* num_matches = sycl::malloc_shared<size_t>(1, queue);
+  *num_matches = 0;
+  auto join_e = mbsm::isomorphism::join::joinCandidates(queue, device_query_graph, device_data_graph, candidates, num_matches);
   join_e.wait();
   host_time_events.add("join_end");
+  std::cout << "# Matches: " << formatNumber(*num_matches) << std::endl;
 
 
   std::cout << "------------- Overall GPU Stats -------------" << std::endl;
@@ -228,7 +231,7 @@ int main(int argc, char** argv) {
   std::cout << "Total time: " << std::chrono::duration_cast<std::chrono::milliseconds>(host_time_events.getOverallTime()).count() << " ms"
             << std::endl;
 
-
+  sycl::free(num_matches, queue);
   sycl::free(tmp_buff, queue);
   sycl::free(query_signatures, queue);
   sycl::free(data_signatures, queue);

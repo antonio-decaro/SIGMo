@@ -130,18 +130,17 @@ struct Mapping { // TODO: make it SOA
 
 SYCL_EXTERNAL bool isValidMapping(types::node_t candidate,
                                   uint depth,
-                                  uint32_t* mapping,
+                                  const uint32_t* mapping,
+                                  const types::node_t* matching_order,
                                   const mbsm::DeviceBatchedQueryGraph& query_graphs,
                                   uint query_graph_id,
                                   const mbsm::DeviceBatchedDataGraph& data_graphs,
                                   uint data_graph_id) {
   for (int i = 0; i < depth; i++) {
-    auto query_node = i;
-    auto data_node = mapping[i];
-
     size_t query_nodes_offset = query_graphs.getPreviousNodes(query_graph_id);
 
-    if (query_graphs.isNeighbor(query_node + query_nodes_offset, depth + query_nodes_offset) && !data_graphs.isNeighbor(data_node, candidate)) {
+    if (query_graphs.isNeighbor(matching_order[i] + query_nodes_offset, matching_order[depth] + query_nodes_offset)
+        != data_graphs.isNeighbor(mapping[i], candidate)) {
       return false;
     }
   }
@@ -169,7 +168,8 @@ SYCL_EXTERNAL void defineMatchingOrder(sycl::sub_group sg, size_t num_query_node
 utils::BatchedEvent joinCandidates(sycl::queue& queue,
                                    mbsm::DeviceBatchedQueryGraph& query_graphs,
                                    mbsm::DeviceBatchedDataGraph& data_graphs,
-                                   mbsm::candidates::Candidates candidates) {
+                                   mbsm::candidates::Candidates candidates,
+                                   size_t* num_matches) {
   utils::BatchedEvent e;
   const size_t total_query_nodes = query_graphs.total_nodes;
   const size_t total_data_nodes = data_graphs.total_nodes;
@@ -181,12 +181,8 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
 
   sycl::nd_range<1> nd_range{total_data_graphs * preferred_workgroup_size, preferred_workgroup_size};
 
-  // sycl::buffer<Mapping, 1> solution_buf{sycl::range<1>{1000}}; // TODO make it dynamic
-  sycl::buffer<uint, 1> solution_tail_buf{sycl::range<1>{1}};
-
   auto e1 = queue.submit([&](sycl::handler& cgh) {
     // sycl::accessor solution_acc{solution_buf, cgh, sycl::read_write};
-    sycl::accessor solution_tail_acc{solution_tail_buf, cgh, sycl::read_write};
 
     cgh.parallel_for(nd_range, [=, query_graphs = query_graphs, data_graphs = data_graphs](sycl::nd_item<1> item) {
       const size_t lid = item.get_local_linear_id();
@@ -201,13 +197,11 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
       const size_t sglid = sg.get_local_linear_id();
       const size_t sgsize = sg.get_local_range()[0];
 
-      sycl::atomic_ref<uint, sycl::memory_order::relaxed, sycl::memory_scope::device> solution_tail{solution_tail_acc[0]};
+      sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> num_matches_ref{num_matches[0]};
 
       Stack stack[30]; // TODO: assume max depth of 30 but make it dynamic
       uint32_t mapping[30];
       types::node_t matching_order[30];
-
-      if (gid == 0) { solution_tail = 0; }
 
       for (size_t data_graph_id = wgid; data_graph_id < total_data_graphs; data_graph_id += wg.get_group_linear_range()) {
         size_t start_data_graph = data_graphs.graph_offsets[data_graph_id];
@@ -246,18 +240,7 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
               auto query_node = matching_order[frame.depth];
 
               if (frame.depth == num_query_nodes) { // found a match and output solution
-                // if (solution_tail < 1000) {
-                //   auto solution_idx = solution_tail++;
-                //   solution_acc[solution_idx].query_graph_id = query_graph_id;
-                //   solution_acc[solution_idx].data_graph_id = wgid;
-                //   for (int i = 0; i < num_query_nodes; i++) {
-                //     solution_acc[solution_idx].query_nodes[i] = i;
-                //     solution_acc[solution_idx].data_nodes[i] = mapping[i];
-                //   }
-                //   solution_acc[solution_idx].query_nodes[num_query_nodes] = -1;
-                //   solution_acc[solution_idx].data_nodes[num_query_nodes] = -1;
-                // }
-                solution_tail++;
+                num_matches_ref++;
                 top--;
                 continue;
               }
@@ -275,8 +258,9 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
               // increment the candidate index for the next iteration
               stack[top - 1].candidateIdx++;
 
-              if (!visited.get(candidate) && isValidMapping(candidate, query_node, mapping, query_graphs, query_graph_id, data_graphs, wgid)) {
-                mapping[query_node] = candidate;
+              if (!visited.get(candidate)
+                  && isValidMapping(candidate, frame.depth, mapping, matching_order, query_graphs, query_graph_id, data_graphs, wgid)) {
+                mapping[frame.depth] = candidate;
                 visited.set(candidate);
                 stack[top++] = {frame.depth + 1, 0};
               }
@@ -286,19 +270,6 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
       }
     });
   });
-  std::cout << "Waiting for Join to complete" << std::endl;
-  e1.wait_and_throw();
-  sycl::host_accessor tail{solution_tail_buf};
-  std::cout << "Found " << tail[0] << " matches" << std::endl;
-  // sycl::host_accessor acc{solution_buf};
-  // for (int i = 0; i < tail[0]; i++) {
-  //   std::cout << "\t" << acc[i].query_graph_id << " -> " << acc[i].data_graph_id << ": ";
-  //   for (int j = 0; j < 12; j++) {
-  //     if (acc[i].query_nodes[j] == -1) { break; }
-  //     std::cout << acc[i].query_nodes[j] << " -> " << acc[i].data_nodes[j] << ", ";
-  //   }
-  //   std::cout << std::endl;
-  // }
 
   e.add(e1);
   return e;
