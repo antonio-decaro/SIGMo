@@ -99,7 +99,6 @@ generate_files() {
   then
     return
   fi
-
   mkdir -p $OUT_DIR
 
   if [ "$type" == "data" ]; then
@@ -112,8 +111,10 @@ generate_files() {
     else
       while read -r line && [ $i -lt $limit ];
       do
-        python3 $SCRIPT_DIR/scripts/smile2graph.py -f $bench -o $OUT_DIR/${type}/${type}_${i}.dat <<< "$line"
-      done 
+        python3 $SCRIPT_DIR/scripts/smile2graph.py -f $bench -o $OUT_DIR/${type}/${type}_${i}.dat <<< "$line" 2>/dev/null
+        i=$((i+1))
+        printf "\rProgress ($type): %d\%d" $i $total
+      done < $DATA_DIR/query.smarts
     fi
   fi
 }
@@ -127,7 +128,7 @@ do
   echo "[*] Generating query files..."
   generate_files $bench "query" $query_limit &
   echo "[*] Generating data files..."
-  generate_files $bench "data" $data_limit &
+  generate_files $bench "data" $data_limit
   wait
 done
 
