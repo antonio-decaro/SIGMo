@@ -53,6 +53,41 @@ SYCL_EXTERNAL bool isNeighbor(TypeT* adjacency_matrix, uint8_t adjacency_matrix_
 
 } // namespace adjacency_matrix
 
+namespace detail {
+template<typename TypeT>
+struct Bitset {
+  TypeT data;
+  uint offset;
+  Bitset() : data(0), offset(0) {}
+  Bitset(uint offset) : data(0), offset(offset) {}
+  SYCL_EXTERNAL inline void set(uint8_t idx) { data |= static_cast<TypeT>(1) << (idx - offset); }
+  SYCL_EXTERNAL inline void unset(uint8_t idx) { data &= ~(static_cast<TypeT>(1) << (idx - offset)); }
+  SYCL_EXTERNAL inline bool get(uint8_t idx) { return data & (static_cast<TypeT>(1) << (idx - offset)); }
+  SYCL_EXTERNAL inline void clear() { data = 0; }
+  SYCL_EXTERNAL inline void merge(const Bitset& other) { data |= other.data; }
+  SYCL_EXTERNAL inline void intersection(const Bitset& other) { data &= other.data; }
+  SYCL_EXTERNAL inline Bitset& operator=(const Bitset& other) {
+    data = other.data;
+    return *this;
+  }
+  SYCL_EXTERNAL inline bool operator==(const Bitset& other) { return data == other.data; }
+  SYCL_EXTERNAL inline bool empty() { return data == 0; }
+  SYCL_EXTERNAL inline uint16_t size() { return sycl::popcount(data); }
+  SYCL_EXTERNAL inline uint16_t getSetBit(uint8_t idx) {
+    idx -= offset;
+    uint count = 0;
+    uint16_t ret = -1;
+    TypeT tmp = data;
+    for (int count = 0; count <= idx; ++count) {
+      ret = sycl::ctz(tmp);
+      tmp &= ~(static_cast<TypeT>(1) << ret);
+    }
+    return ret;
+  }
+};
+
+} // namespace detail
+
 SYCL_EXTERNAL uint32_t binarySearch(const uint32_t* num_nodes, uint32_t total_graphs, uint32_t node_id) {
   uint32_t low = 0;
   uint32_t high = total_graphs - 1;
