@@ -17,14 +17,18 @@ template<candidates::CandidatesDomain D = candidates::CandidatesDomain::Query>
 utils::BatchedEvent filterCandidates(sycl::queue& queue,
                                      mbsm::DeviceBatchedQueryGraph& query_graph,
                                      mbsm::DeviceBatchedDataGraph& data_graph,
-                                     mbsm::signature::Signature<>* query_signatures,
-                                     mbsm::signature::Signature<>* data_signatures,
+                                     mbsm::signature::Signature<>& signatures,
                                      mbsm::candidates::Candidates candidates) {
   size_t total_query_nodes = query_graph.total_nodes;
   size_t total_data_nodes = data_graph.total_nodes;
   auto e = queue.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<mbsm::device::kernels::FilterCandidatesKernel<D>>(
-        sycl::range<1>(total_data_nodes), [=, candidates = candidates.getCandidatesDevice()](sycl::item<1> item) {
+        sycl::range<1>(total_data_nodes),
+        [=,
+         candidates = candidates.getCandidatesDevice(),
+         query_signatures = signatures.getDeviceQuerySignatures(),
+         data_signatures = signatures.getDeviceDataSignatures(),
+         max_labels = signatures.getMaxLabels()](sycl::item<1> item) {
           auto data_node_id = item.get_id(0);
           auto data_signature = data_signatures[data_node_id];
           auto query_labels = query_graph.labels;
@@ -35,7 +39,7 @@ utils::BatchedEvent filterCandidates(sycl::queue& queue,
             auto query_signature = query_signatures[query_node_id];
 
             bool insert = true;
-            for (types::label_t l = 0; l < signature::Signature<>::getMaxLabels(); l++) {
+            for (types::label_t l = 0; l < max_labels; l++) {
               insert = insert && (query_signature.getLabelCount(l) <= data_signature.getLabelCount(l));
               if (!insert) break;
             }
@@ -59,14 +63,18 @@ template<candidates::CandidatesDomain D = candidates::CandidatesDomain::Query>
 utils::BatchedEvent refineCandidates(sycl::queue& queue,
                                      mbsm::DeviceBatchedQueryGraph& query_graph,
                                      mbsm::DeviceBatchedDataGraph& data_graph,
-                                     mbsm::signature::Signature<>* query_signatures,
-                                     mbsm::signature::Signature<>* data_signatures,
+                                     mbsm::signature::Signature<>& signatures,
                                      mbsm::candidates::Candidates candidates) {
   size_t total_query_nodes = query_graph.total_nodes;
   size_t total_data_nodes = data_graph.total_nodes;
   auto e = queue.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<mbsm::device::kernels::RefineCandidatesKernel<D>>(
-        sycl::range<1>(total_data_nodes), [=, candidates = candidates.getCandidatesDevice()](sycl::item<1> item) {
+        sycl::range<1>(total_data_nodes),
+        [=,
+         candidates = candidates.getCandidatesDevice(),
+         query_signatures = signatures.getDeviceQuerySignatures(),
+         data_signatures = signatures.getDeviceDataSignatures(),
+         max_labels = signatures.getMaxLabels()](sycl::item<1> item) {
           auto data_node_id = item.get_id(0);
           auto data_signature = data_signatures[data_node_id];
 
@@ -79,7 +87,7 @@ utils::BatchedEvent refineCandidates(sycl::queue& queue,
             auto query_signature = query_signatures[query_node_id];
 
             bool keep = true;
-            for (types::label_t l = 0; l < signature::Signature<>::getMaxLabels() && keep; l++) {
+            for (types::label_t l = 0; l < max_labels && keep; l++) {
               keep = keep && (query_signature.getLabelCount(l) <= data_signature.getLabelCount(l));
             }
             if (!keep) {

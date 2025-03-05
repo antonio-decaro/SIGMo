@@ -81,12 +81,8 @@ int main(int argc, char** argv) {
   size_t data_nodes = device_data_graph.total_nodes;
 
   // get the right filter domain method
-  std::function<mbsm::utils::BatchedEvent(sycl::queue&,
-                                          mbsm::DeviceBatchedQueryGraph&,
-                                          mbsm::DeviceBatchedDataGraph&,
-                                          mbsm::signature::Signature<>*,
-                                          mbsm::signature::Signature<>*,
-                                          mbsm::candidates::Candidates)>
+  std::function<mbsm::utils::BatchedEvent(
+      sycl::queue&, mbsm::DeviceBatchedQueryGraph&, mbsm::DeviceBatchedDataGraph&, mbsm::signature::Signature<>&, mbsm::candidates::Candidates)>
       filter_method, refine_method;
   if (args.isCandidateDomainData()) {
     filter_method = mbsm::isomorphism::filter::filterCandidates<mbsm::candidates::CandidatesDomain::Data>;
@@ -115,18 +111,12 @@ int main(int argc, char** argv) {
   size_t candidates_bytes = candidates.getAllocationSize() * sizeof(mbsm::types::candidates_t);
   std::cout << "Allocated " << getBytesSize(candidates_bytes) << " for candidates" << std::endl;
 
-  mbsm::signature::Signature<>* data_signatures = sycl::malloc_shared<mbsm::signature::Signature<>>(data_nodes, queue);
-  queue.fill(data_signatures, 0, data_nodes).wait();
-  size_t data_signatures_bytes = data_nodes * sizeof(mbsm::signature::Signature<>);
+  mbsm::signature::Signature<> signatures{queue, device_data_graph.total_nodes, device_query_graph.total_nodes};
+  size_t data_signatures_bytes = signatures.getDataSignatureAllocationSize();
   std::cout << "Allocated " << getBytesSize(data_signatures_bytes) << " for data signatures" << std::endl;
-
-  mbsm::signature::Signature<>* query_signatures = sycl::malloc_shared<mbsm::signature::Signature<>>(query_nodes, queue);
-  queue.fill(query_signatures, 0, query_nodes).wait();
-  size_t query_signatures_bytes = query_nodes * sizeof(mbsm::signature::Signature<>);
+  size_t query_signatures_bytes = signatures.getQuerySignatureAllocationSize();
   std::cout << "Allocated " << getBytesSize(query_signatures_bytes) << " for query signatures" << std::endl;
-
-  mbsm::signature::Signature<>* tmp_buff = sycl::malloc_shared<mbsm::signature::Signature<>>(std::max(query_nodes, data_nodes), queue);
-  size_t tmp_buff_bytes = std::max(query_nodes, data_nodes) * sizeof(mbsm::signature::Signature<>);
+  size_t tmp_buff_bytes = std::max(data_signatures_bytes, query_signatures_bytes);
   std::cout << "Allocated " << getBytesSize(tmp_buff_bytes) << " for temporary buffer" << std::endl;
   host_time_events.add("setup_data_end");
 
@@ -138,19 +128,19 @@ int main(int argc, char** argv) {
   std::cout << "------------- Runtime Filter Phase -------------" << std::endl;
   host_time_events.add("filter_start");
   std::cout << "Initialization Step:" << std::endl;
-  auto e1 = mbsm::signature::generateDataSignatures(queue, device_data_graph, data_signatures);
+  auto e1 = signatures.generateDataSignatures(device_data_graph);
   queue.wait_and_throw();
   auto time = e1.getProfilingInfo();
   data_sig_times.push_back(time);
   std::cout << "- Data signatures generated in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
 
-  auto e2 = mbsm::signature::generateQuerySignatures(queue, device_query_graph, query_signatures);
+  auto e2 = signatures.generateQuerySignatures(device_query_graph);
   queue.wait_and_throw();
   time = e2.getProfilingInfo();
   query_sig_times.push_back(time);
   std::cout << "- Query signatures generated in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
 
-  auto e3 = filter_method(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, candidates);
+  auto e3 = filter_method(queue, device_query_graph, device_data_graph, signatures, candidates);
   queue.wait_and_throw();
   time = e3.getProfilingInfo();
   filter_times.push_back(time);
@@ -160,19 +150,19 @@ int main(int argc, char** argv) {
   for (size_t ref_step = 0; ref_step < args.refinement_steps; ++ref_step) {
     std::cout << "Refinement step " << (ref_step + 1) << ":" << std::endl;
 
-    auto e1 = mbsm::signature::refineDataSignatures(queue, device_data_graph, data_signatures, tmp_buff, ref_step + 1);
+    auto e1 = signatures.refineDataSignatures(device_data_graph, ref_step + 1);
     queue.wait_and_throw();
     time = e1.getProfilingInfo();
     data_sig_times.push_back(time);
     std::cout << "- Data signatures refined in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
 
-    auto e2 = mbsm::signature::refineQuerySignatures(queue, device_query_graph, query_signatures, tmp_buff, ref_step + 1);
+    auto e2 = signatures.refineQuerySignatures(device_query_graph, ref_step + 1);
     queue.wait_and_throw();
     time = e2.getProfilingInfo();
     query_sig_times.push_back(time);
     std::cout << "- Query signatures refined in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
 
-    auto e3 = refine_method(queue, device_query_graph, device_data_graph, query_signatures, data_signatures, candidates);
+    auto e3 = refine_method(queue, device_query_graph, device_data_graph, signatures, candidates);
     queue.wait_and_throw();
     time = e3.getProfilingInfo();
     filter_times.push_back(time);
@@ -229,9 +219,6 @@ int main(int argc, char** argv) {
             << std::endl;
 
   sycl::free(num_matches, queue);
-  sycl::free(tmp_buff, queue);
-  sycl::free(query_signatures, queue);
-  sycl::free(data_signatures, queue);
   mbsm::destroyDeviceDataGraph(device_data_graph, queue);
   mbsm::destroyDeviceQueryGraph(device_query_graph, queue);
 }
