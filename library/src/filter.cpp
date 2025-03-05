@@ -111,11 +111,8 @@ int main(int argc, char** argv) {
 
   size_t source_nodes = args.isCandidateDomainData() ? data_nodes : query_nodes;
   size_t target_nodes = args.isCandidateDomainData() ? query_nodes : data_nodes;
-  mbsm::candidates::Candidates candidates{source_nodes, target_nodes};
-  size_t alloc_size = candidates.getAllocationSize();
-  candidates.candidates = sycl::malloc_shared<mbsm::types::candidates_t>(alloc_size, queue);
-  queue.fill(candidates.candidates, 0, alloc_size).wait();
-  size_t candidates_bytes = alloc_size * sizeof(mbsm::types::candidates_t);
+  mbsm::candidates::Candidates candidates{queue, source_nodes, target_nodes};
+  size_t candidates_bytes = candidates.getAllocationSize() * sizeof(mbsm::types::candidates_t);
   std::cout << "Allocated " << getBytesSize(candidates_bytes) << " for candidates" << std::endl;
 
   mbsm::signature::Signature<>* data_signatures = sycl::malloc_shared<mbsm::signature::Signature<>>(data_nodes, queue);
@@ -235,7 +232,6 @@ int main(int argc, char** argv) {
   sycl::free(tmp_buff, queue);
   sycl::free(query_signatures, queue);
   sycl::free(data_signatures, queue);
-  sycl::free(candidates.candidates, queue);
   mbsm::destroyDeviceDataGraph(device_data_graph, queue);
   mbsm::destroyDeviceQueryGraph(device_query_graph, queue);
 }
