@@ -6,7 +6,7 @@
 #include <sycl/sycl.hpp>
 
 TEST(SignatureTest, CheckSignatureMethods) {
-  mbsm::signature::Signature<> signature;
+  mbsm::signature::Signature<>::SignatureDevice signature;
 
   signature.setLabelCount(0, 1);
   signature.setLabelCount(2, 3);
@@ -33,17 +33,17 @@ TEST(SignatureTest, CheckQuerySignatureGeneration) {
 
   auto device_query_graph = mbsm::createDeviceQueryGraph(queue, query_graphs);
 
-  mbsm::signature::Signature<>* signatures = sycl::malloc_shared<mbsm::signature::Signature<>>(device_query_graph.total_nodes, queue);
+  mbsm::signature::Signature<> signatures{queue, device_query_graph.total_nodes, device_query_graph.total_nodes};
 
-  auto e = mbsm::signature::generateQuerySignatures(queue, device_query_graph, signatures);
+  auto e = signatures.generateQuerySignatures(device_query_graph);
+
+  auto device_signatures = signatures.getDeviceQuerySignatures();
 
   e.wait();
 
   auto expected_query_signatures = getExpectedQuerySignatures(TEST_QUERY_PATH, 0);
 
-  for (size_t i = 0; i < device_query_graph.total_nodes; ++i) { ASSERT_EQ(signatures[i].signature, expected_query_signatures[i].signature); }
-
-  sycl::free(signatures, queue);
+  for (size_t i = 0; i < device_query_graph.total_nodes; ++i) { ASSERT_EQ(device_signatures[i].signature, expected_query_signatures[i].signature); }
 }
 
 TEST(SignatureTest, RefineQuerySignature) {
@@ -53,22 +53,19 @@ TEST(SignatureTest, RefineQuerySignature) {
 
   auto device_query_graph = mbsm::createDeviceQueryGraph(queue, query_graphs);
 
-  mbsm::signature::Signature<>* signatures = sycl::malloc_shared<mbsm::signature::Signature<>>(device_query_graph.total_nodes, queue);
-  mbsm::signature::Signature<>* tmp = sycl::malloc_shared<mbsm::signature::Signature<>>(device_query_graph.total_nodes, queue);
+  mbsm::signature::Signature<> signatures{queue, device_query_graph.total_nodes, device_query_graph.total_nodes};
 
-  auto e = mbsm::signature::generateQuerySignatures(queue, device_query_graph, signatures);
+  auto e = signatures.generateQuerySignatures(device_query_graph);
   e.wait();
 
+  auto device_signatures = signatures.getDeviceQuerySignatures();
+
   for (int i = 0; i < 10; i++) {
-    e = mbsm::signature::refineQuerySignatures(queue, device_query_graph, signatures, tmp);
+    e = signatures.refineQuerySignatures(device_query_graph);
     e.wait();
     auto expected_query_signatures = getExpectedQuerySignatures(TEST_QUERY_PATH, i + 1);
-    for (size_t i = 0; i < device_query_graph.total_nodes; ++i) { ASSERT_EQ(signatures[i].signature, expected_query_signatures[i].signature); }
+    for (size_t i = 0; i < device_query_graph.total_nodes; ++i) { ASSERT_EQ(device_signatures[i].signature, expected_query_signatures[i].signature); }
   }
-
-
-  sycl::free(signatures, queue);
-  sycl::free(tmp, queue);
 }
 
 
@@ -79,17 +76,17 @@ TEST(SignatureTest, CheckDataSignatureGeneration) {
 
   auto device_data_graph = mbsm::createDeviceDataGraph(queue, data_graphs);
 
-  mbsm::signature::Signature<>* signatures = sycl::malloc_shared<mbsm::signature::Signature<>>(device_data_graph.total_nodes, queue);
+  mbsm::signature::Signature<> signatures{queue, device_data_graph.total_nodes, device_data_graph.total_nodes};
 
-  auto e = mbsm::signature::generateDataSignatures(queue, device_data_graph, signatures);
+  auto e = signatures.generateDataSignatures(device_data_graph);
 
   e.wait();
 
+  auto device_signatures = signatures.getDeviceDataSignatures();
+
   auto expected_data_signatures = getExpectedDataSignatures(TEST_DATA_PATH, 0);
 
-  for (size_t i = 0; i < device_data_graph.total_nodes; ++i) { ASSERT_EQ(signatures[i].signature, expected_data_signatures[i].signature); }
-
-  sycl::free(signatures, queue);
+  for (size_t i = 0; i < device_data_graph.total_nodes; ++i) { ASSERT_EQ(device_signatures[i].signature, expected_data_signatures[i].signature); }
 }
 
 TEST(SignatureTest, RefineDataSignature) {
@@ -99,49 +96,45 @@ TEST(SignatureTest, RefineDataSignature) {
 
   auto device_data_graph = mbsm::createDeviceDataGraph(queue, data_graphs);
 
-  mbsm::signature::Signature<>* signatures = sycl::malloc_shared<mbsm::signature::Signature<>>(device_data_graph.total_nodes, queue);
-  mbsm::signature::Signature<>* tmp = sycl::malloc_shared<mbsm::signature::Signature<>>(device_data_graph.total_nodes, queue);
+  mbsm::signature::Signature<> signatures{queue, device_data_graph.total_nodes, device_data_graph.total_nodes};
 
-  auto e = mbsm::signature::generateDataSignatures(queue, device_data_graph, signatures);
+  auto e = signatures.generateDataSignatures(device_data_graph);
   e.wait();
 
+  auto device_signatures = signatures.getDeviceDataSignatures();
+
   for (int i = 0; i < 10; i++) {
-    e = mbsm::signature::refineDataSignatures(queue, device_data_graph, signatures, tmp);
+    e = signatures.refineDataSignatures(device_data_graph);
     e.wait();
     auto expected_data_signatures = getExpectedDataSignatures(TEST_DATA_PATH, i + 1);
-    for (size_t i = 0; i < device_data_graph.total_nodes; ++i) { ASSERT_EQ(signatures[i].signature, expected_data_signatures[i].signature); }
+    for (size_t i = 0; i < device_data_graph.total_nodes; ++i) { ASSERT_EQ(device_signatures[i].signature, expected_data_signatures[i].signature); }
   }
-
-
-  sycl::free(signatures, queue);
-  sycl::free(tmp, queue);
 }
 
 TEST(CandidateTest, CheckInsertAndRemove) {
   sycl::queue queue{sycl::gpu_selector_v};
   const size_t num_nodes = 128;
-  mbsm::candidates::Candidates candidates(2, num_nodes);
-  candidates.setDataCandidates(sycl::malloc_shared<mbsm::types::candidates_t>(candidates.getAllocationSize(), queue));
-  queue.fill(candidates.candidates, static_cast<mbsm::types::candidates_t>(0), candidates.getAllocationSize()).wait();
-  candidates.insert(0, 0);
-  candidates.insert(0, 31);
-  candidates.insert(0, 32);
-  candidates.insert(0, 124);
+  mbsm::candidates::Candidates candidates{queue, 2, num_nodes};
 
-  ASSERT_EQ(candidates.candidates[0], 0b0000000000000000000000000000000110000000000000000000000000000001u);
-  ASSERT_EQ(candidates.candidates[1], 0b0001000000000000000000000000000000000000000000000000000000000000u);
-  ASSERT_EQ(candidates.getCandidatesCount(0), 4);
+  auto device_candidates = candidates.getCandidatesDevice();
 
-  candidates.remove(0, 32);
-  ASSERT_EQ(candidates.candidates[0], 0b0000000000000000000000000000000010000000000000000000000000000001u);
+  device_candidates.insert(0, 0);
+  device_candidates.insert(0, 31);
+  device_candidates.insert(0, 32);
+  device_candidates.insert(0, 124);
 
-  ASSERT_EQ(candidates.getCandidatesCount(0), 3);
+  ASSERT_EQ(device_candidates.candidates[0], 0b0000000000000000000000000000000110000000000000000000000000000001u);
+  ASSERT_EQ(device_candidates.candidates[1], 0b0001000000000000000000000000000000000000000000000000000000000000u);
+  ASSERT_EQ(device_candidates.getCandidatesCount(0), 4);
 
-  candidates.insert(1, 0);
-  ASSERT_EQ(candidates.candidates[2], 0b0000000000000000000000000000000000000000000000000000000000000001u);
-  ASSERT_EQ(candidates.candidates[3], 0b0u);
+  device_candidates.remove(0, 32);
+  ASSERT_EQ(device_candidates.candidates[0], 0b0000000000000000000000000000000010000000000000000000000000000001u);
 
-  sycl::free(candidates.candidates, queue);
+  ASSERT_EQ(device_candidates.getCandidatesCount(0), 3);
+
+  device_candidates.insert(1, 0);
+  ASSERT_EQ(device_candidates.candidates[2], 0b0000000000000000000000000000000000000000000000000000000000000001u);
+  ASSERT_EQ(device_candidates.candidates[3], 0b0u);
 }
 
 int main(int argc, char** argv) {
