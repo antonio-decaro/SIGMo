@@ -107,9 +107,10 @@ struct DeviceBatchedQueryGraph {
     auto graph_id = getGraphId(node_id);
     auto previous_nodes = getPreviousNodes(graph_id);
     return utils::adjacency_matrix::isNeighbor(adjacency + graph_offsets[graph_id],
-                                               utils::getNumOfAdjacencyIntegers(num_nodes[graph_id]),
-                                               node_id - previous_nodes,
-                                               neighbor_id - previous_nodes);
+                                               utils::getNumOfAdjacencyIntegers(num_nodes[graph_id] - previous_nodes),
+                                               node_id,
+                                               neighbor_id,
+                                               previous_nodes);
   }
   SYCL_EXTERNAL inline void getNeighbors(types::node_t node_id, types::node_t* neighbors, uint32_t graph_id, uint32_t previous_nodes) const {
     utils::adjacency_matrix::getNeighbors(adjacency + graph_offsets[graph_id],

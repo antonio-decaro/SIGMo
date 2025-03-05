@@ -44,7 +44,10 @@ SYCL_EXTERNAL void getNeighbors(
 }
 
 template<typename TypeT>
-SYCL_EXTERNAL bool isNeighbor(TypeT* adjacency_matrix, uint8_t adjacency_matrix_size, types::node_t u, types::node_t v) {
+SYCL_EXTERNAL bool isNeighbor(
+    TypeT* adjacency_matrix, uint8_t adjacency_matrix_size, types::node_t node_id, types::node_t neighbor_id, types::node_t previous_nodes = 0) {
+  uint8_t u = node_id - previous_nodes;
+  uint8_t v = neighbor_id - previous_nodes;
   uint16_t num_bits = sizeof(TypeT) * 8;
   uint16_t num_nodes = sycl::sqrt(static_cast<float>(num_bits * adjacency_matrix_size));
   uint16_t idx = u * num_nodes + v;
