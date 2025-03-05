@@ -189,14 +189,15 @@ private:
             utils::detail::Bitset<uint32_t> frontier, reachable;
 
             frontier.set(node_id - prev_nodes);
+            reachable.set(node_id - prev_nodes);
             for (uint curr_iter = 0; curr_iter < iter && !frontier.empty(); curr_iter++) {
               utils::detail::Bitset<uint32_t> next_frontier;
 
               for (uint idx = 0; idx < frontier.size(); idx++) {
                 auto u = frontier.getSetBit(idx);
-                graphs.getNeighbors(u + prev_nodes, neighbors, graph_id, 0);
+                graphs.getNeighbors(u + prev_nodes, neighbors, graph_id, prev_nodes);
                 for (uint i = 0; neighbors[i] != types::NULL_NODE && i < types::MAX_NEIGHBORS; ++i) {
-                  auto v = neighbors[i];
+                  auto v = neighbors[i] - prev_nodes;
                   if (!reachable.get(v)) {
                     reachable.set(v);
                     next_frontier.set(v);
@@ -205,7 +206,7 @@ private:
               }
               frontier = next_frontier;
             }
-
+            reachable.unset(node_id - prev_nodes);
             signatures[node_id].clear();
             for (uint idx = 0; idx < reachable.size(); idx++) {
               auto u = reachable.getSetBit(idx) + prev_nodes;
@@ -269,11 +270,12 @@ private:
       cgh.parallel_for<mbsm::device::kernels::RefineDataSignaturesKernel>(
           global_range, [=, signatures = this->data_signatures, max_labels_count = Signature::SignatureDevice::getMaxLabels()](sycl::item<1> item) {
             auto node_id = item.get_id(0);
-            auto graph_id = utils::binarySearch(graphs.graph_offsets, graphs.num_graphs, node_id);
+            auto graph_id = graphs.getGraphID(node_id);
             auto prev_nodes = graphs.graph_offsets[graph_id];
             utils::detail::Bitset<uint64_t> frontier, reachable;
 
-            frontier.set(node_id);
+            frontier.set(node_id - prev_nodes);
+            reachable.set(node_id - prev_nodes);
             for (uint curr_iter = 0; curr_iter < iter && !frontier.empty(); curr_iter++) {
               utils::detail::Bitset<uint64_t> next_frontier;
 

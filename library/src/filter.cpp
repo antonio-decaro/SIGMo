@@ -150,13 +150,13 @@ int main(int argc, char** argv) {
   for (size_t ref_step = 0; ref_step < args.refinement_steps; ++ref_step) {
     std::cout << "Refinement step " << (ref_step + 1) << ":" << std::endl;
 
-    auto e1 = signatures.refineDataSignatures(device_data_graph, ref_step + 1);
+    auto e1 = signatures.refineDataSignatures(device_data_graph, ref_step + 2);
     queue.wait_and_throw();
     time = e1.getProfilingInfo();
     data_sig_times.push_back(time);
     std::cout << "- Data signatures refined in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
 
-    auto e2 = signatures.refineQuerySignatures(device_query_graph, ref_step + 1);
+    auto e2 = signatures.refineQuerySignatures(device_query_graph, ref_step + 2);
     queue.wait_and_throw();
     time = e2.getProfilingInfo();
     query_sig_times.push_back(time);

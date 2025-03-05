@@ -70,6 +70,19 @@ struct DeviceBatchedDataGraph {
     auto previous_nodes = graph_offsets[graph_id];
     return isNeighbor(node_id + previous_nodes, neighbor_id + previous_nodes);
   }
+
+  SYCL_EXTERNAL inline size_t getGraphID(types::node_t node_id) const {
+    size_t lo = 0, hi = num_graphs;
+    while (lo < hi) {
+      size_t mid = lo + (hi - lo) / 2;
+      if (node_id >= graph_offsets[mid]) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    return (lo > 0) ? (lo - 1) : static_cast<size_t>(-1);
+  }
 };
 
 struct DeviceBatchedQueryGraph {
