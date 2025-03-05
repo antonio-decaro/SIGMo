@@ -18,7 +18,7 @@ utils::BatchedEvent filterCandidates(sycl::queue& queue,
                                      mbsm::DeviceBatchedQueryGraph& query_graph,
                                      mbsm::DeviceBatchedDataGraph& data_graph,
                                      mbsm::signature::Signature<>& signatures,
-                                     mbsm::candidates::Candidates candidates) {
+                                     mbsm::candidates::Candidates& candidates) {
   size_t total_query_nodes = query_graph.total_nodes;
   size_t total_data_nodes = data_graph.total_nodes;
   auto e = queue.submit([&](sycl::handler& cgh) {
@@ -64,7 +64,7 @@ utils::BatchedEvent refineCandidates(sycl::queue& queue,
                                      mbsm::DeviceBatchedQueryGraph& query_graph,
                                      mbsm::DeviceBatchedDataGraph& data_graph,
                                      mbsm::signature::Signature<>& signatures,
-                                     mbsm::candidates::Candidates candidates) {
+                                     mbsm::candidates::Candidates& candidates) {
   size_t total_query_nodes = query_graph.total_nodes;
   size_t total_data_nodes = data_graph.total_nodes;
   auto e = queue.submit([&](sycl::handler& cgh) {
@@ -178,7 +178,7 @@ SYCL_EXTERNAL void defineMatchingOrder(sycl::sub_group sg, size_t num_query_node
 utils::BatchedEvent joinCandidates(sycl::queue& queue,
                                    mbsm::DeviceBatchedQueryGraph& query_graphs,
                                    mbsm::DeviceBatchedDataGraph& data_graphs,
-                                   mbsm::candidates::Candidates candidates,
+                                   mbsm::candidates::Candidates& candidates,
                                    size_t* num_matches) {
   utils::BatchedEvent e;
   const size_t total_query_nodes = query_graphs.total_nodes;
@@ -192,8 +192,6 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
   sycl::nd_range<1> nd_range{total_data_graphs * preferred_workgroup_size, preferred_workgroup_size};
 
   auto e1 = queue.submit([&](sycl::handler& cgh) {
-    // sycl::accessor solution_acc{solution_buf, cgh, sycl::read_write};
-
     cgh.parallel_for<device::kernels::JoinCandidatesKernel>(
         nd_range, [=, query_graphs = query_graphs, data_graphs = data_graphs, candidates = candidates.getCandidatesDevice()](sycl::nd_item<1> item) {
           const size_t lid = item.get_local_linear_id();

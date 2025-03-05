@@ -82,7 +82,7 @@ int main(int argc, char** argv) {
 
   // get the right filter domain method
   std::function<mbsm::utils::BatchedEvent(
-      sycl::queue&, mbsm::DeviceBatchedQueryGraph&, mbsm::DeviceBatchedDataGraph&, mbsm::signature::Signature<>&, mbsm::candidates::Candidates)>
+      sycl::queue&, mbsm::DeviceBatchedQueryGraph&, mbsm::DeviceBatchedDataGraph&, mbsm::signature::Signature<>&, mbsm::candidates::Candidates&)>
       filter_method, refine_method;
   if (args.isCandidateDomainData()) {
     filter_method = mbsm::isomorphism::filter::filterCandidates<mbsm::candidates::CandidatesDomain::Data>;
