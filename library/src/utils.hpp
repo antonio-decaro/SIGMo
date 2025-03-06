@@ -1,12 +1,12 @@
 #pragma once
 #include <algorithm>
 #include <cmath>
+#include <cxxopts.hpp> // Include cxxopts header
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
 #include <string>
 #include <vector>
-
 
 class Args {
 public:
@@ -25,100 +25,41 @@ public:
   std::string data_file;
   size_t multiply_factor_query = 1;
   size_t multiply_factor_data = 1;
+  bool find_all = false;
   std::string candidates_domain = "data";
   Args::Filter query_filter;
 
+  Args(int& argc, char**& argv) {
+    cxxopts::Options options(argv[0], "Command line options");
+    options.add_options()("p,print-candidates", "Print the number of candidates for each query node", cxxopts::value<bool>(print_candidates))(
+        "i,iterations", "Number of refinement iterations", cxxopts::value<int>(refinement_steps))(
+        "Q", "Define the query file to read", cxxopts::value<std::string>(query_file))(
+        "D", "Define the data file to read", cxxopts::value<std::string>(data_file))(
+        "c,candidates-domain", "Select the candidates domain [query, data]", cxxopts::value<std::string>(candidates_domain))(
+        "m,multiply", "Multiply the number of all graphs by a factor", cxxopts::value<size_t>())(
+        "d,mul-data", "Multiply the number of data graphs by a factor", cxxopts::value<size_t>(multiply_factor_data))(
+        "q,mul-query", "Multiply the number of query graphs by a factor", cxxopts::value<size_t>(multiply_factor_query))(
+        "skip-join", "Skip the join phase", cxxopts::value<bool>(skip_join))("h,help", "Print usage")(
+        "find-all", "Find all matches without stopping at the first one", cxxopts::value<bool>(find_all))(
+        "query-filter", "Apply a filter to the query graphs. Format: min[:max]", cxxopts::value<std::string>());
+    auto result = options.parse(argc, argv);
 
-  Args(int& argc, char**& argv) : _argc(argc), _argv(argv) {
-    for (size_t i = 1; i < argc; ++i) {
-      std::string arg = argv[i];
-      if (arg[0] == '-') {
-        arg = arg.substr(1);
-        parseOption(arg, i);
-      } else {
-        fname = argv[i];
-      }
+    if (result.count("help")) {
+      std::cout << options.help() << std::endl;
+      std::exit(0);
     }
-  }
 
-  bool isCandidateDomainQuery() const { return candidates_domain == "query"; }
-  bool isCandidateDomainData() const { return candidates_domain == "data"; }
-
-private:
-  int& _argc;
-  char**& _argv;
-  void printHelp() {
-    std::cout << "Usage: " << this->_argv[0] << " [options] [pool.bin]" << std::endl;
-    std::cout << "Options:" << std::endl;
-    std::cout << "   -p: Print the number of candidates for each query node" << std::endl;
-    std::cout << "   -i: Print the number of refined iterations. Default = 1" << std::endl;
-    std::cout << "   -c: Select the candidates domain [query, data]. Default = data" << std::endl;
-    std::cout << "  -qd: Define the query file and the data file to read" << std::endl;
-    std::cout << "   -m: Multiply the number of all graphs by a factor. Default = 1" << std::endl;
-    std::cout << "  -mq: Multiply the number of query graphs by a factor. Default = 1" << std::endl;
-    std::cout << "  -md: Multiply the number of data graphs by a factor. Default = 1" << std::endl;
-    std::cout << "  --query-filter: Apply a filter to the query graphs." << std::endl;
-    std::cout << "                  min[:max]" << std::endl;
-    std::cout << "  --skip-join: Skip the join phase" << std::endl;
-  }
-
-  void parseOption(std::string& arg, size_t& idx) {
-    if (arg == "p") {
-      print_candidates = true;
-      print_candidates = true;
-    } else if (arg == "i") {
-      if (idx + 1 >= _argc) {
-        printHelp();
-        std::exit(1);
-      }
-      refinement_steps = std::stoi(_argv[++idx]);
-    } else if (arg == "-skip-join") {
-      skip_join = true;
-    } else if (arg == "c") {
-      if (idx + 1 >= _argc) {
-        printHelp();
-        std::exit(1);
-      }
-      candidates_domain = _argv[++idx];
-      if (candidates_domain != "query" && candidates_domain != "data") {
-        printHelp();
-        std::exit(1);
-      }
-    } else if (arg == "p") {
-      print_candidates = true;
-    } else if (arg == "m") {
-      if (idx + 1 >= _argc) {
-        printHelp();
-        std::exit(1);
-      }
-      multiply_factor_data = multiply_factor_query = std::stoi(_argv[++idx]);
-    } else if (arg == "md") {
-      if (idx + 1 >= _argc) {
-        printHelp();
-        std::exit(1);
-      }
-      multiply_factor_data = std::stoi(_argv[++idx]);
-    } else if (arg == "mq") {
-      if (idx + 1 >= _argc) {
-        printHelp();
-        std::exit(1);
-      }
-      multiply_factor_query = std::stoi(_argv[++idx]);
-    } else if (arg == "qd") {
-      if (idx + 2 >= _argc) {
-        printHelp();
-        std::exit(1);
-      }
+    if (result.count("Q") && result.count("D")) {
       query_data = true;
-      query_file = _argv[++idx];
-      data_file = _argv[++idx];
-    } else if (arg == "-query-filter") {
+    } else if (result.count("Q") || result.count("D")) {
+      throw std::runtime_error("Both query and data files must be provided");
+    }
+
+    if (result.count("multiply")) { multiply_factor_data = multiply_factor_query = result["multiply"].as<size_t>(); }
+
+    if (result.count("query-filter")) {
       query_filter.active = true;
-      if (idx + 1 >= _argc) {
-        printHelp();
-        std::exit(1);
-      }
-      std::string filter_arg = _argv[++idx];
+      std::string filter_arg = result["query-filter"].as<std::string>();
       size_t colon_pos = filter_arg.find(':');
       if (colon_pos != std::string::npos) {
         query_filter.min_nodes = std::stoi(filter_arg.substr(0, colon_pos));
@@ -126,13 +67,12 @@ private:
       } else {
         query_filter.min_nodes = std::stoi(filter_arg);
       }
-    } else {
-      printHelp();
-      std::exit(1);
     }
   }
-};
 
+  bool isCandidateDomainQuery() const { return candidates_domain == "query"; }
+  bool isCandidateDomainData() const { return candidates_domain == "data"; }
+};
 
 struct TimeEvents {
   std::vector<std::pair<std::string, std::chrono::time_point<std::chrono::high_resolution_clock>>> events;

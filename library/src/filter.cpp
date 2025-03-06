@@ -170,8 +170,18 @@ int main(int argc, char** argv) {
   }
   host_time_events.add("filter_end");
 
-  CandidatesInspector inspector;
   std::chrono::duration<double> join_time{0};
+  size_t* num_matches = sycl::malloc_shared<size_t>(1, queue);
+  host_time_events.add("join_start");
+  if (!args.skip_join) {
+    *num_matches = 0;
+    auto join_e = mbsm::isomorphism::join::joinCandidates(queue, device_query_graph, device_data_graph, candidates, num_matches, !args.find_all);
+    join_e.wait();
+    join_time = join_e.getProfilingInfo();
+  }
+  host_time_events.add("join_end");
+
+  CandidatesInspector inspector;
   for (size_t i = 0; i < (args.isCandidateDomainData() ? data_nodes : query_nodes); ++i) {
     auto count = candidates.getCandidatesCount(i);
     inspector.add(count);
@@ -183,19 +193,7 @@ int main(int argc, char** argv) {
   std::cout << "# Average candidates: " << formatNumber(inspector.avg) << std::endl;
   std::cout << "# Median candidates: " << formatNumber(inspector.median) << std::endl;
   std::cout << "# Zero candidates: " << formatNumber(inspector.zero_count) << std::endl;
-
-  host_time_events.add("join_start");
-  if (!args.skip_join) {
-    size_t* num_matches = sycl::malloc_shared<size_t>(1, queue);
-    *num_matches = 0;
-    auto join_e = mbsm::isomorphism::join::joinCandidates(queue, device_query_graph, device_data_graph, candidates, num_matches);
-    join_e.wait();
-    join_time = join_e.getProfilingInfo();
-    std::cout << "# Matches: " << formatNumber(*num_matches) << std::endl;
-    sycl::free(num_matches, queue);
-  }
-  host_time_events.add("join_end");
-
+  if (!args.skip_join) { std::cout << "# Matches: " << formatNumber(*num_matches) << std::endl; }
 
   std::cout << "------------- Overall GPU Stats -------------" << std::endl;
   std::chrono::duration<double> total_sig_query_time
@@ -230,6 +228,7 @@ int main(int argc, char** argv) {
   std::cout << "Total time: " << std::chrono::duration_cast<std::chrono::milliseconds>(host_time_events.getOverallTime()).count() << " ms"
             << std::endl;
 
+  sycl::free(num_matches, queue);
   mbsm::destroyDeviceDataGraph(device_data_graph, queue);
   mbsm::destroyDeviceQueryGraph(device_query_graph, queue);
 }

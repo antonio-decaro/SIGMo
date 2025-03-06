@@ -179,14 +179,15 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
                                    mbsm::DeviceBatchedQueryGraph& query_graphs,
                                    mbsm::DeviceBatchedDataGraph& data_graphs,
                                    mbsm::candidates::Candidates& candidates,
-                                   size_t* num_matches) {
+                                   size_t* num_matches,
+                                   bool find_first = true) {
   utils::BatchedEvent e;
   const size_t total_query_nodes = query_graphs.total_nodes;
   const size_t total_data_nodes = data_graphs.total_nodes;
   const size_t total_query_graphs = query_graphs.num_graphs;
   const size_t total_data_graphs = data_graphs.num_graphs;
 
-  const size_t preferred_workgroup_size = 256; // TODO get from device
+  const size_t preferred_workgroup_size = 128; // TODO get from device
   const size_t subgroup_size = 32;             // TODO get from device
 
   sycl::nd_range<1> nd_range{total_data_graphs * preferred_workgroup_size, preferred_workgroup_size};
@@ -200,6 +201,7 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
           const auto wg = item.get_group();
           const size_t wgid = wg.get_group_linear_id();
           const size_t wglid = wg.get_local_linear_id();
+          const size_t wgsize = wg.get_local_range()[0];
 
           const auto sg = item.get_sub_group();
           const size_t sgid = sg.get_group_linear_id();
@@ -221,60 +223,54 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
             sycl::group_barrier(wg);
 
 
-            for (size_t query_graph_id = sgid; query_graph_id < total_query_graphs;
-                 query_graph_id += sg.get_group_linear_range()) { // iterate over all query graphs
+            for (size_t query_graph_id = wglid; query_graph_id < total_query_graphs; query_graph_id += wgsize) { // iterate over all query graphs
               const size_t offset_query_nodes = query_graphs.getPreviousNodes(query_graph_id);
               const uint num_query_nodes = query_graphs.getGraphNodes(query_graph_id);
 
-              size_t starting_node_candidates = 0;
-              if (sglid < num_query_nodes) {
-                starting_node_candidates = candidates.getCandidatesCount(sglid + offset_query_nodes, start_data_graph, end_data_graph);
-              }
-              if (sycl::any_of_group(sg, sglid < num_query_nodes && starting_node_candidates == 0)) { continue; }
-              defineMatchingOrder(sg, num_query_nodes, matching_order, starting_node_candidates);
+              for (int i = 0; i < num_query_nodes; i++) { matching_order[i] = i; }
 
-              for (size_t target_root_id = sglid; target_root_id < starting_node_candidates; target_root_id += sgsize) {
-                Stack stack[30]; // TODO: assume max depth of 30 but make it dynamic
+              Stack stack[30]; // TODO: assume max depth of 30 but make it dynamic
 
-                // start DFS
-                Visited visited{start_data_graph};
-                auto target_root
-                    = candidates.getCandidateAt(matching_order[0] + offset_query_nodes, target_root_id, start_data_graph, end_data_graph);
-                uint top = 0;
-                mapping[0] = target_root;
-                visited.set(target_root);
-                stack[top++] = {1, 0}; // initialize stack with the first node
-                // DFS loop
-                while (top > 0) {
-                  // get the top frame
-                  auto frame = stack[top - 1];
-                  auto query_node = matching_order[frame.depth];
+              // start DFS
+              Visited visited{start_data_graph};
+              uint top = 0;
+              stack[top++] = {0, 0}; // initialize stack with the first node
+              // DFS loop
+              while (top > 0) {
+                // get the top frame
+                auto frame = stack[top - 1];
+                auto query_node = matching_order[frame.depth];
 
-                  if (frame.depth == num_query_nodes) { // found a match and output solution
-                    num_matches_ref++;
-                    top--;
+                if (frame.depth == num_query_nodes) { // found a match and output solution
+                  num_matches_ref++;
+                  top--;
+                  if (find_first) {
+                    break;
+                  } else {
                     continue;
                   }
-                  // no more candidates
-                  if (frame.candidateIdx >= candidates.getCandidatesCount(query_node + offset_query_nodes, start_data_graph, end_data_graph)) {
-                    // backtrack
-                    top--;
-                    // free the failed mapping
-                    if (top > 0) { visited.unset(mapping[query_node]); }
-                    continue;
-                  }
+                }
+                // no more candidates
+                if (frame.candidateIdx >= candidates.getCandidatesCount(query_node + offset_query_nodes, start_data_graph, end_data_graph)) {
+                  // backtrack
+                  top--;
+                  // free the failed mapping
+                  if (top > 0) { visited.unset(mapping[query_node]); }
+                  continue;
+                }
 
-                  // try the next candidate
-                  auto candidate = candidates.getCandidateAt(query_node + offset_query_nodes, frame.candidateIdx, start_data_graph, end_data_graph);
-                  // increment the candidate index for the next iteration
-                  stack[top - 1].candidateIdx++;
+                // try the next candidate
+                auto candidate = candidates.getCandidateAt(query_node + offset_query_nodes, frame.candidateIdx, start_data_graph, end_data_graph);
+                // increment the candidate index for the next iteration
+                stack[top - 1].candidateIdx++;
 
-                  if (!visited.get(candidate)
-                      && isValidMapping(candidate, frame.depth, mapping, matching_order, query_graphs, query_graph_id, data_graphs, wgid)) {
-                    mapping[frame.depth] = candidate;
-                    visited.set(candidate);
-                    stack[top++] = {frame.depth + 1, 0};
-                  }
+
+                if (!visited.get(candidate)
+                    && (frame.depth == 0
+                        || isValidMapping(candidate, frame.depth, mapping, matching_order, query_graphs, query_graph_id, data_graphs, wgid))) {
+                  mapping[frame.depth] = candidate;
+                  visited.set(candidate);
+                  stack[top++] = {frame.depth + 1, 0};
                 }
               }
             }
