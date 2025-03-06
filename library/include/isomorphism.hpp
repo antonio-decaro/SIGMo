@@ -208,7 +208,6 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
 
           sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> num_matches_ref{num_matches[0]};
 
-          Stack stack[30]; // TODO: assume max depth of 30 but make it dynamic
           uint32_t mapping[30];
           types::node_t matching_order[30];
 
@@ -235,6 +234,8 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
               defineMatchingOrder(sg, num_query_nodes, matching_order, starting_node_candidates);
 
               for (size_t target_root_id = sglid; target_root_id < starting_node_candidates; target_root_id += sgsize) {
+                Stack stack[30]; // TODO: assume max depth of 30 but make it dynamic
+
                 // start DFS
                 Visited visited{start_data_graph};
                 auto target_root
