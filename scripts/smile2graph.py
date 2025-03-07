@@ -66,7 +66,6 @@ class Parser:
     pass
 
   def join_graphs(self):
-    print("[*] Joining graphs")
     return nx.disjoint_union_all(self.graphs)
 
   @classmethod
