@@ -8,15 +8,10 @@ EXEC_FILE=$CUTS_DIR/build/cuts
 mkdir -p $OUT_DIR
 mkdir -p $OUT_DIR/cuTS
 
-rm -f $OUT_DIR/cuTS/cuTS.out
+rm -f $OUT_DIR/cuTS/cuTS.log
 
-for data in $(ls $DATA_DIR/data)
+for query in $(ls $DATA_DIR/query)
 do
-  for query in $(ls $DATA_DIR/query)
-  do
-    echo "Running CuTS on $data - $query"
-    out=$($EXEC_FILE $DATA_DIR/data/$data $DATA_DIR/query/$query)
-    echo "$out" >> $OUT_DIR/cuTS/cuTS.out
-    echo "" >> $OUT_DIR/cuTS/cuTS.out
-  done
+  echo "---- $query ----" >> $OUT_DIR/cuTS/cuTS.log
+  $EXEC_FILE $DATA_DIR/data.dat $DATA_DIR/query/$query >> $OUT_DIR/cuTS/cuTS.log
 done
