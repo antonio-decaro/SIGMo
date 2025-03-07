@@ -23,5 +23,5 @@ do
   printf "\rProgress: %d / %d" $((++current_file)) $num_files
 done
 
-python3 $SCRIPT_DIR/../scripts/parser.py -f VF3 -o $OUT_DIR/VF3/VF3.csv $OUT_DIR/VF3/VF3.out
-python3 $SCRIPT_DIR/../scripts/parser.py -f VF3 $OUT_DIR/VF3/VF3.out > $OUT_DIR/VF3/VF3.txt
+python3 $SCRIPT_DIR/../scripts/parser.py -f VF3 -o $OUT_DIR/VF3/VF3.csv $OUT_DIR/VF3/VF3.log
+python3 $SCRIPT_DIR/../scripts/parser.py -f VF3 $OUT_DIR/VF3/VF3.log > $OUT_DIR/VF3/VF3.txt
