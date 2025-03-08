@@ -12,6 +12,6 @@ rm -f $OUT_DIR/cuTS/cuTS.log
 
 for query in $(ls $DATA_DIR/query)
 do
-  echo "---- $query ----" >> $OUT_DIR/cuTS/cuTS.log
+  echo "$query" >> $OUT_DIR/cuTS/cuTS.log
   $EXEC_FILE $DATA_DIR/data.dat $DATA_DIR/query/$query >> $OUT_DIR/cuTS/cuTS.log
 done

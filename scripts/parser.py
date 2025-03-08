@@ -37,9 +37,18 @@ class Parser:
         return subclass(data)
     raise ValueError(f"Parser for framework '{framework}' not found")
   
+  
 class CuTSParser(Parser):
   def parse(self):
-    pass
+    for content in self.contents:
+      content = content.split('\n')
+      if len(content) < 6:
+        continue
+      content = content[5].split(',')
+      query_idx = content[1].replace('query_', '').replace('.dat', '')
+      matching = first_solution = float(content[2].replace('ms', '')) / 1000
+      self.dataframe.loc[len(self.dataframe)] = [int(query_idx), first_solution, matching, int(content[3])]
+      return self.dataframe
 
 class GSIParser(Parser):
   def parse(self):
