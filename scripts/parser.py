@@ -55,7 +55,21 @@ class CuTSParser(Parser):
 
 class GSIParser(Parser):
   def parse(self):
-    pass
+    for content in self.contents:
+      lines = [line.strip() for line in content.split('\n')]
+      query_idx = int(lines[0].replace('query_', '').replace('.dat', ''))
+      time = 0
+      solutions = 0
+      for line in lines[1:]:
+        if line.startswith('total time used:'):
+          tmp = line.split(' ')[-1]
+          time = float(tmp.replace('us', '')) / 1e6
+        if line.startswith('result:'):
+          row = line.split(' ')[1]
+          col = line.split(' ')[2]
+          solutions = int(row) * int(col)
+      self.dataframe.loc[len(self.dataframe)] = [query_idx, time, time, solutions]
+    return self.dataframe
 
 class VF3Parser(Parser):
   def parse(self):

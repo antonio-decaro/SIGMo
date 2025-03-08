@@ -19,3 +19,6 @@ do
   echo "$query" >> $OUT_DIR/GSI/GSI.log
   $EXEC_FILE $DATA_DIR/data.dat $DATA_DIR/query/$query >> $OUT_DIR/GSI/GSI.log
 done
+
+python3 $SCRIPT_DIR/../scripts/parser.py -f GSI -o $OUT_DIR/GSI/GSI.csv $OUT_DIR/GSI/GSI.log
+python3 $SCRIPT_DIR/../scripts/parser.py -f GSI $OUT_DIR/GSI/GSI.log > $OUT_DIR/GSI/GSI.txt
