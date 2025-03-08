@@ -1,4 +1,6 @@
 #!/bin/bash
+# Copyright (c) 2025 University of Salerno
+# SPDX-License-Identifier: Apache-2.0
 
 # Setting up variables
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
@@ -10,16 +12,10 @@ EXEC_FILE=$GSI_DIR/GSI.exe
 mkdir -p $OUT_DIR
 mkdir -p $OUT_DIR/GSI
 
-rm -f $OUT_DIR/GSI/GSI.out
+rm -f $OUT_DIR/GSI/GSI.log
 
-for data in $(ls $DATA_DIR/data)
+for query in $(ls $DATA_DIR/query)
 do
-  for query in $(ls $DATA_DIR/query)
-  do
-    echo "$data - $query" >> $OUT_DIR/GSI/GSI.out
-    out=$($EXEC_FILE $DATA_DIR/data/$data $DATA_DIR/query/$query)
-    echo "$out" >> $OUT_DIR/GSI/GSI.out
-  done
+  echo "$query" >> $OUT_DIR/GSI/GSI.log
+  $EXEC_FILE $DATA_DIR/data.dat $DATA_DIR/query/$query >> $OUT_DIR/GSI/GSI.log
 done
-
-$SCRIPT_DIR/../scripts/parser/parseGSI.py $OUT_DIR/GSI/GSI.out $OUT_DIR/GSI/GSI.csv
