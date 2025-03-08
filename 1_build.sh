@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright (c) 2025 University of Salerno
+# SPDX-License-Identifier: Apache-2.0
+
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
