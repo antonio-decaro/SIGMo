@@ -107,6 +107,7 @@ generate_files() {
     lines=$(head -n $limit $DATA_DIR/${type}.smarts)
     python3 $SCRIPT_DIR/scripts/smile2graph.py -f $bench -o $OUT_DIR/${type}.dat <<< "$lines"
   else
+    mkdir -p $OUT_DIR/query
     if [ "$bench" == "MBSM" ]; then
       lines=$(head -n $limit $DATA_DIR/${type}.smarts)
       python3 $SCRIPT_DIR/scripts/smile2graph.py -f $bench -o $OUT_DIR/${type}.dat <<< "$lines"
