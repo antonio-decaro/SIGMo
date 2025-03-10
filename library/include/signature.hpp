@@ -16,7 +16,7 @@ namespace signature {
 
 enum class Algorithm { ViewBased, PowerGraph };
 
-template<size_t Bits = 4>
+template<Algorithm A = Algorithm::PowerGraph, size_t Bits = 4>
 class Signature {
 public:
   struct SignatureDevice {
@@ -75,7 +75,7 @@ public:
     return event;
   }
 
-  template<Algorithm A = Algorithm::PowerGraph>
+  template<Algorithm _A = A>
   utils::BatchedEvent refineQuerySignatures(DeviceBatchedQueryGraph& graphs, size_t iter = 1);
 
   utils::BatchedEvent generateDataSignatures(DeviceBatchedDataGraph& graphs) {
@@ -106,7 +106,7 @@ public:
     return event;
   }
 
-  template<Algorithm A = Algorithm::PowerGraph>
+  template<Algorithm _A = A>
   utils::BatchedEvent refineDataSignatures(DeviceBatchedDataGraph& graphs, size_t iter = 1);
 
   Signature(sycl::queue& queue, size_t data_nodes, size_t query_nodes) : queue(queue), data_nodes(data_nodes), query_nodes(query_nodes) {
