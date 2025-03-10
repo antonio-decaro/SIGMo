@@ -40,14 +40,14 @@ add_executable(create_pool
 add_executable(inspector
     ${CMAKE_SOURCE_DIR}/src/inspector.cpp
 )
-add_executable(filter
-    ${CMAKE_SOURCE_DIR}/src/filter.cpp
+add_executable(mbsm
+    ${CMAKE_SOURCE_DIR}/src/mbsm.cpp
 )
 
 # Link cxxopts to the executables
 target_link_libraries(create_pool PRIVATE cxxopts)
 target_link_libraries(inspector PRIVATE cxxopts)
-target_link_libraries(filter PRIVATE cxxopts)
+target_link_libraries(mbsm PRIVATE cxxopts)
 
 # Select the target architecture
 set (MBSM_TARGET_ARCHITECTURE "" CACHE STRING "Target architecture for the MBSM library")
