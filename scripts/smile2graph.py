@@ -9,8 +9,8 @@ from rdkit import Chem
 import sys
 from tqdm import tqdm
 
-organic_subset = {l: (i+1) for i, l in enumerate('* H B C N O P S F Cl Br I b c n o s p'.split())}
-NUM_LABELS = len(organic_subset) + 1
+organic_subset = {l: (i) for i, l in enumerate('N Cl * Br I P H O C S F'.split())}
+NUM_LABELS = len(organic_subset)
 
 def molToGraph(mol):
   graph = nx.Graph()
