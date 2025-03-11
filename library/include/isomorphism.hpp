@@ -247,7 +247,6 @@ struct Mapping { // TODO: make it SOA
 SYCL_EXTERNAL bool isValidMapping(types::node_t candidate,
                                   uint depth,
                                   const uint32_t* mapping,
-                                  const types::node_t* matching_order,
                                   const mbsm::DeviceBatchedQueryGraph& query_graphs,
                                   uint query_graph_id,
                                   const mbsm::DeviceBatchedDataGraph& data_graphs,
@@ -255,8 +254,7 @@ SYCL_EXTERNAL bool isValidMapping(types::node_t candidate,
   for (int i = 0; i < depth; i++) {
     size_t query_nodes_offset = query_graphs.getPreviousNodes(query_graph_id);
 
-    if (query_graphs.isNeighbor(matching_order[i] + query_nodes_offset, matching_order[depth] + query_nodes_offset)
-        != data_graphs.isNeighbor(mapping[i], candidate)) {
+    if (query_graphs.isNeighbor(i + query_nodes_offset, depth + query_nodes_offset) != data_graphs.isNeighbor(mapping[i], candidate)) {
       return false;
     }
   }
@@ -298,7 +296,7 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
   const size_t subgroup_size = 32;             // TODO get from device
 
   sycl::nd_range<1> nd_range{total_data_graphs * preferred_workgroup_size, preferred_workgroup_size};
-
+  constexpr size_t MAX_QUERY_NODES = 28;
   auto e1 = queue.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<device::kernels::JoinCandidatesKernel>(
         nd_range,
@@ -319,32 +317,29 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
 
           sycl::atomic_ref<size_t, sycl::memory_order::relaxed, sycl::memory_scope::device> num_matches_ref{num_matches[0]};
 
-          uint32_t mapping[30];
-          types::node_t matching_order[30];
+          types::node_t mapping[MAX_QUERY_NODES];
+          size_t private_num_matches = 0;
 
-          for (size_t data_graph_id = wgid; data_graph_id < total_data_graphs; data_graph_id += wg.get_group_linear_range()) {
-            size_t start_data_graph = data_graphs.graph_offsets[data_graph_id];
-            size_t end_data_graph = data_graphs.graph_offsets[data_graph_id + 1];
+          for (uint32_t data_graph_id = wgid; data_graph_id < total_data_graphs; data_graph_id += wg.get_group_linear_range()) {
+            const uint32_t start_data_graph = data_graphs.graph_offsets[data_graph_id];
+            const uint32_t end_data_graph = data_graphs.graph_offsets[data_graph_id + 1];
 
-            size_t start_query = dqcr.data_graph_offsets[data_graph_id];
-            size_t end_query = dqcr.data_graph_offsets[data_graph_id + 1];
+            const uint32_t start_query = dqcr.data_graph_offsets[data_graph_id];
+            const uint32_t end_query = dqcr.data_graph_offsets[data_graph_id + 1];
 
-            size_t num_data_nodes = end_data_graph - start_data_graph;
+            const uint32_t num_data_nodes = end_data_graph - start_data_graph;
             auto data_graph_row_offsets = data_graphs.row_offsets + start_data_graph;
             auto data_graph_column_indices = data_graphs.column_indices;
 
             sycl::group_barrier(wg);
 
 
-            for (size_t query_graph_it = wglid; query_graph_it < (end_query - start_query);
+            for (uint32_t query_graph_it = wglid; query_graph_it < (end_query - start_query);
                  query_graph_it += wgsize) { // iterate over all query graphs
-              size_t query_graph_id = dqcr.query_graph_indices[start_query + query_graph_it];
-              const size_t offset_query_nodes = query_graphs.getPreviousNodes(query_graph_id);
-              const uint num_query_nodes = query_graphs.getGraphNodes(query_graph_id);
-
-              for (int i = 0; i < num_query_nodes; i++) { matching_order[i] = i; }
-
-              Stack stack[30]; // TODO: assume max depth of 30 but make it dynamic
+              Stack stack[MAX_QUERY_NODES];  // TODO: assume max depth of 30 but make it dynamic
+              const uint32_t query_graph_id = dqcr.query_graph_indices[start_query + query_graph_it];
+              const uint32_t offset_query_nodes = query_graphs.getPreviousNodes(query_graph_id);
+              const uint16_t num_query_nodes = query_graphs.getGraphNodes(query_graph_id);
 
               // start DFS
               Visited visited{start_data_graph};
@@ -354,10 +349,10 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
               while (top > 0) {
                 // get the top frame
                 auto frame = stack[top - 1];
-                auto query_node = matching_order[frame.depth];
+                auto query_node = frame.depth;
 
                 if (frame.depth == num_query_nodes) { // found a match and output solution
-                  num_matches_ref++;
+                  private_num_matches++;
                   top--;
                   if (find_first) {
                     break;
@@ -381,8 +376,7 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
 
 
                 if (!visited.get(candidate)
-                    && (frame.depth == 0
-                        || isValidMapping(candidate, frame.depth, mapping, matching_order, query_graphs, query_graph_id, data_graphs, wgid))) {
+                    && (frame.depth == 0 || isValidMapping(candidate, frame.depth, mapping, query_graphs, query_graph_id, data_graphs, wgid))) {
                   mapping[frame.depth] = candidate;
                   visited.set(candidate);
                   stack[top++] = {frame.depth + 1, 0};
@@ -390,6 +384,7 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
               }
             }
           }
+          num_matches_ref += private_num_matches;
         });
   });
 
