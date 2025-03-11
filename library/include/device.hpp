@@ -16,6 +16,8 @@ inline size_t getDeviceMemorySize(sycl::queue& queue) {
   return queue.get_info<sycl::info::queue::device>().get_info<sycl::info::device::global_mem_size>();
 }
 
+inline size_t getPreferredWorkGroupSize(sycl::queue& queue) { return queue.get_device().get_info<sycl::info::device::max_work_group_size>(); }
+
 namespace kernels {
 
 class PrefixSumKernel;

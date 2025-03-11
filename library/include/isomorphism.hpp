@@ -26,21 +26,31 @@ utils::BatchedEvent filterCandidates(sycl::queue& queue,
                                      mbsm::candidates::Candidates& candidates) {
   size_t total_query_nodes = query_graph.total_nodes;
   size_t total_data_nodes = data_graph.total_nodes;
+
+  sycl::range<1> local_range{device::getPreferredWorkGroupSize(queue)};
+  sycl::range<1> global_range{total_data_nodes + (local_range[0] - (total_data_nodes % local_range[0]))};
+
   auto e = queue.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<mbsm::device::kernels::FilterCandidatesKernel<D>>(
-        sycl::range<1>(total_data_nodes),
+        sycl::nd_range<1>({global_range, local_range}),
         [=,
          candidates = candidates.getCandidatesDevice(),
          query_signatures = signatures.getDeviceQuerySignatures(),
          data_signatures = signatures.getDeviceDataSignatures(),
-         max_labels = signatures.getMaxLabels()](sycl::item<1> item) {
-          auto data_node_id = item.get_id(0);
+         max_labels = signatures.getMaxLabels()](sycl::nd_item<1> item) {
+          auto data_node_id = item.get_global_id(0);
+          if (data_node_id >= total_data_nodes) { return; }
           auto data_signature = data_signatures[data_node_id];
           auto query_labels = query_graph.labels;
           auto data_labels = data_graph.labels;
 
           for (size_t query_node_id = 0; query_node_id < total_query_nodes; ++query_node_id) {
             if (query_labels[query_node_id] != data_labels[data_node_id]) { continue; }
+            // if constexpr (D == candidates::CandidatesDomain::Data) {
+            //   candidates.insert(data_node_id, query_node_id);
+            // } else {
+            //   candidates.atomicInsert(query_node_id, data_node_id);
+            // }
             auto query_signature = query_signatures[query_node_id];
 
             bool insert = true;
@@ -72,15 +82,20 @@ utils::BatchedEvent refineCandidates(sycl::queue& queue,
                                      mbsm::candidates::Candidates& candidates) {
   size_t total_query_nodes = query_graph.total_nodes;
   size_t total_data_nodes = data_graph.total_nodes;
+
+  sycl::range<1> local_range{device::getPreferredWorkGroupSize(queue)};
+  sycl::range<1> global_range{total_data_nodes + (local_range[0] - (total_data_nodes % local_range[0]))};
+
   auto e = queue.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<mbsm::device::kernels::RefineCandidatesKernel<D>>(
-        sycl::range<1>(total_data_nodes),
+        sycl::nd_range<1>({global_range, local_range}),
         [=,
          candidates = candidates.getCandidatesDevice(),
          query_signatures = signatures.getDeviceQuerySignatures(),
          data_signatures = signatures.getDeviceDataSignatures(),
-         max_labels = signatures.getMaxLabels()](sycl::item<1> item) {
-          auto data_node_id = item.get_id(0);
+         max_labels = signatures.getMaxLabels()](sycl::nd_item<1> item) {
+          auto data_node_id = item.get_global_id(0);
+          if (data_node_id >= total_data_nodes) { return; }
           auto data_signature = data_signatures[data_node_id];
 
           for (size_t query_node_id = 0; query_node_id < total_query_nodes; ++query_node_id) {
@@ -131,7 +146,7 @@ DGCR generateDGCR(sycl::queue& queue,
   const size_t total_data_graphs = data_graphs.num_graphs;
 
   // Allocate device memory for data_graph_offsets (size = total_data_graphs+1)
-  uint32_t* d_data_graph_offsets = sycl::malloc_shared<uint32_t>(total_data_graphs + 1, queue);
+  uint32_t* d_data_graph_offsets = sycl::malloc_device<uint32_t>(total_data_graphs + 1, queue);
   // Initialize to zero
   queue.fill(d_data_graph_offsets, 0, total_data_graphs + 1).wait();
 
@@ -164,16 +179,21 @@ DGCR generateDGCR(sycl::queue& queue,
 
   // --- Kernel 2: Compute prefix sum of data_graph_offsets ---
   // (Here we assume total_data_graphs is small so a single task is acceptable.)
-  for (size_t i = 1; i <= total_data_graphs; i++) { d_data_graph_offsets[i] += d_data_graph_offsets[i - 1]; }
+  auto k2 = queue.single_task([=]() {
+    for (size_t i = 1; i <= total_data_graphs; i++) { d_data_graph_offsets[i] += d_data_graph_offsets[i - 1]; }
+  });
+  k2.wait();
 
   // The total number of query indices is now the last element in d_data_graph_offsets.
-  uint32_t total_query_indices = d_data_graph_offsets[total_data_graphs];
+  uint32_t total_query_indices;
+  queue.copy(&d_data_graph_offsets[total_data_graphs], &total_query_indices, 1).wait();
+
   // Allocate device memory for query_graph_indices.
-  uint32_t* d_query_graph_indices = sycl::malloc_shared<uint32_t>(total_query_indices, queue);
+  uint32_t* d_query_graph_indices = sycl::malloc_device<uint32_t>(total_query_indices, queue);
 
   // Create a copy of the prefix sum array to serve as atomic “current offsets”
-  uint32_t* current_offsets = sycl::malloc_shared<uint32_t>(total_data_graphs + 1, queue);
-  for (size_t i = 0; i <= total_data_graphs; i++) { current_offsets[i] = d_data_graph_offsets[i]; }
+  uint32_t* current_offsets = sycl::malloc_device<uint32_t>(total_data_graphs + 1, queue);
+  queue.copy(d_data_graph_offsets, current_offsets, total_data_graphs + 1).wait();
 
   // --- Kernel 3: Fill query_graph_indices ---
   // For each (query_graph, data_graph) pair (with query graphs having > 1 node),
@@ -222,7 +242,7 @@ namespace join {
  */
 
 struct Stack {
-  int depth;
+  uint depth;
   size_t candidateIdx;
 };
 
@@ -296,7 +316,7 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
   const size_t subgroup_size = 32;             // TODO get from device
 
   sycl::nd_range<1> nd_range{total_data_graphs * preferred_workgroup_size, preferred_workgroup_size};
-  constexpr size_t MAX_QUERY_NODES = 28;
+  constexpr size_t MAX_QUERY_NODES = 30;
   auto e1 = queue.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<device::kernels::JoinCandidatesKernel>(
         nd_range,

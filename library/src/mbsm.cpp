@@ -133,9 +133,10 @@ int main(int argc, char** argv) {
   std::cout << "------------- Runtime Filter Phase -------------" << std::endl;
   host_time_events.add("filter_start");
   std::cout << "Initialization Step:" << std::endl;
+  std::chrono::duration<double> time;
   auto e1 = signatures.generateDataSignatures(device_data_graph);
   queue.wait_and_throw();
-  auto time = e1.getProfilingInfo();
+  time = e1.getProfilingInfo();
   data_sig_times.push_back(time);
   std::cout << "- Data signatures generated in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
 
@@ -152,16 +153,16 @@ int main(int argc, char** argv) {
   std::cout << "- Candidates filtered in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
 
   // start refining candidate set
-  for (size_t ref_step = 0; ref_step < args.refinement_steps; ++ref_step) {
+  for (size_t ref_step = 1; ref_step <= args.refinement_steps; ++ref_step) {
     std::cout << "Refinement step " << (ref_step + 1) << ":" << std::endl;
 
-    auto e1 = signatures.refineDataSignatures(device_data_graph, ref_step + 2);
+    auto e1 = signatures.refineDataSignatures(device_data_graph, ref_step);
     queue.wait_and_throw();
     time = e1.getProfilingInfo();
     data_sig_times.push_back(time);
     std::cout << "- Data signatures refined in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
 
-    auto e2 = signatures.refineQuerySignatures(device_query_graph, ref_step + 2);
+    auto e2 = signatures.refineQuerySignatures(device_query_graph, ref_step);
     queue.wait_and_throw();
     time = e2.getProfilingInfo();
     query_sig_times.push_back(time);
