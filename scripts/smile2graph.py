@@ -118,6 +118,8 @@ class VF3Parser(Parser):
 class MBSMParser(Parser):
   def parse(self, file):
     for g in self.graphs:
+      g: nx.DiGraph
+      g = g.to_undirected()
       print(f'n#{g.number_of_nodes()} l#{NUM_LABELS}',  end=' ', file=file)
       for i, n in enumerate(g.nodes):
         print(i, getLabel(g.nodes[i]), end=' ', file=file)
