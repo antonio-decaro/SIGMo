@@ -28,13 +28,13 @@ int main(int argc, char** argv) {
   std::cout << "Reading from " << file << std::endl;
 
   if (mode == "query") {
-    std::vector<mbsm::QueryGraph> query_graphs = mbsm::io::loadQueryGraphsFromFile(file);
+    std::vector<mbsm::AMGraph> query_graphs = mbsm::io::loadQueryGraphsFromFile(file);
     std::cout << "Number of query graphs: " << query_graphs.size() << std::endl;
     std::cout << "Number of nodes: " << countNodes(query_graphs) << std::endl;
     if (verbose)
       for (auto& query_graph : query_graphs) { std::cout << "Query graph with " << query_graph.getNumNodes() << " nodes" << std::endl; }
   } else if (mode == "data") {
-    std::vector<mbsm::DataGraph> data_graphs = mbsm::io::loadDataGraphsFromFile(file);
+    std::vector<mbsm::CSRGraph> data_graphs = mbsm::io::loadDataGraphsFromFile(file);
     std::cout << "Number of data graphs: " << data_graphs.size() << std::endl;
     std::cout << "Number of nodes: " << countNodes(data_graphs) << std::endl;
     if (verbose)

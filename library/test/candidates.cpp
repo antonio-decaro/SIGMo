@@ -36,7 +36,7 @@ TEST(SignatureTest, CheckQuerySignatureGeneration) {
 
   auto query_graphs = mbsm::io::loadQueryGraphsFromFile(TEST_QUERY_PATH);
 
-  auto device_query_graph = mbsm::createDeviceQueryGraph(queue, query_graphs);
+  auto device_query_graph = mbsm::createDeviceAMGraph(queue, query_graphs);
 
   mbsm::signature::Signature<> signatures{queue, device_query_graph.total_nodes, device_query_graph.total_nodes};
 
@@ -56,7 +56,7 @@ TEST(SignatureTest, RefineQuerySignature) {
 
   auto query_graphs = mbsm::io::loadQueryGraphsFromFile(TEST_QUERY_PATH);
 
-  auto device_query_graph = mbsm::createDeviceQueryGraph(queue, query_graphs);
+  auto device_query_graph = mbsm::createDeviceAMGraph(queue, query_graphs);
 
   mbsm::signature::Signature<> signatures{queue, device_query_graph.total_nodes, device_query_graph.total_nodes};
 
@@ -79,7 +79,7 @@ TEST(SignatureTest, CheckDataSignatureGeneration) {
 
   auto data_graphs = mbsm::io::loadDataGraphsFromFile(TEST_DATA_PATH);
 
-  auto device_data_graph = mbsm::createDeviceDataGraph(queue, data_graphs);
+  auto device_data_graph = mbsm::createDeviceCSRGraph(queue, data_graphs);
 
   mbsm::signature::Signature<> signatures{queue, device_data_graph.total_nodes, device_data_graph.total_nodes};
 
@@ -99,7 +99,7 @@ TEST(SignatureTest, RefineDataSignature) {
 
   auto data_graphs = mbsm::io::loadDataGraphsFromFile(TEST_DATA_PATH);
 
-  auto device_data_graph = mbsm::createDeviceDataGraph(queue, data_graphs);
+  auto device_data_graph = mbsm::createDeviceCSRGraph(queue, data_graphs);
 
   mbsm::signature::Signature<> signatures{queue, device_data_graph.total_nodes, device_data_graph.total_nodes};
 

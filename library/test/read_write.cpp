@@ -9,7 +9,7 @@
 
 TEST(ReadWriteTest, LoadQueryGraphsFromFile) {
   std::string fname1 = std::string(TEST_QUERY_PATH);
-  std::vector<mbsm::QueryGraph> query_graphs = mbsm::io::loadQueryGraphsFromFile(fname1);
+  std::vector<mbsm::AMGraph> query_graphs = mbsm::io::loadQueryGraphsFromFile(fname1);
   // Add assertions to verify the correctness of query_graphs
   ASSERT_TRUE(query_graphs.size() > 0);
 }
@@ -17,8 +17,8 @@ TEST(ReadWriteTest, LoadQueryGraphsFromFile) {
 TEST(ReadWriteTest, WriteReadComparePool) {
   std::string fname1 = std::string(TEST_QUERY_PATH);
   std::string fname2 = std::string(TEST_DATA_PATH);
-  std::vector<mbsm::QueryGraph> query_graphs = mbsm::io::loadQueryGraphsFromFile(fname1);
-  std::vector<mbsm::DataGraph> data_graphs = mbsm::io::loadDataGraphsFromFile(fname2);
+  std::vector<mbsm::AMGraph> query_graphs = mbsm::io::loadQueryGraphsFromFile(fname1);
+  std::vector<mbsm::CSRGraph> data_graphs = mbsm::io::loadDataGraphsFromFile(fname2);
 
   mbsm::GraphPool write_pool(data_graphs, query_graphs);
 

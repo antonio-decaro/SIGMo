@@ -14,24 +14,24 @@
 namespace mbsm {
 namespace io {
 
-std::vector<QueryGraph> loadQueryGraphsFromFile(const std::string& filename) {
+std::vector<AMGraph> loadQueryGraphsFromFile(const std::string& filename) {
   std::ifstream file(filename);
   std::string line;
-  std::vector<mbsm::QueryGraph> query_graphs;
+  std::vector<mbsm::AMGraph> query_graphs;
   while (std::getline(file, line)) {
     mbsm::IntermediateGraph intermediate_graph{line};
-    query_graphs.push_back(intermediate_graph.toQueryGraph());
+    query_graphs.push_back(intermediate_graph.toAMGraph());
   }
   return query_graphs;
 }
 
-std::vector<DataGraph> loadDataGraphsFromFile(const std::string& filename) {
+std::vector<CSRGraph> loadDataGraphsFromFile(const std::string& filename) {
   std::ifstream file(filename);
   std::string line;
-  std::vector<mbsm::DataGraph> data_graphs;
+  std::vector<mbsm::CSRGraph> data_graphs;
   while (std::getline(file, line)) {
     mbsm::IntermediateGraph intermediate_graph{line};
-    data_graphs.push_back(intermediate_graph.toDataGraph());
+    data_graphs.push_back(intermediate_graph.toCSRGraph());
   }
   return data_graphs;
 }
@@ -65,7 +65,7 @@ mbsm::GraphPool loadPoolFromBinary(const std::string& filename) {
     std::vector<types::label_t> labels(num_nodes);
     file.read(reinterpret_cast<char*>(labels.data()), num_nodes * sizeof(types::label_t));
 
-    // Create the DataGraph and add it to the pool
+    // Create the CSRGraph and add it to the pool
     pool.getDataGraphs().emplace_back(row_offsets, column_indices, labels, num_nodes);
   }
 
@@ -88,7 +88,7 @@ mbsm::GraphPool loadPoolFromBinary(const std::string& filename) {
     std::vector<types::label_t> labels(num_nodes);
     file.read(reinterpret_cast<char*>(labels.data()), num_nodes * sizeof(types::label_t));
 
-    // Create the QueryGraph and add it to the pool
+    // Create the AMGraph and add it to the pool
     pool.getQueryGraphs().emplace_back(adjacency, labels, num_nodes);
   }
 

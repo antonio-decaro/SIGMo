@@ -17,8 +17,8 @@ TEST(FilterTest, SingleFilter) {
 
   sycl::queue queue{sycl::gpu_selector_v};
 
-  auto device_query_graph = mbsm::createDeviceQueryGraph(queue, query_graphs);
-  auto device_data_graph = mbsm::createDeviceDataGraph(queue, data_graphs);
+  auto device_query_graph = mbsm::createDeviceAMGraph(queue, query_graphs);
+  auto device_data_graph = mbsm::createDeviceCSRGraph(queue, data_graphs);
 
   mbsm::signature::Signature<> signatures{queue, device_data_graph.total_nodes, device_query_graph.total_nodes};
 
@@ -63,8 +63,8 @@ TEST(FilterTest, SingleFilter) {
     for (int j = 0; j < expected.size(); j++) { ASSERT_TRUE(device_candidates.contains(i, expected[j])); }
   }
 
-  mbsm::destroyDeviceDataGraph(device_data_graph, queue);
-  mbsm::destroyDeviceQueryGraph(device_query_graph, queue);
+  mbsm::destroyDeviceCSRGraph(device_data_graph, queue);
+  mbsm::destroyDeviceAMGraph(device_query_graph, queue);
 }
 
 
@@ -74,8 +74,8 @@ TEST(FilterTest, RefinementTest) {
 
   sycl::queue queue{sycl::gpu_selector_v};
 
-  auto device_query_graph = mbsm::createDeviceQueryGraph(queue, query_graphs);
-  auto device_data_graph = mbsm::createDeviceDataGraph(queue, data_graphs);
+  auto device_query_graph = mbsm::createDeviceAMGraph(queue, query_graphs);
+  auto device_data_graph = mbsm::createDeviceCSRGraph(queue, data_graphs);
 
   mbsm::signature::Signature<> signatures{queue, device_data_graph.total_nodes, device_query_graph.total_nodes};
 
@@ -143,8 +143,8 @@ TEST(FilterTest, RefinementTest) {
     for (auto data_node : expected) { ASSERT_TRUE(candidates_device.contains(i, data_node)); }
   }
 
-  mbsm::destroyDeviceDataGraph(device_data_graph, queue);
-  mbsm::destroyDeviceQueryGraph(device_query_graph, queue);
+  mbsm::destroyDeviceCSRGraph(device_data_graph, queue);
+  mbsm::destroyDeviceAMGraph(device_query_graph, queue);
 }
 
 

@@ -18,20 +18,20 @@ class GraphPool {
 public:
   GraphPool() = default;
 
-  GraphPool(std::vector<mbsm::DataGraph>& data_graphs, std::vector<mbsm::QueryGraph>& query_graphs)
+  GraphPool(std::vector<mbsm::CSRGraph>& data_graphs, std::vector<mbsm::AMGraph>& query_graphs)
       : _data_graphs(data_graphs), _query_graphs(query_graphs) {}
 
-  std::vector<mbsm::DataGraph>& getDataGraphs() { return _data_graphs; }
+  std::vector<mbsm::CSRGraph>& getDataGraphs() { return _data_graphs; }
 
-  std::vector<mbsm::QueryGraph>& getQueryGraphs() { return _query_graphs; }
+  std::vector<mbsm::AMGraph>& getQueryGraphs() { return _query_graphs; }
 
-  DeviceBatchedDataGraph transferDataGraphsToDevice(sycl::queue& queue) { return createDeviceDataGraph(queue, _data_graphs); }
+  DeviceBatchedCSRGraph transferDataGraphsToDevice(sycl::queue& queue) { return createDeviceCSRGraph(queue, _data_graphs); }
 
-  DeviceBatchedQueryGraph transferQueryGraphsToDevice(sycl::queue& queue) { return createDeviceQueryGraph(queue, _query_graphs); }
+  DeviceBatchedAMGraph transferQueryGraphsToDevice(sycl::queue& queue) { return createDeviceAMGraph(queue, _query_graphs); }
 
 private:
-  std::vector<mbsm::DataGraph> _data_graphs;
-  std::vector<mbsm::QueryGraph> _query_graphs;
+  std::vector<mbsm::CSRGraph> _data_graphs;
+  std::vector<mbsm::AMGraph> _query_graphs;
 };
 
 } // namespace mbsm

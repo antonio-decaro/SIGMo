@@ -17,11 +17,11 @@
 
 namespace mbsm {
 
-class QueryGraph {
+class AMGraph {
 public:
-  QueryGraph(const QueryGraph& other) = default;
+  AMGraph(const AMGraph& other) = default;
 
-  QueryGraph(std::vector<types::adjacency_t> adjacency, std::vector<types::label_t> labels, uint8_t num_nodes)
+  AMGraph(std::vector<types::adjacency_t> adjacency, std::vector<types::label_t> labels, uint8_t num_nodes)
       : _adjacency(adjacency), _labels(labels), _num_nodes(num_nodes) {}
 
   types::adjacency_t* getAdjacencyMatrix() { return _adjacency.data(); }
@@ -34,14 +34,14 @@ private:
   uint8_t _num_nodes;
 };
 
-class DataGraph {
+class CSRGraph {
 public:
-  DataGraph(const DataGraph& other) = default;
+  CSRGraph(const CSRGraph& other) = default;
 
-  DataGraph(std::vector<types::row_offset_t> row_offsets,
-            std::vector<types::col_index_t> column_indices,
-            std::vector<types::label_t> labels,
-            size_t num_nodes)
+  CSRGraph(std::vector<types::row_offset_t> row_offsets,
+           std::vector<types::col_index_t> column_indices,
+           std::vector<types::label_t> labels,
+           size_t num_nodes)
       : _row_offsets(row_offsets), _column_indices(column_indices), _labels(labels), _num_nodes(num_nodes) {}
 
   const types::row_offset_t* getRowOffsets() const { return _row_offsets.data(); }
@@ -56,7 +56,7 @@ private:
   size_t _num_nodes;
 };
 
-struct DeviceBatchedDataGraph {
+struct DeviceBatchedCSRGraph {
   types::row_offset_t* graph_offsets;
   types::row_offset_t* row_offsets;
   types::col_index_t* column_indices;
@@ -90,7 +90,7 @@ struct DeviceBatchedDataGraph {
   }
 };
 
-struct DeviceBatchedQueryGraph {
+struct DeviceBatchedAMGraph {
   types::adjacency_t* adjacency;
   types::label_t* labels;
   uint32_t* num_nodes;
@@ -168,15 +168,15 @@ public:
     }
   }
 
-  QueryGraph toQueryGraph() {
+  AMGraph toAMGraph() {
     size_t array_size = utils::getNumOfAdjacencyIntegers(this->node_labels.size());
     std::vector<types::adjacency_t> adjacency(array_size);
     for (auto& edge : edges) { utils::adjacency_matrix::setBit(adjacency.data(), array_size, edge.first, edge.second); }
 
-    return QueryGraph(adjacency, node_labels, node_labels.size());
+    return AMGraph(adjacency, node_labels, node_labels.size());
   }
 
-  DataGraph toDataGraph() {
+  CSRGraph toCSRGraph() {
     std::vector<types::row_offset_t> row_offsets(node_labels.size() + 1);
     std::vector<types::col_index_t> column_indices;
     std::vector<types::label_t> labels(node_labels.size());
@@ -200,7 +200,7 @@ public:
       current_pos[edge.second]++;
     }
 
-    return DataGraph(row_offsets, column_indices, node_labels, node_labels.size());
+    return CSRGraph(row_offsets, column_indices, node_labels, node_labels.size());
   }
 
   std::vector<std::pair<types::node_t, types::node_t>> edges;
@@ -209,8 +209,8 @@ public:
 };
 
 // TODO offload on GPU
-static DeviceBatchedDataGraph createDeviceDataGraph(sycl::queue& queue, std::vector<DataGraph>& data_graphs) {
-  DeviceBatchedDataGraph device_data_graph;
+static DeviceBatchedCSRGraph createDeviceCSRGraph(sycl::queue& queue, std::vector<CSRGraph>& data_graphs) {
+  DeviceBatchedCSRGraph device_data_graph;
 
   size_t total_nodes = 0;
   size_t total_edges = 0;
@@ -253,20 +253,20 @@ static DeviceBatchedDataGraph createDeviceDataGraph(sycl::queue& queue, std::vec
   return device_data_graph;
 }
 
-static void destroyDeviceDataGraph(DeviceBatchedDataGraph& device_data_graph, sycl::queue& queue) {
+static void destroyDeviceCSRGraph(DeviceBatchedCSRGraph& device_data_graph, sycl::queue& queue) {
   sycl::free(device_data_graph.row_offsets, queue);
   sycl::free(device_data_graph.column_indices, queue);
   sycl::free(device_data_graph.labels, queue);
   sycl::free(device_data_graph.graph_offsets, queue);
 }
 
-static size_t getDeviceDataGraphAllocSize(const DeviceBatchedDataGraph& device_data_graph) {
+static size_t getDeviceCSRGraphAllocSize(const DeviceBatchedCSRGraph& device_data_graph) {
   return device_data_graph.total_nodes * sizeof(types::label_t) + (device_data_graph.num_graphs + 1) * sizeof(types::row_offset_t)
          + (device_data_graph.total_nodes + 1) * sizeof(types::row_offset_t)
          + device_data_graph.row_offsets[device_data_graph.total_nodes] * sizeof(types::col_index_t);
 }
 
-static size_t getDeviceDataGraphAllocSize(const std::vector<DataGraph>& data_graphs) {
+static size_t getDeviceCSRGraphAllocSize(const std::vector<CSRGraph>& data_graphs) {
   size_t total_nodes = 0;
   size_t total_edges = 0;
 
@@ -281,8 +281,8 @@ static size_t getDeviceDataGraphAllocSize(const std::vector<DataGraph>& data_gra
 
 
 // TODO offload on GPU
-static DeviceBatchedQueryGraph createDeviceQueryGraph(sycl::queue& queue, std::vector<QueryGraph>& query_graphs) {
-  DeviceBatchedQueryGraph device_query_graph;
+static DeviceBatchedAMGraph createDeviceAMGraph(sycl::queue& queue, std::vector<AMGraph>& query_graphs) {
+  DeviceBatchedAMGraph device_query_graph;
 
   device_query_graph.num_graphs = query_graphs.size();
 
@@ -330,14 +330,14 @@ static DeviceBatchedQueryGraph createDeviceQueryGraph(sycl::queue& queue, std::v
   return device_query_graph;
 }
 
-static void destroyDeviceQueryGraph(DeviceBatchedQueryGraph& device_query_graph, sycl::queue& queue) {
+static void destroyDeviceAMGraph(DeviceBatchedAMGraph& device_query_graph, sycl::queue& queue) {
   sycl::free(device_query_graph.adjacency, queue);
   sycl::free(device_query_graph.labels, queue);
   sycl::free(device_query_graph.num_nodes, queue);
   sycl::free(device_query_graph.graph_offsets, queue);
 }
 
-static size_t getDeviceQueryGraphAllocSize(const DeviceBatchedQueryGraph& device_query_graph) {
+static size_t getDeviceAMGraphAllocSize(const DeviceBatchedAMGraph& device_query_graph) {
   size_t adjacency_size = device_query_graph.graph_offsets[device_query_graph.num_graphs - 1] * sizeof(types::adjacency_t);
   size_t labels_size = device_query_graph.total_nodes * sizeof(types::label_t);
   size_t num_nodes_size = device_query_graph.num_graphs * sizeof(uint32_t);
@@ -346,7 +346,7 @@ static size_t getDeviceQueryGraphAllocSize(const DeviceBatchedQueryGraph& device
   return adjacency_size + labels_size + num_nodes_size + graph_offsets_size;
 }
 
-static size_t getDeviceQueryGraphAllocSize(const std::vector<QueryGraph>& query_graphs) {
+static size_t getDeviceAMGraphAllocSize(const std::vector<AMGraph>& query_graphs) {
   size_t total_labels = 0;
   size_t total_adjacency = 0;
 
@@ -361,10 +361,10 @@ static size_t getDeviceQueryGraphAllocSize(const std::vector<QueryGraph>& query_
 
 template<typename T>
 static size_t getDeviceGraphAllocSize(const T& data) {
-  if constexpr (std::is_same_v<T, DeviceBatchedQueryGraph>) {
-    return getDeviceQueryGraphAllocSize(data);
-  } else if constexpr (std::is_same_v<T, DeviceBatchedDataGraph>) {
-    return getDeviceDataGraphAllocSize(data);
+  if constexpr (std::is_same_v<T, DeviceBatchedAMGraph>) {
+    return getDeviceAMGraphAllocSize(data);
+  } else if constexpr (std::is_same_v<T, DeviceBatchedCSRGraph>) {
+    return getDeviceCSRGraphAllocSize(data);
   } else {
     throw std::runtime_error("Unsupported type");
   }
@@ -372,10 +372,10 @@ static size_t getDeviceGraphAllocSize(const T& data) {
 
 template<typename T>
 static size_t getDeviceGraphAllocSize(const std::vector<T>& data) {
-  if constexpr (std::is_same_v<T, QueryGraph>) {
-    return getDeviceQueryGraphAllocSize(data);
-  } else if constexpr (std::is_same_v<T, DataGraph>) {
-    return getDeviceDataGraphAllocSize(data);
+  if constexpr (std::is_same_v<T, AMGraph>) {
+    return getDeviceAMGraphAllocSize(data);
+  } else if constexpr (std::is_same_v<T, CSRGraph>) {
+    return getDeviceCSRGraphAllocSize(data);
   } else {
     throw std::runtime_error("Unsupported type");
   }

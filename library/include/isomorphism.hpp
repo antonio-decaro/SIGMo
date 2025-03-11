@@ -20,8 +20,8 @@ namespace filter {
 
 template<candidates::CandidatesDomain D = candidates::CandidatesDomain::Query>
 utils::BatchedEvent filterCandidates(sycl::queue& queue,
-                                     mbsm::DeviceBatchedQueryGraph& query_graph,
-                                     mbsm::DeviceBatchedDataGraph& data_graph,
+                                     mbsm::DeviceBatchedAMGraph& query_graph,
+                                     mbsm::DeviceBatchedCSRGraph& data_graph,
                                      mbsm::signature::Signature<>& signatures,
                                      mbsm::candidates::Candidates& candidates) {
   size_t total_query_nodes = query_graph.total_nodes;
@@ -76,8 +76,8 @@ utils::BatchedEvent filterCandidates(sycl::queue& queue,
 
 template<candidates::CandidatesDomain D = candidates::CandidatesDomain::Query>
 utils::BatchedEvent refineCandidates(sycl::queue& queue,
-                                     mbsm::DeviceBatchedQueryGraph& query_graph,
-                                     mbsm::DeviceBatchedDataGraph& data_graph,
+                                     mbsm::DeviceBatchedAMGraph& query_graph,
+                                     mbsm::DeviceBatchedCSRGraph& data_graph,
                                      mbsm::signature::Signature<>& signatures,
                                      mbsm::candidates::Candidates& candidates) {
   size_t total_query_nodes = query_graph.total_nodes;
@@ -137,8 +137,8 @@ struct DGCR {
 
 // Offloaded version of generateDGCR using SYCL kernels.
 DGCR generateDGCR(sycl::queue& queue,
-                  mbsm::DeviceBatchedQueryGraph& query_graphs,
-                  mbsm::DeviceBatchedDataGraph& data_graphs,
+                  mbsm::DeviceBatchedAMGraph& query_graphs,
+                  mbsm::DeviceBatchedCSRGraph& data_graphs,
                   mbsm::candidates::Candidates& candidates,
                   bool find_all = true) {
   // Get dimensions
@@ -267,9 +267,9 @@ struct Mapping { // TODO: make it SOA
 SYCL_EXTERNAL bool isValidMapping(types::node_t candidate,
                                   uint depth,
                                   const uint32_t* mapping,
-                                  const mbsm::DeviceBatchedQueryGraph& query_graphs,
+                                  const mbsm::DeviceBatchedAMGraph& query_graphs,
                                   uint query_graph_id,
-                                  const mbsm::DeviceBatchedDataGraph& data_graphs,
+                                  const mbsm::DeviceBatchedCSRGraph& data_graphs,
                                   uint data_graph_id) {
   for (int i = 0; i < depth; i++) {
     size_t query_nodes_offset = query_graphs.getPreviousNodes(query_graph_id);
@@ -300,8 +300,8 @@ SYCL_EXTERNAL void defineMatchingOrder(sycl::sub_group sg, size_t num_query_node
 }
 
 utils::BatchedEvent joinCandidates(sycl::queue& queue,
-                                   mbsm::DeviceBatchedQueryGraph& query_graphs,
-                                   mbsm::DeviceBatchedDataGraph& data_graphs,
+                                   mbsm::DeviceBatchedAMGraph& query_graphs,
+                                   mbsm::DeviceBatchedCSRGraph& data_graphs,
                                    mbsm::candidates::Candidates& candidates,
                                    mbsm::isomorphism::mapping::DGCR& dqcr,
                                    size_t* num_matches,

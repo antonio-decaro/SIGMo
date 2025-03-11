@@ -9,7 +9,7 @@
 
 TEST(GraphTest, GetNeighbors) {
   std::string fname1 = std::string(TEST_QUERY_PATH);
-  std::vector<mbsm::QueryGraph> query_graphs = mbsm::io::loadQueryGraphsFromFile(fname1);
+  std::vector<mbsm::AMGraph> query_graphs = mbsm::io::loadQueryGraphsFromFile(fname1);
 
   mbsm::types::node_t neighbors[4];
   for (auto& graph : query_graphs) {
@@ -24,14 +24,14 @@ TEST(GraphTest, GetNeighbors) {
 
 TEST(GraphTest, IntoQueryDevice) {
   std::string fname1 = std::string(TEST_QUERY_PATH);
-  std::vector<mbsm::QueryGraph> query_graphs = mbsm::io::loadQueryGraphsFromFile(fname1);
+  std::vector<mbsm::AMGraph> query_graphs = mbsm::io::loadQueryGraphsFromFile(fname1);
 
   size_t total_nodes = 0;
   for (auto& graph : query_graphs) { total_nodes += graph.getNumNodes(); }
 
   sycl::queue queue{sycl::gpu_selector_v};
 
-  auto device_query_graph = mbsm::createDeviceQueryGraph(queue, query_graphs);
+  auto device_query_graph = mbsm::createDeviceAMGraph(queue, query_graphs);
 
   ASSERT_EQ(device_query_graph.total_nodes, total_nodes);
   ASSERT_EQ(device_query_graph.num_graphs, query_graphs.size());
@@ -58,7 +58,7 @@ TEST(GraphTest, IntoQueryDevice) {
 
 TEST(GraphTest, IntoDataDevice) {
   std::string fname1 = std::string(TEST_DATA_PATH);
-  std::vector<mbsm::DataGraph> data_graphs = mbsm::io::loadDataGraphsFromFile(fname1);
+  std::vector<mbsm::CSRGraph> data_graphs = mbsm::io::loadDataGraphsFromFile(fname1);
 
   size_t total_nodes = 0;
   size_t total_edges = 0;
@@ -69,7 +69,7 @@ TEST(GraphTest, IntoDataDevice) {
 
   sycl::queue queue{sycl::gpu_selector_v};
 
-  auto device_data_graph = mbsm::createDeviceDataGraph(queue, data_graphs);
+  auto device_data_graph = mbsm::createDeviceCSRGraph(queue, data_graphs);
 
   ASSERT_EQ(device_data_graph.total_nodes, total_nodes);
   ASSERT_EQ(device_data_graph.num_graphs, data_graphs.size());

@@ -31,8 +31,8 @@ struct CandidatesInspector {
 int main(int argc, char** argv) {
   Args args{argc, argv};
 
-  mbsm::DeviceBatchedDataGraph device_data_graph;
-  mbsm::DeviceBatchedQueryGraph device_query_graph;
+  mbsm::DeviceBatchedCSRGraph device_data_graph;
+  mbsm::DeviceBatchedAMGraph device_query_graph;
   size_t num_query_graphs;
   size_t num_data_graphs;
 
@@ -61,8 +61,8 @@ int main(int argc, char** argv) {
     for (size_t i = 1; i < args.multiply_factor_data; ++i) {
       data_graphs.insert(data_graphs.end(), data_graphs.begin(), data_graphs.begin() + num_data_graphs);
     }
-    device_query_graph = mbsm::createDeviceQueryGraph(queue, query_graphs);
-    device_data_graph = mbsm::createDeviceDataGraph(queue, data_graphs);
+    device_query_graph = mbsm::createDeviceAMGraph(queue, query_graphs);
+    device_data_graph = mbsm::createDeviceCSRGraph(queue, data_graphs);
   } else {
     auto pool = mbsm::io::loadPoolFromBinary(args.fname);
     num_query_graphs = pool.getQueryGraphs().size();
@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
 
   // get the right filter domain method
   std::function<mbsm::utils::BatchedEvent(
-      sycl::queue&, mbsm::DeviceBatchedQueryGraph&, mbsm::DeviceBatchedDataGraph&, mbsm::signature::Signature<>&, mbsm::candidates::Candidates&)>
+      sycl::queue&, mbsm::DeviceBatchedAMGraph&, mbsm::DeviceBatchedCSRGraph&, mbsm::signature::Signature<>&, mbsm::candidates::Candidates&)>
       filter_method, refine_method;
   if (args.isCandidateDomainData()) {
     filter_method = mbsm::isomorphism::filter::filterCandidates<mbsm::candidates::CandidatesDomain::Data>;
@@ -249,6 +249,6 @@ int main(int argc, char** argv) {
             << " ms" << std::endl;
 
   sycl::free(num_matches, queue);
-  mbsm::destroyDeviceDataGraph(device_data_graph, queue);
-  mbsm::destroyDeviceQueryGraph(device_query_graph, queue);
+  mbsm::destroyDeviceCSRGraph(device_data_graph, queue);
+  mbsm::destroyDeviceAMGraph(device_query_graph, queue);
 }

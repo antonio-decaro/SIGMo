@@ -54,7 +54,7 @@ public:
 
 
   // TODO consider to use the shared memory to store the graph to avoid uncoallesced memory access
-  utils::BatchedEvent generateQuerySignatures(DeviceBatchedQueryGraph& graphs) {
+  utils::BatchedEvent generateQuerySignatures(DeviceBatchedAMGraph& graphs) {
     utils::BatchedEvent event;
     sycl::range<1> global_range(graphs.total_nodes);
     auto e = queue.submit([&](sycl::handler& cgh) {
@@ -76,9 +76,9 @@ public:
   }
 
   template<Algorithm _A = A>
-  utils::BatchedEvent refineQuerySignatures(DeviceBatchedQueryGraph& graphs, size_t iter = 1);
+  utils::BatchedEvent refineQuerySignatures(DeviceBatchedAMGraph& graphs, size_t iter = 1);
 
-  utils::BatchedEvent generateDataSignatures(DeviceBatchedDataGraph& graphs) {
+  utils::BatchedEvent generateDataSignatures(DeviceBatchedCSRGraph& graphs) {
     utils::BatchedEvent event;
     sycl::range<1> global_range(graphs.total_nodes);
     sycl::buffer<mbsm::signature::Signature<>, 1> buffer(sycl::range{global_range});
@@ -107,7 +107,7 @@ public:
   }
 
   template<Algorithm _A = A>
-  utils::BatchedEvent refineDataSignatures(DeviceBatchedDataGraph& graphs, size_t iter = 1);
+  utils::BatchedEvent refineDataSignatures(DeviceBatchedCSRGraph& graphs, size_t iter = 1);
 
   Signature(sycl::queue& queue, size_t data_nodes, size_t query_nodes) : queue(queue), data_nodes(data_nodes), query_nodes(query_nodes) {
     data_signatures = sycl::malloc_shared<SignatureDevice>(data_nodes, queue);
@@ -138,7 +138,7 @@ private:
   SignatureDevice* tmp_buff;
 
   template<>
-  utils::BatchedEvent refineQuerySignatures<Algorithm::ViewBased>(DeviceBatchedQueryGraph& graphs, size_t iter) {
+  utils::BatchedEvent refineQuerySignatures<Algorithm::ViewBased>(DeviceBatchedAMGraph& graphs, size_t iter) {
     utils::BatchedEvent event;
     sycl::range<1> global_range(graphs.total_nodes);
 
@@ -177,7 +177,7 @@ private:
   }
 
   template<>
-  utils::BatchedEvent refineQuerySignatures<Algorithm::PowerGraph>(DeviceBatchedQueryGraph& graphs, size_t iter) {
+  utils::BatchedEvent refineQuerySignatures<Algorithm::PowerGraph>(DeviceBatchedAMGraph& graphs, size_t iter) {
     utils::BatchedEvent event;
     sycl::range<1> global_range(graphs.total_nodes);
     const uint16_t max_labels_count = Signature::SignatureDevice::getMaxLabels();
@@ -225,7 +225,7 @@ private:
   }
 
   template<>
-  utils::BatchedEvent refineDataSignatures<Algorithm::ViewBased>(DeviceBatchedDataGraph& graphs, size_t view_size) {
+  utils::BatchedEvent refineDataSignatures<Algorithm::ViewBased>(DeviceBatchedCSRGraph& graphs, size_t view_size) {
     utils::BatchedEvent event;
     sycl::range<1> global_range(graphs.total_nodes);
     auto signatures = this->data_signatures;
@@ -263,7 +263,7 @@ private:
   }
 
   template<>
-  utils::BatchedEvent refineDataSignatures<Algorithm::PowerGraph>(DeviceBatchedDataGraph& graphs, size_t view_size) {
+  utils::BatchedEvent refineDataSignatures<Algorithm::PowerGraph>(DeviceBatchedCSRGraph& graphs, size_t view_size) {
     utils::BatchedEvent event;
     sycl::range<1> global_range(graphs.total_nodes);
 
