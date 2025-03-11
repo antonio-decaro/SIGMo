@@ -225,7 +225,7 @@ private:
   }
 
   template<>
-  utils::BatchedEvent refineDataSignatures<Algorithm::ViewBased>(DeviceBatchedDataGraph& graphs, size_t iter) {
+  utils::BatchedEvent refineDataSignatures<Algorithm::ViewBased>(DeviceBatchedDataGraph& graphs, size_t view_size) {
     utils::BatchedEvent event;
     sycl::range<1> global_range(graphs.total_nodes);
     auto signatures = this->data_signatures;
@@ -252,7 +252,7 @@ private:
           auto neighbor = column_indices[i];
           for (types::label_t l = 0; l < Signature::SignatureDevice::getMaxLabels(); l++) {
             auto count = tmp_buff[neighbor].getLabelCount(l);
-            if (l == node_label) { count -= iter; }
+            if (l == node_label) { count -= view_size; }
             if (count > 0) signatures[node_id].incrementLabelCount(l, count);
           }
         }
@@ -263,7 +263,7 @@ private:
   }
 
   template<>
-  utils::BatchedEvent refineDataSignatures<Algorithm::PowerGraph>(DeviceBatchedDataGraph& graphs, size_t iter) {
+  utils::BatchedEvent refineDataSignatures<Algorithm::PowerGraph>(DeviceBatchedDataGraph& graphs, size_t view_size) {
     utils::BatchedEvent event;
     sycl::range<1> global_range(graphs.total_nodes);
 
@@ -281,7 +281,7 @@ private:
 
             frontier.set(node_id - prev_nodes);
             reachable.set(node_id - prev_nodes);
-            for (uint curr_iter = 0; curr_iter < iter && !frontier.empty(); curr_iter++) {
+            for (uint curr_iter = 0; curr_iter < view_size && !frontier.empty(); curr_iter++) {
               utils::detail::Bitset<uint64_t> next_frontier;
 
               for (uint idx = 0; idx < frontier.size(); idx++) {
