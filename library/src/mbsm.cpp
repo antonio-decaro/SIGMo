@@ -177,12 +177,22 @@ int main(int argc, char** argv) {
 
   std::chrono::duration<double> join_time{0};
   size_t* num_matches = sycl::malloc_shared<size_t>(1, queue);
+  num_matches[0] = 0;
   host_time_events.add("join_start");
   if (!args.skip_join) {
-    *num_matches = 0;
-    auto join_e = mbsm::isomorphism::join::joinCandidates(queue, device_query_graph, device_data_graph, candidates, num_matches, !args.find_all);
+    std::cout << "Generating DQCR" << std::endl;
+    host_time_events.add("mapping_start");
+    auto dqcr = mbsm::isomorphism::mapping::generateDGCR(queue, device_query_graph, device_data_graph, candidates, args.find_all);
+    host_time_events.add("mapping_end");
+    std::cout << "Starting Join" << std::endl;
+    auto join_e
+        = mbsm::isomorphism::join::joinCandidates(queue, device_query_graph, device_data_graph, candidates, dqcr, num_matches, !args.find_all);
     join_e.wait();
     join_time = join_e.getProfilingInfo();
+
+    // free memory
+    sycl::free(dqcr.data_graph_offsets, queue);
+    sycl::free(dqcr.query_graph_indices, queue);
   }
   host_time_events.add("join_end");
 
@@ -198,7 +208,7 @@ int main(int argc, char** argv) {
   std::cout << "# Average candidates: " << formatNumber(inspector.avg) << std::endl;
   std::cout << "# Median candidates: " << formatNumber(inspector.median) << std::endl;
   std::cout << "# Zero candidates: " << formatNumber(inspector.zero_count) << std::endl;
-  if (!args.skip_join) { std::cout << "# Matches: " << formatNumber(*num_matches) << std::endl; }
+  if (!args.skip_join) { std::cout << "# Matches: " << formatNumber(num_matches[0]) << std::endl; }
 
   std::cout << "------------- Overall GPU Stats -------------" << std::endl;
   std::chrono::duration<double> total_sig_query_time
@@ -219,19 +229,23 @@ int main(int argc, char** argv) {
   std::cout << "------------- Overall Host Stats -------------" << std::endl;
   std::cout << "Setup Data time: "
             << std::chrono::duration_cast<std::chrono::milliseconds>(host_time_events.getRangeTime("setup_data_start", "setup_data_end")).count()
-            << " ms" << std::endl;
+            << " ms (not included in total)" << std::endl;
   std::cout << "Filter time: "
             << std::chrono::duration_cast<std::chrono::milliseconds>(host_time_events.getRangeTime("filter_start", "filter_end")).count() << " ms"
             << std::endl;
   if (args.skip_join) {
+    std::cout << "Mapping time: skipped" << std::endl;
     std::cout << "Join time: skipped" << std::endl;
   } else {
+    std::cout << "Mapping time: "
+              << std::chrono::duration_cast<std::chrono::milliseconds>(host_time_events.getRangeTime("mapping_start", "mapping_end")).count() << " ms"
+              << std::endl;
     std::cout << "Join time: "
               << std::chrono::duration_cast<std::chrono::milliseconds>(host_time_events.getRangeTime("join_start", "join_end")).count() << " ms"
               << std::endl;
   }
-  std::cout << "Total time: " << std::chrono::duration_cast<std::chrono::milliseconds>(host_time_events.getOverallTime()).count() << " ms"
-            << std::endl;
+  std::cout << "Total time: " << std::chrono::duration_cast<std::chrono::milliseconds>(host_time_events.getTimeFrom("setup_data_end")).count()
+            << " ms" << std::endl;
 
   sycl::free(num_matches, queue);
   mbsm::destroyDeviceDataGraph(device_data_graph, queue);
