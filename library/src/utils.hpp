@@ -93,6 +93,11 @@ struct TimeEvents {
     if (it == this->events.end()) throw std::runtime_error("Event not found");
     return it->second - this->events.front().second;
   }
+  std::chrono::duration<double> getTimeFrom(std::string event) {
+    auto it = std::find_if(this->events.begin(), this->events.end(), [event](auto& e) { return e.first == event; });
+    if (it == this->events.end()) throw std::runtime_error("Event not found");
+    return this->events.back().second - it->second;
+  }
   std::chrono::duration<double> getEventTime(std::string event) {
     auto it = std::find_if(this->events.begin(), this->events.end(), [event](auto& e) { return e.first == event; });
     if (it == this->events.end()) throw std::runtime_error("Event not found");

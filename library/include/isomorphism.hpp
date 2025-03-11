@@ -112,6 +112,107 @@ utils::BatchedEvent refineCandidates(sycl::queue& queue,
 }
 
 } // namespace filter
+namespace mapping {
+
+struct DGCR {
+  uint32_t* data_graph_offsets;
+  uint32_t* query_graph_indices;
+};
+
+
+// Offloaded version of generateDGCR using SYCL kernels.
+DGCR generateDGCR(sycl::queue& queue,
+                  mbsm::DeviceBatchedQueryGraph& query_graphs,
+                  mbsm::DeviceBatchedDataGraph& data_graphs,
+                  mbsm::candidates::Candidates& candidates,
+                  bool find_all = true) {
+  // Get dimensions
+  const size_t total_query_graphs = query_graphs.num_graphs;
+  const size_t total_data_graphs = data_graphs.num_graphs;
+
+  // Allocate device memory for data_graph_offsets (size = total_data_graphs+1)
+  uint32_t* d_data_graph_offsets = sycl::malloc_shared<uint32_t>(total_data_graphs + 1, queue);
+  // Initialize to zero
+  queue.fill(d_data_graph_offsets, 0, total_data_graphs + 1).wait();
+
+  // --- Kernel 1: Count query graphs (with > 1 node) per data graph ---
+  // For each pair (query_graph, data_graph), if every node in the query graph
+  // has a candidate in the given data graph, then atomically increment the counter.
+  auto k1 = queue.parallel_for(
+      sycl::range<2>(total_query_graphs, total_data_graphs),
+      [=, query_graphs = query_graphs, data_graphs = data_graphs, candidates = candidates.getCandidatesDevice()](sycl::id<2> idx) {
+        size_t query_graph_id = idx[0];
+        size_t data_graph_id = idx[1];
+        size_t num_query_nodes = query_graphs.getGraphNodes(query_graph_id);
+
+        size_t offset_query_nodes = query_graphs.getPreviousNodes(query_graph_id);
+        bool add = true;
+        for (size_t i = 0; i < num_query_nodes && add; i++) {
+          size_t global_query_node = offset_query_nodes + i;
+          size_t start_data = data_graphs.graph_offsets[data_graph_id];
+          size_t end_data = data_graphs.graph_offsets[data_graph_id + 1];
+          add = add && (candidates.getCandidatesCount(global_query_node, start_data, end_data) > 0);
+        }
+        if (add) {
+          // Increment the counter for this data graph.
+          sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::device, sycl::access::address_space::global_space>
+              atomic_offset(d_data_graph_offsets[data_graph_id + 1]);
+          atomic_offset.fetch_add(1);
+        }
+      });
+  k1.wait();
+
+  // --- Kernel 2: Compute prefix sum of data_graph_offsets ---
+  // (Here we assume total_data_graphs is small so a single task is acceptable.)
+  for (size_t i = 1; i <= total_data_graphs; i++) { d_data_graph_offsets[i] += d_data_graph_offsets[i - 1]; }
+
+  // The total number of query indices is now the last element in d_data_graph_offsets.
+  uint32_t total_query_indices = d_data_graph_offsets[total_data_graphs];
+  // Allocate device memory for query_graph_indices.
+  uint32_t* d_query_graph_indices = sycl::malloc_shared<uint32_t>(total_query_indices, queue);
+
+  // Create a copy of the prefix sum array to serve as atomic “current offsets”
+  uint32_t* current_offsets = sycl::malloc_shared<uint32_t>(total_data_graphs + 1, queue);
+  for (size_t i = 0; i <= total_data_graphs; i++) { current_offsets[i] = d_data_graph_offsets[i]; }
+
+  // --- Kernel 3: Fill query_graph_indices ---
+  // For each (query_graph, data_graph) pair (with query graphs having > 1 node),
+  // if the graph qualifies (each query node has a candidate in the data graph),
+  // then atomically obtain an index (from current_offsets) and write the query_graph_id.
+  auto k3 = queue.parallel_for(
+      sycl::range<2>(total_query_graphs, total_data_graphs),
+      [=, query_graphs = query_graphs, data_graphs = data_graphs, candidates = candidates.getCandidatesDevice()](sycl::id<2> idx) {
+        size_t query_graph_id = idx[0];
+        size_t data_graph_id = idx[1];
+        size_t num_query_nodes = query_graphs.getGraphNodes(query_graph_id);
+        if (num_query_nodes <= 1) return; // skip
+        size_t offset_query_nodes = query_graphs.getPreviousNodes(query_graph_id);
+        bool add = true;
+        for (size_t i = 0; i < num_query_nodes && add; i++) {
+          size_t global_query_node = offset_query_nodes + i;
+          size_t start_data = data_graphs.graph_offsets[data_graph_id];
+          size_t end_data = data_graphs.graph_offsets[data_graph_id + 1];
+          add = add && (candidates.getCandidatesCount(global_query_node, start_data, end_data) > 0);
+        }
+        if (add) {
+          sycl::atomic_ref<uint32_t, sycl::memory_order::relaxed, sycl::memory_scope::device, sycl::access::address_space::global_space> atomic_off(
+              current_offsets[data_graph_id]);
+          uint32_t index = atomic_off.fetch_add(1);
+          d_query_graph_indices[index] = static_cast<uint32_t>(query_graph_id);
+        }
+      });
+  k3.wait();
+
+  // Build the result structure.
+  DGCR dgcr;
+  dgcr.data_graph_offsets = d_data_graph_offsets;
+  dgcr.query_graph_indices = d_query_graph_indices;
+  sycl::free(current_offsets, queue);
+  return dgcr;
+}
+
+} // namespace mapping
+
 
 namespace join {
 /**
@@ -184,6 +285,7 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
                                    mbsm::DeviceBatchedQueryGraph& query_graphs,
                                    mbsm::DeviceBatchedDataGraph& data_graphs,
                                    mbsm::candidates::Candidates& candidates,
+                                   mbsm::isomorphism::mapping::DGCR& dqcr,
                                    size_t* num_matches,
                                    bool find_first = true) {
   utils::BatchedEvent e;
@@ -199,7 +301,9 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
 
   auto e1 = queue.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<device::kernels::JoinCandidatesKernel>(
-        nd_range, [=, query_graphs = query_graphs, data_graphs = data_graphs, candidates = candidates.getCandidatesDevice()](sycl::nd_item<1> item) {
+        nd_range,
+        [=, query_graphs = query_graphs, data_graphs = data_graphs, candidates = candidates.getCandidatesDevice(), dqcr = dqcr](
+            sycl::nd_item<1> item) {
           const size_t lid = item.get_local_linear_id();
           const size_t gid = item.get_global_linear_id();
 
@@ -221,6 +325,10 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
           for (size_t data_graph_id = wgid; data_graph_id < total_data_graphs; data_graph_id += wg.get_group_linear_range()) {
             size_t start_data_graph = data_graphs.graph_offsets[data_graph_id];
             size_t end_data_graph = data_graphs.graph_offsets[data_graph_id + 1];
+
+            size_t start_query = dqcr.data_graph_offsets[data_graph_id];
+            size_t end_query = dqcr.data_graph_offsets[data_graph_id + 1];
+
             size_t num_data_nodes = end_data_graph - start_data_graph;
             auto data_graph_row_offsets = data_graphs.row_offsets + start_data_graph;
             auto data_graph_column_indices = data_graphs.column_indices;
@@ -228,7 +336,9 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
             sycl::group_barrier(wg);
 
 
-            for (size_t query_graph_id = wglid; query_graph_id < total_query_graphs; query_graph_id += wgsize) { // iterate over all query graphs
+            for (size_t query_graph_it = wglid; query_graph_it < (end_query - start_query);
+                 query_graph_it += wgsize) { // iterate over all query graphs
+              size_t query_graph_id = dqcr.query_graph_indices[start_query + query_graph_it];
               const size_t offset_query_nodes = query_graphs.getPreviousNodes(query_graph_id);
               const uint num_query_nodes = query_graphs.getGraphNodes(query_graph_id);
 
@@ -288,6 +398,5 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
 }
 
 } // namespace join
-
 } // namespace isomorphism
 } // namespace mbsm

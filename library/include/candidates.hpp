@@ -175,6 +175,9 @@ public:
   ~Candidates() { sycl::free(candidates.candidates, queue); }
 
   size_t getCandidatesCount(types::node_t source_node) const { return candidates.getCandidatesCount(source_node); }
+  size_t getCandidatesCount(types::node_t source_node, uint32_t graph_start, uint32_t graph_end) const {
+    return candidates.getCandidatesCount(source_node, graph_start, graph_end);
+  }
   size_t getAllocationSize() const { return candidates.getAllocationSize(); }
   Candidates::CandidatesDevice getCandidatesDevice() const { return candidates; }
 
