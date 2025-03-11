@@ -178,7 +178,7 @@ mbsm::signature::Signature<>::SignatureDevice expected_data_signatures[]{// Grap
                                                                          {0b0000000000000000000000000000000000000000000000000000000000110000}};
 
 std::vector<mbsm::signature::Signature<>::SignatureDevice> getExpectedDataSignatures(std::string fname, size_t refinement_steps = 1) {
-  auto data = mbsm::io::loadDataGraphsFromFile(fname);
+  auto data = mbsm::io::loadCSRGraphsFromFile(fname);
 
   size_t num_nodes = 0;
   for (auto& graph : data) { num_nodes += graph.getNumNodes(); }
@@ -226,7 +226,7 @@ std::vector<mbsm::signature::Signature<>::SignatureDevice> getExpectedDataSignat
 }
 
 std::vector<mbsm::signature::Signature<>::SignatureDevice> getExpectedQuerySignatures(std::string fname, size_t refinement_steps = 1) {
-  auto data = mbsm::io::loadQueryGraphsFromFile(fname);
+  auto data = mbsm::io::loadAMGraphsFromFile(fname);
 
   size_t num_nodes = 0;
   for (auto& graph : data) { num_nodes += graph.getNumNodes(); }

@@ -9,7 +9,7 @@
 
 TEST(GraphTest, GetNeighbors) {
   std::string fname1 = std::string(TEST_QUERY_PATH);
-  std::vector<mbsm::AMGraph> query_graphs = mbsm::io::loadQueryGraphsFromFile(fname1);
+  std::vector<mbsm::AMGraph> query_graphs = mbsm::io::loadAMGraphsFromFile(fname1);
 
   mbsm::types::node_t neighbors[4];
   for (auto& graph : query_graphs) {
@@ -24,7 +24,7 @@ TEST(GraphTest, GetNeighbors) {
 
 TEST(GraphTest, IntoQueryDevice) {
   std::string fname1 = std::string(TEST_QUERY_PATH);
-  std::vector<mbsm::AMGraph> query_graphs = mbsm::io::loadQueryGraphsFromFile(fname1);
+  std::vector<mbsm::AMGraph> query_graphs = mbsm::io::loadAMGraphsFromFile(fname1);
 
   size_t total_nodes = 0;
   for (auto& graph : query_graphs) { total_nodes += graph.getNumNodes(); }
@@ -58,7 +58,7 @@ TEST(GraphTest, IntoQueryDevice) {
 
 TEST(GraphTest, IntoDataDevice) {
   std::string fname1 = std::string(TEST_DATA_PATH);
-  std::vector<mbsm::CSRGraph> data_graphs = mbsm::io::loadDataGraphsFromFile(fname1);
+  std::vector<mbsm::CSRGraph> data_graphs = mbsm::io::loadCSRGraphsFromFile(fname1);
 
   size_t total_nodes = 0;
   size_t total_edges = 0;

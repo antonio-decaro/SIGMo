@@ -14,7 +14,7 @@
 namespace mbsm {
 namespace io {
 
-std::vector<AMGraph> loadQueryGraphsFromFile(const std::string& filename) {
+std::vector<AMGraph> loadAMGraphsFromFile(const std::string& filename) {
   std::ifstream file(filename);
   std::string line;
   std::vector<mbsm::AMGraph> query_graphs;
@@ -25,7 +25,7 @@ std::vector<AMGraph> loadQueryGraphsFromFile(const std::string& filename) {
   return query_graphs;
 }
 
-std::vector<CSRGraph> loadDataGraphsFromFile(const std::string& filename) {
+std::vector<CSRGraph> loadCSRGraphsFromFile(const std::string& filename) {
   std::ifstream file(filename);
   std::string line;
   std::vector<mbsm::CSRGraph> data_graphs;

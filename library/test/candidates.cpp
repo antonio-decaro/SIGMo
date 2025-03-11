@@ -34,7 +34,7 @@ TEST(SignatureTest, CheckSignatureMethods) {
 TEST(SignatureTest, CheckQuerySignatureGeneration) {
   sycl::queue queue{sycl::gpu_selector_v};
 
-  auto query_graphs = mbsm::io::loadQueryGraphsFromFile(TEST_QUERY_PATH);
+  auto query_graphs = mbsm::io::loadAMGraphsFromFile(TEST_QUERY_PATH);
 
   auto device_query_graph = mbsm::createDeviceAMGraph(queue, query_graphs);
 
@@ -54,7 +54,7 @@ TEST(SignatureTest, CheckQuerySignatureGeneration) {
 TEST(SignatureTest, RefineQuerySignature) {
   sycl::queue queue{sycl::gpu_selector_v};
 
-  auto query_graphs = mbsm::io::loadQueryGraphsFromFile(TEST_QUERY_PATH);
+  auto query_graphs = mbsm::io::loadAMGraphsFromFile(TEST_QUERY_PATH);
 
   auto device_query_graph = mbsm::createDeviceAMGraph(queue, query_graphs);
 
@@ -77,7 +77,7 @@ TEST(SignatureTest, RefineQuerySignature) {
 TEST(SignatureTest, CheckDataSignatureGeneration) {
   sycl::queue queue{sycl::gpu_selector_v};
 
-  auto data_graphs = mbsm::io::loadDataGraphsFromFile(TEST_DATA_PATH);
+  auto data_graphs = mbsm::io::loadCSRGraphsFromFile(TEST_DATA_PATH);
 
   auto device_data_graph = mbsm::createDeviceCSRGraph(queue, data_graphs);
 
@@ -97,7 +97,7 @@ TEST(SignatureTest, CheckDataSignatureGeneration) {
 TEST(SignatureTest, RefineDataSignature) {
   sycl::queue queue{sycl::gpu_selector_v};
 
-  auto data_graphs = mbsm::io::loadDataGraphsFromFile(TEST_DATA_PATH);
+  auto data_graphs = mbsm::io::loadCSRGraphsFromFile(TEST_DATA_PATH);
 
   auto device_data_graph = mbsm::createDeviceCSRGraph(queue, data_graphs);
 

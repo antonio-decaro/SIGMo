@@ -12,8 +12,8 @@
 #include <sycl/sycl.hpp>
 
 TEST(FilterTest, SingleFilter) {
-  auto query_graphs = mbsm::io::loadQueryGraphsFromFile(TEST_QUERY_PATH);
-  auto data_graphs = mbsm::io::loadDataGraphsFromFile(TEST_DATA_PATH);
+  auto query_graphs = mbsm::io::loadAMGraphsFromFile(TEST_QUERY_PATH);
+  auto data_graphs = mbsm::io::loadCSRGraphsFromFile(TEST_DATA_PATH);
 
   sycl::queue queue{sycl::gpu_selector_v};
 
@@ -69,8 +69,8 @@ TEST(FilterTest, SingleFilter) {
 
 
 TEST(FilterTest, RefinementTest) {
-  auto query_graphs = mbsm::io::loadQueryGraphsFromFile(TEST_QUERY_PATH);
-  auto data_graphs = mbsm::io::loadDataGraphsFromFile(TEST_DATA_PATH);
+  auto query_graphs = mbsm::io::loadAMGraphsFromFile(TEST_QUERY_PATH);
+  auto data_graphs = mbsm::io::loadCSRGraphsFromFile(TEST_DATA_PATH);
 
   sycl::queue queue{sycl::gpu_selector_v};
 

@@ -17,11 +17,11 @@ int main(int argc, char** argv) {
   std::string output_file = std::string(argv[3]);
 
   std::cout << "Reading query graphs from " << query_graphs_file << std::endl;
-  std::vector<mbsm::AMGraph> query_graphs = mbsm::io::loadQueryGraphsFromFile(query_graphs_file);
+  std::vector<mbsm::AMGraph> query_graphs = mbsm::io::loadAMGraphsFromFile(query_graphs_file);
   std::cout << "Number of query graphs: " << query_graphs.size() << std::endl;
 
   std::cout << "Reading data graphs from " << data_graphs_file << std::endl;
-  std::vector<mbsm::CSRGraph> data_graphs = mbsm::io::loadDataGraphsFromFile(data_graphs_file);
+  std::vector<mbsm::CSRGraph> data_graphs = mbsm::io::loadCSRGraphsFromFile(data_graphs_file);
   std::cout << "Number of data graphs: " << data_graphs.size() << std::endl;
 
   std::cout << "Creating pool" << std::endl;
