@@ -76,6 +76,10 @@ struct DeviceBatchedCSRGraph {
     return isNeighbor(node_id + previous_nodes, neighbor_id + previous_nodes);
   }
 
+  SYCL_EXTERNAL inline uint32_t getGraphNodes(uint32_t graph_id) const { return graph_offsets[graph_id + 1] - graph_offsets[graph_id]; }
+
+  SYCL_EXTERNAL inline uint32_t getPreviousNodes(uint32_t graph_id) const { return graph_offsets[graph_id]; }
+
   SYCL_EXTERNAL inline size_t getGraphID(types::node_t node_id) const {
     size_t lo = 0, hi = num_graphs;
     while (lo < hi) {

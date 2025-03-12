@@ -21,7 +21,6 @@ public:
     size_t min_nodes = static_cast<size_t>(-1);
   };
 
-  std::string fname = "/home/adecaro/subgraph-iso-soa/data/MBSM/pool.bin";
   bool print_candidates = false;
   bool skip_join = false;
   int refinement_steps = 0;

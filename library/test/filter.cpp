@@ -22,8 +22,8 @@ TEST(FilterTest, SingleFilter) {
 
   mbsm::signature::Signature<> signatures{queue, device_data_graph.total_nodes, device_query_graph.total_nodes};
 
-  auto e1 = signatures.generateQuerySignatures(device_query_graph);
-  auto e2 = signatures.generateDataSignatures(device_data_graph);
+  auto e1 = signatures.generateAMSignatures(device_query_graph);
+  auto e2 = signatures.generateCSRSignatures(device_data_graph);
 
   queue.wait();
 
@@ -79,8 +79,8 @@ TEST(FilterTest, RefinementTest) {
 
   mbsm::signature::Signature<> signatures{queue, device_data_graph.total_nodes, device_query_graph.total_nodes};
 
-  auto e1 = signatures.generateQuerySignatures(device_query_graph);
-  auto e2 = signatures.generateDataSignatures(device_data_graph);
+  auto e1 = signatures.generateAMSignatures(device_query_graph);
+  auto e2 = signatures.generateCSRSignatures(device_data_graph);
 
 
   mbsm::candidates::Candidates candidates{queue, device_query_graph.total_nodes, device_data_graph.total_nodes};
@@ -111,8 +111,8 @@ TEST(FilterTest, RefinementTest) {
   }
 
 
-  signatures.refineDataSignatures(device_data_graph).wait();
-  signatures.refineQuerySignatures(device_query_graph).wait();
+  signatures.refineCSRSignatures(device_data_graph).wait();
+  signatures.refineAMSignatures(device_query_graph).wait();
 
   mbsm::isomorphism::filter::refineCandidates(queue, device_query_graph, device_data_graph, signatures, candidates).wait();
 

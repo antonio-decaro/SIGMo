@@ -40,7 +40,7 @@ TEST(SignatureTest, CheckQuerySignatureGeneration) {
 
   mbsm::signature::Signature<> signatures{queue, device_query_graph.total_nodes, device_query_graph.total_nodes};
 
-  auto e = signatures.generateQuerySignatures(device_query_graph);
+  auto e = signatures.generateAMSignatures(device_query_graph);
 
   auto device_signatures = signatures.getDeviceQuerySignatures();
 
@@ -60,13 +60,13 @@ TEST(SignatureTest, RefineQuerySignature) {
 
   mbsm::signature::Signature<> signatures{queue, device_query_graph.total_nodes, device_query_graph.total_nodes};
 
-  auto e = signatures.generateQuerySignatures(device_query_graph);
+  auto e = signatures.generateAMSignatures(device_query_graph);
   e.wait();
 
   auto device_signatures = signatures.getDeviceQuerySignatures();
 
   for (int i = 0; i < 10; i++) {
-    e = signatures.refineQuerySignatures(device_query_graph);
+    e = signatures.refineAMSignatures(device_query_graph);
     e.wait();
     auto expected_query_signatures = getExpectedQuerySignatures(TEST_QUERY_PATH, i + 1);
     for (size_t i = 0; i < device_query_graph.total_nodes; ++i) { ASSERT_EQ(device_signatures[i].signature, expected_query_signatures[i].signature); }
@@ -83,7 +83,7 @@ TEST(SignatureTest, CheckDataSignatureGeneration) {
 
   mbsm::signature::Signature<> signatures{queue, device_data_graph.total_nodes, device_data_graph.total_nodes};
 
-  auto e = signatures.generateDataSignatures(device_data_graph);
+  auto e = signatures.generateCSRSignatures(device_data_graph);
 
   e.wait();
 
@@ -103,13 +103,13 @@ TEST(SignatureTest, RefineDataSignature) {
 
   mbsm::signature::Signature<> signatures{queue, device_data_graph.total_nodes, device_data_graph.total_nodes};
 
-  auto e = signatures.generateDataSignatures(device_data_graph);
+  auto e = signatures.generateCSRSignatures(device_data_graph);
   e.wait();
 
   auto device_signatures = signatures.getDeviceDataSignatures();
 
   for (int i = 0; i < 10; i++) {
-    e = signatures.refineDataSignatures(device_data_graph);
+    e = signatures.refineCSRSignatures(device_data_graph);
     e.wait();
     auto expected_data_signatures = getExpectedDataSignatures(TEST_DATA_PATH, i + 1);
     for (size_t i = 0; i < device_data_graph.total_nodes; ++i) { ASSERT_EQ(device_signatures[i].signature, expected_data_signatures[i].signature); }
