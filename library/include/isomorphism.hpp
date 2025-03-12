@@ -368,7 +368,7 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
                   top--;
                   // free the failed mapping
                   visited.unset(mapping[query_node]);
-
+                  // clear visited if we are back to the first node
                   if (top == 1) { visited.clear(); }
                   continue;
                 }
@@ -379,7 +379,10 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
                 // increment the candidate index for the next iteration
                 stack[top - 1].candidateIdx++;
 
+                // if the candidate is already in the mapping, skip it
                 if (visited.get(candidate)) { continue; }
+
+                // check if the candidate is valid
                 if ((frame.depth == 0 || isValidMapping(candidate, frame.depth, mapping, query_graphs, query_graph_id, data_graphs, wgid))) {
                   mapping[frame.depth] = candidate;
                   visited.set(candidate);
