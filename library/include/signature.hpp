@@ -15,6 +15,7 @@ namespace mbsm {
 namespace signature {
 
 enum class Algorithm { ViewBased, PowerGraph };
+enum class SignatureScope { Data, Query };
 
 template<Algorithm A = Algorithm::PowerGraph, size_t Bits = 4>
 class Signature {
@@ -52,14 +53,57 @@ public:
     SYCL_EXTERNAL void clear() { signature = 0; }
   };
 
+  template<typename T>
+  utils::BatchedEvent generateQuerySignatures(T& graphs) {
+    return generateSignatures(graphs, SignatureScope::Query);
+  }
+
+  template<typename T>
+  utils::BatchedEvent refineQuerySignatures(T& graphs, size_t view_size = 1) {
+    return refineSignatures(graphs, view_size, SignatureScope::Query);
+  }
+
+  template<typename T>
+  utils::BatchedEvent generateDataSignatures(T& graphs) {
+    return generateSignatures(graphs, SignatureScope::Data);
+  }
+
+  template<typename T>
+  utils::BatchedEvent refineDataSignatures(T& graphs, size_t view_size = 1) {
+    return refineSignatures(graphs, view_size, SignatureScope::Data);
+  }
+
+  template<typename T>
+  utils::BatchedEvent generateSignatures(T& graphs, SignatureScope s) {
+    if constexpr (std::is_same_v<std::decay_t<T>, DeviceBatchedAMGraph>) {
+      return generateAMSignatures(graphs, s);
+    } else if constexpr (std::is_same_v<std::decay_t<T>, DeviceBatchedCSRGraph>) {
+      return generateCSRSignatures(graphs, s);
+    } else {
+      throw std::runtime_error("Unsupported graph type");
+    }
+  }
+
+  template<typename T>
+  utils::BatchedEvent refineSignatures(T& graphs, size_t view_size, SignatureScope s) {
+    if constexpr (std::is_same_v<std::decay_t<T>, DeviceBatchedAMGraph>) {
+      return refineAMSignatures(graphs, view_size, s);
+    } else if constexpr (std::is_same_v<std::decay_t<T>, DeviceBatchedCSRGraph>) {
+      return refineCSRSignatures(graphs, view_size, s);
+    } else {
+      throw std::runtime_error("Unsupported graph type");
+    }
+  }
+
 
   // TODO consider to use the shared memory to store the graph to avoid uncoallesced memory access
-  utils::BatchedEvent generateQuerySignatures(DeviceBatchedAMGraph& graphs) {
+  utils::BatchedEvent generateAMSignatures(DeviceBatchedAMGraph& graphs, SignatureScope s) {
     utils::BatchedEvent event;
     sycl::range<1> global_range(graphs.total_nodes);
+    SignatureDevice* signatures = s == SignatureScope::Data ? data_signatures : query_signatures;
     auto e = queue.submit([&](sycl::handler& cgh) {
       cgh.parallel_for<mbsm::device::kernels::GenerateQuerySignaturesKernel>(
-          sycl::range<1>{graphs.total_nodes}, [=, graphs = graphs, signatures = this->query_signatures](sycl::item<1> item) {
+          sycl::range<1>{graphs.total_nodes}, [=, graphs = graphs](sycl::item<1> item) {
             auto node_id = item.get_id(0);
             // Get the neighbors of the current node
             types::node_t neighbors[types::MAX_NEIGHBORS];
@@ -76,30 +120,31 @@ public:
   }
 
   template<Algorithm _A = A>
-  utils::BatchedEvent refineQuerySignatures(DeviceBatchedAMGraph& graphs, size_t iter = 1);
+  utils::BatchedEvent refineAMSignatures(DeviceBatchedAMGraph& graphs, size_t view_size, SignatureScope s);
 
-  utils::BatchedEvent generateDataSignatures(DeviceBatchedCSRGraph& graphs) {
+  utils::BatchedEvent generateCSRSignatures(DeviceBatchedCSRGraph& graphs, SignatureScope s) {
     utils::BatchedEvent event;
     sycl::range<1> global_range(graphs.total_nodes);
-    sycl::buffer<mbsm::signature::Signature<>, 1> buffer(sycl::range{global_range});
+    SignatureDevice* signatures = s == SignatureScope::Data ? data_signatures : query_signatures;
+
     auto e = queue.submit([&](sycl::handler& cgh) {
       auto* row_offsets = graphs.row_offsets;
       auto* column_indices = graphs.column_indices;
       auto* labels = graphs.labels;
 
-      cgh.parallel_for<mbsm::device::kernels::GenerateDataSignaturesKernel>(global_range,
-                                                                            [=, signatures = this->data_signatures](sycl::item<1> item) {
-                                                                              auto node_id = item.get_id(0);
 
-                                                                              uint32_t start_neighbor = row_offsets[node_id];
-                                                                              uint32_t end_neighbor = row_offsets[node_id + 1];
-                                                                              mbsm::types::label_t node_label = labels[node_id];
+      cgh.parallel_for<mbsm::device::kernels::GenerateDataSignaturesKernel>(global_range, [=](sycl::item<1> item) {
+        auto node_id = item.get_id(0);
 
-                                                                              for (uint32_t i = start_neighbor; i < end_neighbor; ++i) {
-                                                                                auto neighbor = column_indices[i];
-                                                                                signatures[node_id].incrementLabelCount(labels[neighbor]);
-                                                                              }
-                                                                            });
+        uint32_t start_neighbor = row_offsets[node_id];
+        uint32_t end_neighbor = row_offsets[node_id + 1];
+        mbsm::types::label_t node_label = labels[node_id];
+
+        for (uint32_t i = start_neighbor; i < end_neighbor; ++i) {
+          auto neighbor = column_indices[i];
+          signatures[node_id].incrementLabelCount(labels[neighbor]);
+        }
+      });
     });
     event.add(e);
 
@@ -107,7 +152,7 @@ public:
   }
 
   template<Algorithm _A = A>
-  utils::BatchedEvent refineDataSignatures(DeviceBatchedCSRGraph& graphs, size_t iter = 1);
+  utils::BatchedEvent refineCSRSignatures(DeviceBatchedCSRGraph& graphs, size_t view_size, SignatureScope s);
 
   Signature(sycl::queue& queue, size_t data_nodes, size_t query_nodes) : queue(queue), data_nodes(data_nodes), query_nodes(query_nodes) {
     data_signatures = sycl::malloc_shared<SignatureDevice>(data_nodes, queue);
@@ -138,14 +183,13 @@ private:
   SignatureDevice* tmp_buff;
 
   template<>
-  utils::BatchedEvent refineQuerySignatures<Algorithm::ViewBased>(DeviceBatchedAMGraph& graphs, size_t iter) {
+  utils::BatchedEvent refineAMSignatures<Algorithm::ViewBased>(DeviceBatchedAMGraph& graphs, size_t view_size, SignatureScope s) {
     utils::BatchedEvent event;
     sycl::range<1> global_range(graphs.total_nodes);
 
+    auto signatures = s == SignatureScope::Data ? data_signatures : query_signatures;
     auto copy_event = queue.submit([&](sycl::handler& cgh) {
-      cgh.parallel_for(sycl::range<1>(graphs.total_nodes), [=, tmp_buff = this->tmp_buff, signatures = this->query_signatures](sycl::item<1> item) {
-        tmp_buff[item] = signatures[item];
-      });
+      cgh.parallel_for(sycl::range<1>(graphs.total_nodes), [=, tmp_buff = this->tmp_buff](sycl::item<1> item) { tmp_buff[item] = signatures[item]; });
     });
     event.add(copy_event);
     copy_event.wait();
@@ -155,8 +199,7 @@ private:
       const uint16_t max_labels_count = Signature::SignatureDevice::getMaxLabels();
 
       cgh.parallel_for<mbsm::device::kernels::RefineQuerySignaturesKernel>(
-          sycl::range<1>{graphs.total_nodes},
-          [=, graphs = graphs, signatures = this->query_signatures, tmp_buff = this->tmp_buff](sycl::item<1> item) {
+          sycl::range<1>{graphs.total_nodes}, [=, graphs = graphs, tmp_buff = this->tmp_buff](sycl::item<1> item) {
             auto node_id = item.get_id(0);
             // Get the neighbors of the current node
             types::node_t neighbors[types::MAX_NEIGHBORS];
@@ -166,7 +209,7 @@ private:
               auto neighbor = neighbors[i];
               for (types::label_t l = 0; l < max_labels_count; l++) {
                 auto count = tmp_buff[neighbor].getLabelCount(l);
-                if (l == node_label) { count -= iter; }
+                if (l == node_label) { count -= view_size; }
                 if (count > 0) signatures[node_id].incrementLabelCount(l, count);
               }
             }
@@ -177,15 +220,15 @@ private:
   }
 
   template<>
-  utils::BatchedEvent refineQuerySignatures<Algorithm::PowerGraph>(DeviceBatchedAMGraph& graphs, size_t iter) {
+  utils::BatchedEvent refineAMSignatures<Algorithm::PowerGraph>(DeviceBatchedAMGraph& graphs, size_t view_size, SignatureScope s) {
     utils::BatchedEvent event;
     sycl::range<1> global_range(graphs.total_nodes);
     const uint16_t max_labels_count = Signature::SignatureDevice::getMaxLabels();
+    auto signatures = s == SignatureScope::Data ? data_signatures : query_signatures;
 
     auto refinement_event = queue.submit([&](sycl::handler& cgh) {
       cgh.parallel_for<mbsm::device::kernels::RefineQuerySignaturesKernel>(
-          sycl::range<1>{graphs.total_nodes},
-          [=, graphs = graphs, signatures = this->query_signatures, tmp_buff = this->tmp_buff](sycl::item<1> item) {
+          sycl::range<1>{graphs.total_nodes}, [=, graphs = graphs, tmp_buff = this->tmp_buff](sycl::item<1> item) {
             auto node_id = item.get_id(0);
             auto graph_id = graphs.getGraphId(node_id);
             auto prev_nodes = graphs.getPreviousNodes(graph_id);
@@ -195,7 +238,7 @@ private:
 
             frontier.set(node_id - prev_nodes);
             reachable.set(node_id - prev_nodes);
-            for (uint curr_iter = 0; curr_iter < iter && !frontier.empty(); curr_iter++) {
+            for (uint curr_iter = 0; curr_iter < view_size && !frontier.empty(); curr_iter++) {
               utils::detail::Bitset<uint32_t> next_frontier;
 
               for (uint idx = 0; idx < frontier.size(); idx++) {
@@ -225,10 +268,10 @@ private:
   }
 
   template<>
-  utils::BatchedEvent refineDataSignatures<Algorithm::ViewBased>(DeviceBatchedCSRGraph& graphs, size_t view_size) {
+  utils::BatchedEvent refineCSRSignatures<Algorithm::ViewBased>(DeviceBatchedCSRGraph& graphs, size_t view_size, SignatureScope s) {
     utils::BatchedEvent event;
     sycl::range<1> global_range(graphs.total_nodes);
-    auto signatures = this->data_signatures;
+    auto signatures = s == SignatureScope::Data ? data_signatures : query_signatures;
     auto tmp_buff = this->tmp_buff;
 
     auto copy_event = queue.submit([&](sycl::handler& cgh) {
@@ -263,9 +306,10 @@ private:
   }
 
   template<>
-  utils::BatchedEvent refineDataSignatures<Algorithm::PowerGraph>(DeviceBatchedCSRGraph& graphs, size_t view_size) {
+  utils::BatchedEvent refineCSRSignatures<Algorithm::PowerGraph>(DeviceBatchedCSRGraph& graphs, size_t view_size, SignatureScope s) {
     utils::BatchedEvent event;
     sycl::range<1> global_range(graphs.total_nodes);
+    auto signatures = s == SignatureScope::Data ? data_signatures : query_signatures;
 
     auto refine_event = queue.submit([&](sycl::handler& cgh) {
       auto* row_offsets = graphs.row_offsets;
@@ -273,17 +317,16 @@ private:
       auto* labels = graphs.labels;
 
       cgh.parallel_for<mbsm::device::kernels::RefineDataSignaturesKernel>(
-          global_range, [=, signatures = this->data_signatures, max_labels_count = Signature::SignatureDevice::getMaxLabels()](sycl::item<1> item) {
+          global_range, [=, max_labels_count = Signature::SignatureDevice::getMaxLabels()](sycl::item<1> item) {
             auto node_id = item.get_id(0);
             auto graph_id = graphs.getGraphID(node_id);
-            auto prev_nodes = graphs.graph_offsets[graph_id];
+            auto prev_nodes = graphs.getPreviousNodes(graph_id);
             utils::detail::Bitset<uint64_t> frontier, reachable;
 
             frontier.set(node_id - prev_nodes);
             reachable.set(node_id - prev_nodes);
             for (uint curr_iter = 0; curr_iter < view_size && !frontier.empty(); curr_iter++) {
               utils::detail::Bitset<uint64_t> next_frontier;
-
               for (uint idx = 0; idx < frontier.size(); idx++) {
                 auto u = frontier.getSetBit(idx) + prev_nodes;
                 auto start_neighbor = row_offsets[u];
@@ -295,10 +338,10 @@ private:
                     next_frontier.set(neighbor);
                   }
                 }
-                frontier = next_frontier;
               }
+              frontier = next_frontier;
             }
-
+            reachable.unset(node_id - prev_nodes);
             signatures[node_id].clear();
             for (uint idx = 0; idx < reachable.size(); idx++) {
               auto u = reachable.getSetBit(idx) + prev_nodes;
