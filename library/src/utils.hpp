@@ -30,7 +30,7 @@ public:
   size_t multiply_factor_query = 1;
   size_t multiply_factor_data = 1;
   bool find_all = false;
-  std::string candidates_domain = "data";
+  std::string candidates_domain = "query";
   Args::Filter query_filter;
 
   Args(int& argc, char**& argv) {
