@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
   Args args{argc, argv};
 
   mbsm::DeviceBatchedCSRGraph device_data_graph;
-  mbsm::DeviceBatchedAMGraph device_query_graph;
+  mbsm::DeviceBatchedCSRGraph device_query_graph;
   size_t num_query_graphs;
   size_t num_data_graphs;
 
@@ -43,8 +43,8 @@ int main(int argc, char** argv) {
   TimeEvents host_time_events;
 
   if (args.query_data) {
-    auto query_graphs = mbsm::io::loadQueryGraphsFromFile(args.query_file);
-    auto data_graphs = mbsm::io::loadDataGraphsFromFile(args.data_file);
+    auto query_graphs = mbsm::io::loadCSRGraphsFromFile(args.query_file);
+    auto data_graphs = mbsm::io::loadCSRGraphsFromFile(args.data_file);
     if (args.query_filter.active) {
       for (int i = 0; i < query_graphs.size(); ++i) {
         if (query_graphs[i].getNumNodes() > args.query_filter.max_nodes || query_graphs[i].getNumNodes() < args.query_filter.min_nodes) {
@@ -61,20 +61,10 @@ int main(int argc, char** argv) {
     for (size_t i = 1; i < args.multiply_factor_data; ++i) {
       data_graphs.insert(data_graphs.end(), data_graphs.begin(), data_graphs.begin() + num_data_graphs);
     }
-    device_query_graph = mbsm::createDeviceAMGraph(queue, query_graphs);
+    device_query_graph = mbsm::createDeviceCSRGraph(queue, query_graphs);
     device_data_graph = mbsm::createDeviceCSRGraph(queue, data_graphs);
   } else {
-    auto pool = mbsm::io::loadPoolFromBinary(args.fname);
-    num_query_graphs = pool.getQueryGraphs().size();
-    for (size_t i = 1; i < args.multiply_factor_query; ++i) {
-      pool.getQueryGraphs().insert(pool.getQueryGraphs().end(), pool.getQueryGraphs().begin(), pool.getQueryGraphs().begin() + num_query_graphs);
-    }
-    num_data_graphs = pool.getDataGraphs().size();
-    for (size_t i = 1; i < args.multiply_factor_data; ++i) {
-      pool.getDataGraphs().insert(pool.getDataGraphs().end(), pool.getDataGraphs().begin(), pool.getDataGraphs().begin() + num_data_graphs);
-    }
-    device_query_graph = pool.transferQueryGraphsToDevice(queue);
-    device_data_graph = pool.transferDataGraphsToDevice(queue);
+    throw std::runtime_error("Specify input data");
   }
 
   size_t data_graph_bytes = mbsm::getDeviceGraphAllocSize(device_data_graph);
@@ -87,7 +77,7 @@ int main(int argc, char** argv) {
 
   // get the right filter domain method
   std::function<mbsm::utils::BatchedEvent(
-      sycl::queue&, mbsm::DeviceBatchedAMGraph&, mbsm::DeviceBatchedCSRGraph&, mbsm::signature::Signature<>&, mbsm::candidates::Candidates&)>
+      sycl::queue&, mbsm::DeviceBatchedCSRGraph&, mbsm::DeviceBatchedCSRGraph&, mbsm::signature::Signature<>&, mbsm::candidates::Candidates&)>
       filter_method, refine_method;
   if (args.isCandidateDomainData()) {
     filter_method = mbsm::isomorphism::filter::filterCandidates<mbsm::candidates::CandidatesDomain::Data>;
@@ -132,7 +122,7 @@ int main(int argc, char** argv) {
 
   std::cout << "------------- Runtime Filter Phase -------------" << std::endl;
   host_time_events.add("filter_start");
-  std::cout << "Initialization Step:" << std::endl;
+  std::cout << "[*] Initialization Step:" << std::endl;
   std::chrono::duration<double> time;
   auto e1 = signatures.generateDataSignatures(device_data_graph);
   queue.wait_and_throw();
@@ -154,7 +144,7 @@ int main(int argc, char** argv) {
 
   // start refining candidate set
   for (size_t ref_step = 1; ref_step <= args.refinement_steps; ++ref_step) {
-    std::cout << "Refinement step " << (ref_step + 1) << ":" << std::endl;
+    std::cout << "[*] Refinement step " << ref_step << ":" << std::endl;
 
     auto e1 = signatures.refineDataSignatures(device_data_graph, ref_step);
     queue.wait_and_throw();
@@ -181,21 +171,23 @@ int main(int argc, char** argv) {
   num_matches[0] = 0;
   host_time_events.add("join_start");
   if (!args.skip_join) {
-    std::cout << "Generating DQCR" << std::endl;
+    std::cout << "[*] Generating DQCR" << std::endl;
     host_time_events.add("mapping_start");
-    auto dqcr = mbsm::isomorphism::mapping::generateDGCR(queue, device_query_graph, device_data_graph, candidates, args.find_all);
+    auto gmcr = mbsm::isomorphism::mapping::generateGMCR(queue, device_query_graph, device_data_graph, candidates);
     host_time_events.add("mapping_end");
-    std::cout << "Starting Join" << std::endl;
+
+    std::cout << "[*] Starting Join" << std::endl;
     auto join_e
-        = mbsm::isomorphism::join::joinCandidates(queue, device_query_graph, device_data_graph, candidates, dqcr, num_matches, !args.find_all);
+        = mbsm::isomorphism::join::joinCandidates(queue, device_query_graph, device_data_graph, candidates, gmcr, num_matches, !args.find_all);
     join_e.wait();
     join_time = join_e.getProfilingInfo();
 
     // free memory
-    sycl::free(dqcr.data_graph_offsets, queue);
-    sycl::free(dqcr.query_graph_indices, queue);
+    sycl::free(gmcr.data_graph_offsets, queue);
+    sycl::free(gmcr.query_graph_indices, queue);
   }
   host_time_events.add("join_end");
+  std::cout << "[!] End" << std::endl;
 
   CandidatesInspector inspector;
   for (size_t i = 0; i < (args.isCandidateDomainData() ? data_nodes : query_nodes); ++i) {
@@ -250,5 +242,5 @@ int main(int argc, char** argv) {
 
   sycl::free(num_matches, queue);
   mbsm::destroyDeviceCSRGraph(device_data_graph, queue);
-  mbsm::destroyDeviceAMGraph(device_query_graph, queue);
+  mbsm::destroyDeviceCSRGraph(device_query_graph, queue);
 }

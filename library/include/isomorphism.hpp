@@ -11,6 +11,7 @@
 #include "pool.hpp"
 #include "signature.hpp"
 #include "types.hpp"
+#include "utils.hpp"
 #include <sycl/sycl.hpp>
 
 
@@ -20,7 +21,7 @@ namespace filter {
 
 template<candidates::CandidatesDomain D = candidates::CandidatesDomain::Query>
 utils::BatchedEvent filterCandidates(sycl::queue& queue,
-                                     mbsm::DeviceBatchedAMGraph& query_graph,
+                                     mbsm::DeviceBatchedCSRGraph& query_graph,
                                      mbsm::DeviceBatchedCSRGraph& data_graph,
                                      mbsm::signature::Signature<>& signatures,
                                      mbsm::candidates::Candidates& candidates) {
@@ -31,42 +32,42 @@ utils::BatchedEvent filterCandidates(sycl::queue& queue,
   sycl::range<1> global_range{total_data_nodes + (local_range[0] - (total_data_nodes % local_range[0]))};
 
   auto e = queue.submit([&](sycl::handler& cgh) {
-    cgh.parallel_for<mbsm::device::kernels::FilterCandidatesKernel<D>>(
-        sycl::nd_range<1>({global_range, local_range}),
-        [=,
-         candidates = candidates.getCandidatesDevice(),
-         query_signatures = signatures.getDeviceQuerySignatures(),
-         data_signatures = signatures.getDeviceDataSignatures(),
-         max_labels = signatures.getMaxLabels()](sycl::nd_item<1> item) {
-          auto data_node_id = item.get_global_id(0);
-          if (data_node_id >= total_data_nodes) { return; }
-          auto data_signature = data_signatures[data_node_id];
-          auto query_labels = query_graph.labels;
-          auto data_labels = data_graph.labels;
+    cgh.parallel_for<mbsm::device::kernels::FilterCandidatesKernel<D>>(sycl::nd_range<1>({global_range, local_range}),
+                                                                       [=,
+                                                                        candidates = candidates.getCandidatesDevice(),
+                                                                        query_signatures = signatures.getDeviceQuerySignatures(),
+                                                                        data_signatures = signatures.getDeviceDataSignatures(),
+                                                                        max_labels = signatures.getMaxLabels()](sycl::nd_item<1> item) {
+                                                                         auto data_node_id = item.get_global_id(0);
+                                                                         if (data_node_id >= total_data_nodes) { return; }
+                                                                         auto data_signature = data_signatures[data_node_id];
+                                                                         auto query_labels = query_graph.labels;
+                                                                         auto data_labels = data_graph.labels;
 
-          for (size_t query_node_id = 0; query_node_id < total_query_nodes; ++query_node_id) {
-            if (query_labels[query_node_id] != data_labels[data_node_id]) { continue; }
-            // if constexpr (D == candidates::CandidatesDomain::Data) {
-            //   candidates.insert(data_node_id, query_node_id);
-            // } else {
-            //   candidates.atomicInsert(query_node_id, data_node_id);
-            // }
-            auto query_signature = query_signatures[query_node_id];
+                                                                         for (size_t query_node_id = 0; query_node_id < total_query_nodes;
+                                                                              ++query_node_id) {
+                                                                           if (query_labels[query_node_id] != data_labels[data_node_id]) { continue; }
+                                                                           if constexpr (D == candidates::CandidatesDomain::Data) {
+                                                                             candidates.insert(data_node_id, query_node_id);
+                                                                           } else {
+                                                                             candidates.atomicInsert(query_node_id, data_node_id);
+                                                                           }
+                                                                           // auto query_signature = query_signatures[query_node_id];
 
-            bool insert = true;
-            for (types::label_t l = 0; l < max_labels; l++) {
-              insert = insert && (query_signature.getLabelCount(l) <= data_signature.getLabelCount(l));
-              if (!insert) break;
-            }
-            if (insert) {
-              if constexpr (D == candidates::CandidatesDomain::Data) {
-                candidates.insert(data_node_id, query_node_id);
-              } else {
-                candidates.atomicInsert(query_node_id, data_node_id);
-              }
-            }
-          }
-        });
+                                                                           // bool insert = true;
+                                                                           // for (types::label_t l = 0; l < max_labels; l++) {
+                                                                           //   insert = insert && (query_signature.getLabelCount(l) <=
+                                                                           //   data_signature.getLabelCount(l)); if (!insert) break;
+                                                                           // }
+                                                                           // if (insert) {
+                                                                           //   if constexpr (D == candidates::CandidatesDomain::Data) {
+                                                                           //     candidates.insert(data_node_id, query_node_id);
+                                                                           //   } else {
+                                                                           //     candidates.atomicInsert(query_node_id, data_node_id);
+                                                                           //   }
+                                                                           // }
+                                                                         }
+                                                                       });
   });
 
   utils::BatchedEvent be;
@@ -76,7 +77,7 @@ utils::BatchedEvent filterCandidates(sycl::queue& queue,
 
 template<candidates::CandidatesDomain D = candidates::CandidatesDomain::Query>
 utils::BatchedEvent refineCandidates(sycl::queue& queue,
-                                     mbsm::DeviceBatchedAMGraph& query_graph,
+                                     mbsm::DeviceBatchedCSRGraph& query_graph,
                                      mbsm::DeviceBatchedCSRGraph& data_graph,
                                      mbsm::signature::Signature<>& signatures,
                                      mbsm::candidates::Candidates& candidates) {
@@ -129,24 +130,23 @@ utils::BatchedEvent refineCandidates(sycl::queue& queue,
 } // namespace filter
 namespace mapping {
 
-struct DGCR {
+struct GMCR {
   uint32_t* data_graph_offsets;
   uint32_t* query_graph_indices;
 };
 
 
-// Offloaded version of generateDGCR using SYCL kernels.
-DGCR generateDGCR(sycl::queue& queue,
-                  mbsm::DeviceBatchedAMGraph& query_graphs,
+// Offloaded version of generateGMCR using SYCL kernels.
+GMCR generateGMCR(sycl::queue& queue,
+                  mbsm::DeviceBatchedCSRGraph& query_graphs,
                   mbsm::DeviceBatchedCSRGraph& data_graphs,
-                  mbsm::candidates::Candidates& candidates,
-                  bool find_all = true) {
+                  mbsm::candidates::Candidates& candidates) {
   // Get dimensions
   const size_t total_query_graphs = query_graphs.num_graphs;
   const size_t total_data_graphs = data_graphs.num_graphs;
 
   // Allocate device memory for data_graph_offsets (size = total_data_graphs+1)
-  uint32_t* d_data_graph_offsets = sycl::malloc_device<uint32_t>(total_data_graphs + 1, queue);
+  uint32_t* d_data_graph_offsets = sycl::malloc_shared<uint32_t>(total_data_graphs + 1, queue);
   // Initialize to zero
   queue.fill(d_data_graph_offsets, 0, total_data_graphs + 1).wait();
 
@@ -189,10 +189,10 @@ DGCR generateDGCR(sycl::queue& queue,
   queue.copy(&d_data_graph_offsets[total_data_graphs], &total_query_indices, 1).wait();
 
   // Allocate device memory for query_graph_indices.
-  uint32_t* d_query_graph_indices = sycl::malloc_device<uint32_t>(total_query_indices, queue);
+  uint32_t* d_query_graph_indices = sycl::malloc_shared<uint32_t>(total_query_indices, queue);
 
   // Create a copy of the prefix sum array to serve as atomic “current offsets”
-  uint32_t* current_offsets = sycl::malloc_device<uint32_t>(total_data_graphs + 1, queue);
+  uint32_t* current_offsets = sycl::malloc_shared<uint32_t>(total_data_graphs + 1, queue);
   queue.copy(d_data_graph_offsets, current_offsets, total_data_graphs + 1).wait();
 
   // --- Kernel 3: Fill query_graph_indices ---
@@ -224,7 +224,7 @@ DGCR generateDGCR(sycl::queue& queue,
   k3.wait();
 
   // Build the result structure.
-  DGCR dgcr;
+  GMCR dgcr;
   dgcr.data_graph_offsets = d_data_graph_offsets;
   dgcr.query_graph_indices = d_query_graph_indices;
   sycl::free(current_offsets, queue);
@@ -246,17 +246,6 @@ struct Stack {
   size_t candidateIdx;
 };
 
-struct Visited {
-  size_t offset;
-  uint64_t visited;
-
-  Visited(size_t offset) : offset(offset), visited(0) {}
-
-  SYCL_EXTERNAL bool get(size_t idx) const { return visited & (static_cast<uint64_t>(1) << (idx - offset)); }
-  SYCL_EXTERNAL void set(size_t idx) { visited |= static_cast<uint64_t>(1) << (idx - offset); }
-  SYCL_EXTERNAL void unset(size_t idx) { visited &= ~(static_cast<uint64_t>(1) << (idx - offset)); }
-};
-
 struct Mapping { // TODO: make it SOA
   size_t query_graph_id;
   size_t data_graph_id;
@@ -267,7 +256,7 @@ struct Mapping { // TODO: make it SOA
 SYCL_EXTERNAL bool isValidMapping(types::node_t candidate,
                                   uint depth,
                                   const uint32_t* mapping,
-                                  const mbsm::DeviceBatchedAMGraph& query_graphs,
+                                  const mbsm::DeviceBatchedCSRGraph& query_graphs,
                                   uint query_graph_id,
                                   const mbsm::DeviceBatchedCSRGraph& data_graphs,
                                   uint data_graph_id) {
@@ -300,10 +289,10 @@ SYCL_EXTERNAL void defineMatchingOrder(sycl::sub_group sg, size_t num_query_node
 }
 
 utils::BatchedEvent joinCandidates(sycl::queue& queue,
-                                   mbsm::DeviceBatchedAMGraph& query_graphs,
+                                   mbsm::DeviceBatchedCSRGraph& query_graphs,
                                    mbsm::DeviceBatchedCSRGraph& data_graphs,
                                    mbsm::candidates::Candidates& candidates,
-                                   mbsm::isomorphism::mapping::DGCR& dqcr,
+                                   mbsm::isomorphism::mapping::GMCR& gmcr,
                                    size_t* num_matches,
                                    bool find_first = true) {
   utils::BatchedEvent e;
@@ -320,7 +309,7 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
   auto e1 = queue.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<device::kernels::JoinCandidatesKernel>(
         nd_range,
-        [=, query_graphs = query_graphs, data_graphs = data_graphs, candidates = candidates.getCandidatesDevice(), dqcr = dqcr](
+        [=, query_graphs = query_graphs, data_graphs = data_graphs, candidates = candidates.getCandidatesDevice(), gmcr = gmcr](
             sycl::nd_item<1> item) {
           const size_t lid = item.get_local_linear_id();
           const size_t gid = item.get_global_linear_id();
@@ -344,25 +333,18 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
             const uint32_t start_data_graph = data_graphs.graph_offsets[data_graph_id];
             const uint32_t end_data_graph = data_graphs.graph_offsets[data_graph_id + 1];
 
-            const uint32_t start_query = dqcr.data_graph_offsets[data_graph_id];
-            const uint32_t end_query = dqcr.data_graph_offsets[data_graph_id + 1];
-
-            const uint32_t num_data_nodes = end_data_graph - start_data_graph;
-            auto data_graph_row_offsets = data_graphs.row_offsets + start_data_graph;
-            auto data_graph_column_indices = data_graphs.column_indices;
-
-            sycl::group_barrier(wg);
-
+            const uint32_t start_query = gmcr.data_graph_offsets[data_graph_id];
+            const uint32_t end_query = gmcr.data_graph_offsets[data_graph_id + 1];
 
             for (uint32_t query_graph_it = wglid; query_graph_it < (end_query - start_query);
                  query_graph_it += wgsize) { // iterate over all query graphs
-              Stack stack[MAX_QUERY_NODES];  // TODO: assume max depth of 30 but make it dynamic
-              const uint32_t query_graph_id = dqcr.query_graph_indices[start_query + query_graph_it];
+              const uint32_t query_graph_id = gmcr.query_graph_indices[start_query + query_graph_it];
+              Stack stack[MAX_QUERY_NODES]; // TODO: assume max depth of 30 but make it dynamic
               const uint32_t offset_query_nodes = query_graphs.getPreviousNodes(query_graph_id);
               const uint16_t num_query_nodes = query_graphs.getGraphNodes(query_graph_id);
 
               // start DFS
-              Visited visited{start_data_graph};
+              utils::detail::Bitset<uint64_t> visited{start_data_graph};
               uint top = 0;
               stack[top++] = {0, 0}; // initialize stack with the first node
               // DFS loop
@@ -385,18 +367,20 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
                   // backtrack
                   top--;
                   // free the failed mapping
-                  if (top > 0) { visited.unset(mapping[query_node]); }
+                  visited.unset(mapping[query_node]);
+
+                  if (top == 1) { visited.clear(); }
                   continue;
                 }
 
                 // try the next candidate
                 auto candidate = candidates.getCandidateAt(query_node + offset_query_nodes, frame.candidateIdx, start_data_graph, end_data_graph);
+
                 // increment the candidate index for the next iteration
                 stack[top - 1].candidateIdx++;
 
-
-                if (!visited.get(candidate)
-                    && (frame.depth == 0 || isValidMapping(candidate, frame.depth, mapping, query_graphs, query_graph_id, data_graphs, wgid))) {
+                if (visited.get(candidate)) { continue; }
+                if ((frame.depth == 0 || isValidMapping(candidate, frame.depth, mapping, query_graphs, query_graph_id, data_graphs, wgid))) {
                   mapping[frame.depth] = candidate;
                   visited.set(candidate);
                   stack[top++] = {frame.depth + 1, 0};
