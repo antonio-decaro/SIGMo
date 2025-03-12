@@ -29,7 +29,7 @@ struct CandidatesInspector {
 };
 
 int main(int argc, char** argv) {
-  Args args{argc, argv};
+  Args args{argc, argv, mbsm::device::deviceOptions};
 
   mbsm::DeviceBatchedCSRGraph device_data_graph;
   mbsm::DeviceBatchedCSRGraph device_query_graph;
@@ -93,7 +93,10 @@ int main(int argc, char** argv) {
   std::cout << "# Query Graphs " << num_query_graphs << std::endl;
   std::cout << "# Data Nodes " << data_nodes << std::endl;
   std::cout << "# Data Graphs " << num_data_graphs << std::endl;
+
+  std::cout << "------------- Configs -------------" << std::endl;
   std::cout << "Filter domain: " << args.candidates_domain << std::endl;
+  std::cout << "Join Work Group Size: " << mbsm::device::deviceOptions.join_work_group_size << std::endl;
 
   host_time_events.add("setup_data_start");
   std::cout << "------------- Setup Data -------------" << std::endl;

@@ -28,7 +28,7 @@ utils::BatchedEvent filterCandidates(sycl::queue& queue,
   size_t total_query_nodes = query_graph.total_nodes;
   size_t total_data_nodes = data_graph.total_nodes;
 
-  sycl::range<1> local_range{device::getPreferredWorkGroupSize(queue)};
+  sycl::range<1> local_range{device::deviceOptions.filter_work_group_size};
   sycl::range<1> global_range{total_data_nodes + (local_range[0] - (total_data_nodes % local_range[0]))};
 
   auto e = queue.submit([&](sycl::handler& cgh) {
@@ -84,7 +84,7 @@ utils::BatchedEvent refineCandidates(sycl::queue& queue,
   size_t total_query_nodes = query_graph.total_nodes;
   size_t total_data_nodes = data_graph.total_nodes;
 
-  sycl::range<1> local_range{device::getPreferredWorkGroupSize(queue)};
+  sycl::range<1> local_range{device::deviceOptions.filter_work_group_size};
   sycl::range<1> global_range{total_data_nodes + (local_range[0] - (total_data_nodes % local_range[0]))};
 
   auto e = queue.submit([&](sycl::handler& cgh) {
@@ -301,8 +301,7 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
   const size_t total_query_graphs = query_graphs.num_graphs;
   const size_t total_data_graphs = data_graphs.num_graphs;
 
-  const size_t preferred_workgroup_size = 128; // TODO get from device
-  const size_t subgroup_size = 32;             // TODO get from device
+  const size_t preferred_workgroup_size = device::deviceOptions.join_work_group_size;
 
   sycl::nd_range<1> nd_range{total_data_graphs * preferred_workgroup_size, preferred_workgroup_size};
   constexpr size_t MAX_QUERY_NODES = 30;

@@ -12,6 +12,12 @@
 namespace mbsm {
 namespace device {
 
+static struct DeviceOptions {
+  size_t join_work_group_size = 128;
+  size_t filter_work_group_size = 512;
+
+} deviceOptions;
+
 inline size_t getDeviceMemorySize(sycl::queue& queue) {
   return queue.get_info<sycl::info::queue::device>().get_info<sycl::info::device::global_mem_size>();
 }

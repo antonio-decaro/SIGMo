@@ -9,6 +9,7 @@
 #include <cxxopts.hpp> // Include cxxopts header
 #include <filesystem>
 #include <iostream>
+#include <mbsm.hpp>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -31,9 +32,10 @@ public:
   size_t multiply_factor_data = 1;
   bool find_all = false;
   std::string candidates_domain = "query";
+  size_t join_work_group_size = 0;
   Args::Filter query_filter;
 
-  Args(int& argc, char**& argv) {
+  Args(int& argc, char**& argv, mbsm::device::DeviceOptions& device_options) {
     cxxopts::Options options(argv[0], "Command line options");
     options.add_options()("p,print-candidates", "Print the number of candidates for each query node", cxxopts::value<bool>(print_candidates))(
         "i,iterations", "Number of refinement iterations", cxxopts::value<int>(refinement_steps))(
@@ -45,7 +47,11 @@ public:
         "q,mul-query", "Multiply the number of query graphs by a factor", cxxopts::value<size_t>(multiply_factor_query))(
         "skip-join", "Skip the join phase", cxxopts::value<bool>(skip_join))("h,help", "Print usage")(
         "find-all", "Find all matches without stopping at the first one", cxxopts::value<bool>(find_all))(
-        "query-filter", "Apply a filter to the query graphs. Format: min[:max]", cxxopts::value<std::string>());
+        "query-filter", "Apply a filter to the query graphs. Format: min[:max]", cxxopts::value<std::string>())(
+        "join-work-group", "Set the work group size for the join kernel. Default 128.", cxxopts::value<size_t>(device_options.join_work_group_size))(
+        "filter-work-group",
+        "Set the work group size for the filter kernel. Default 512.",
+        cxxopts::value<size_t>(device_options.filter_work_group_size));
     auto result = options.parse(argc, argv);
 
     if (result.count("help")) {
