@@ -96,6 +96,7 @@ int main(int argc, char** argv) {
 
   std::cout << "------------- Configs -------------" << std::endl;
   std::cout << "Filter domain: " << args.candidates_domain << std::endl;
+  std::cout << "Filter Work Group Size: " << mbsm::device::deviceOptions.filter_work_group_size << std::endl;
   std::cout << "Join Work Group Size: " << mbsm::device::deviceOptions.join_work_group_size << std::endl;
 
   host_time_events.add("setup_data_start");
@@ -176,7 +177,8 @@ int main(int argc, char** argv) {
   if (!args.skip_join) {
     std::cout << "[*] Generating DQCR" << std::endl;
     host_time_events.add("mapping_start");
-    auto gmcr = mbsm::isomorphism::mapping::generateGMCR(queue, device_query_graph, device_data_graph, candidates);
+    mbsm::isomorphism::mapping::GMCR gmcr{queue};
+    gmcr.generateGMCR(device_query_graph, device_data_graph, candidates);
     host_time_events.add("mapping_end");
 
     std::cout << "[*] Starting Join" << std::endl;
@@ -184,10 +186,6 @@ int main(int argc, char** argv) {
         = mbsm::isomorphism::join::joinCandidates(queue, device_query_graph, device_data_graph, candidates, gmcr, num_matches, !args.find_all);
     join_e.wait();
     join_time = join_e.getProfilingInfo();
-
-    // free memory
-    sycl::free(gmcr.data_graph_offsets, queue);
-    sycl::free(gmcr.query_graph_indices, queue);
   }
   host_time_events.add("join_end");
   std::cout << "[!] End" << std::endl;

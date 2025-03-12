@@ -7,6 +7,7 @@
 
 #include "candidates.hpp"
 #include "device.hpp"
+#include "gmcr.hpp"
 #include "graph.hpp"
 #include "io.hpp"
 #include "isomorphism.hpp"
