@@ -4,19 +4,97 @@
 
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+AVAILABLE_BENCHMARKS="VF3,CuTS,GSI,MBSM"
 
-git submodule update --init
+benchmarks=$AVAILABLE_BENCHMARKS
+mbsm_arch="nvidia_gpu_sm_70"
 
-echo "[*] Building VF3"
-cd $SCRIPT_DIR/benchmarks/vf3
-make
-make vf3p
+help()
+{
+    echo "Usage: ./init_msm.sh 
+      [ -b=bench1,bench2,bench3] The set of benchmark files to be generated;
+      [ -h | --help ] Print this help message and exit.
+      The available benchmarks are: " $AVAILABLE_BENCHMARKS
+}
 
-echo "[*] Building GSI"
-cd $SCRIPT_DIR/benchmarks/GSI
-git apply ../GSI.patch
-rm objs/*.o
-make
+# Parsing arguments
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -b=*)
+      benchmarks="${1#*=}"
+      shift
+      ;;
+    --mbsm-arch=*)
+      mbsm_arch="${1#*=}"
+      shift
+      ;;
+    -h | --help)
+      help
+      exit 0
+      ;;
+    *)
+      echo "Invalid argument: $1"
+      help
+      return 1 2>/dev/null
+      exit 1
+      ;;
+  esac
+done
+
+# check if benchmarks is empty and valid
+for bench in $(echo $benchmarks | sed "s/,/ /g")
+do
+  if [[ $AVAILABLE_BENCHMARKS != *"$bench"* ]]
+  then
+    echo "[!] Invalid benchmark: $bench"
+    return 1 2>/dev/null
+    exit 1
+  fi
+done
+if [ -z "$benchmarks" ]
+then
+  benchmarks=$AVAILABLE_BENCHMARKS
+fi
+
+# if benchmark is cuTS GSI or VF3
+if [[ $benchmarks == *"CuTS"* ]] || [[ $benchmarks == *"GSI"* ]] || [[ $benchmarks == *"VF3"* ]]
+then
+  echo "[*] Cloning submodules"
+  git submodule update --init
+fi
+
+if [[ $benchmarks == *"CuTS"* ]]
+then
+  echo "[*] Building CuTS"
+  cd $SCRIPT_DIR/benchmarks/cuTS
+  bash $SCRIPT_DIR/benchmarks/cuTS/build.sh 
+fi
+
+if [[ $benchmarks == *"VF3"* ]]
+then
+  echo "[*] Building VF3"
+  cd $SCRIPT_DIR/benchmarks/vf3
+  make
+  make vf3p
+fi
+
+if [[ $benchmarks == *"GSI"* ]]
+then
+  echo "[*] Building GSI"
+  cd $SCRIPT_DIR/benchmarks/GSI
+  git apply ../GSI.patch
+  rm objs/*.o
+  make
+fi
+
+if [[ $benchmarks == *"MBSM"* ]]
+then
+  echo "[*] Building MBSM"
+  mkdir build
+  cd build
+  cmake ../library -DMBSM_TARGET_ARCHITECTURE=$mbsm_arch -DMBSM_ENABLE_TEST=OFF
+  cmake --build . -j
+fi
 
 # echo "[*] Building EGSM"
 # cd $SCRIPT_DIR/benchmarks/EGSM
@@ -25,7 +103,3 @@ make
 # cmake ..
 # make
 
-echo "[*] Building CuTS"
-cd $SCRIPT_DIR/benchmarks/cuTS
-bash $SCRIPT_DIR/benchmarks/cuTS/build.sh 
-git apply ../cuTS.patch
