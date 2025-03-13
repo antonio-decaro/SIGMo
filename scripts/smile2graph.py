@@ -87,7 +87,7 @@ class CuTSParser(Parser):
     g = self.join_graphs()
     print(g.number_of_nodes(), file=file)
     for a, b in tqdm(g.edges(), desc="Printing edges", file=sys.stderr):
-      print(a, b, file=file)
+      print(a, b, file=file, sep='\t')
 
 class GSIParser(Parser):
   def parse(self, file):
