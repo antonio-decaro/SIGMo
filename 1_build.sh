@@ -8,11 +8,14 @@ AVAILABLE_BENCHMARKS="VF3,CuTS,GSI,MBSM"
 
 benchmarks=$AVAILABLE_BENCHMARKS
 mbsm_arch="nvidia_gpu_sm_70"
+mbsm_compiler="icpx"
 
 help()
 {
     echo "Usage: ./init_msm.sh 
       [ -b=bench1,bench2,bench3] The set of benchmark files to be generated;
+      [ --mbsm-arch= ] The target architecture for MBSM;
+      [ --mbsm-compiler= ] The compiler for MBSM;
       [ -h | --help ] Print this help message and exit.
       The available benchmarks are: " $AVAILABLE_BENCHMARKS
 }
@@ -25,6 +28,10 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --mbsm-arch=*)
+      mbsm_arch="${1#*=}"
+      shift
+      ;;
+    --mbsm-compiler=*)
       mbsm_arch="${1#*=}"
       shift
       ;;
@@ -92,7 +99,7 @@ then
   echo "[*] Building MBSM"
   mkdir build
   cd build
-  cmake ../library -DMBSM_TARGET_ARCHITECTURE=$mbsm_arch -DMBSM_ENABLE_TEST=OFF
+  cmake ../library -DCMAKE_CXX_COMPILER=$mbsm_compiler -DMBSM_TARGET_ARCHITECTURE=$mbsm_arch -DMBSM_ENABLE_TEST=OFF
   cmake --build . -j
 fi
 
