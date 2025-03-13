@@ -5,7 +5,7 @@
 # Setting up variables
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DATA_DIR=$SCRIPT_DIR/data
-AVAILABLE_BENCHMARKS="VF3,cuTS,GSI,MBSM"
+AVAILABLE_BENCHMARKS="VF3,CuTS,GSI,MBSM"
 
 data_limit=-1
 query_limit=-1
@@ -114,7 +114,7 @@ generate_files() {
     else
       while read -r line && [ $i -lt $limit ];
       do
-        python3 $SCRIPT_DIR/scripts/smile2graph.py -f $bench -o $OUT_DIR/${type}/${type}_${i}.dat <<< "$line" 2>/dev/null
+        python3 $SCRIPT_DIR/scripts/smile2graph.py -f $bench -o $OUT_DIR/${type}/${type}_${i}.dat <<< "$line" 2> /dev/null
         i=$((i+1))
         printf "\rProgress ($type): %d\%d" $i $total
       done < $DATA_DIR/query.smarts
