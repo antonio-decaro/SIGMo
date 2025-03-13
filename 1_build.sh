@@ -32,7 +32,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --mbsm-compiler=*)
-      mbsm_arch="${1#*=}"
+      mbsm_compiler="${1#*=}"
       shift
       ;;
     -h | --help)
