@@ -170,7 +170,16 @@ public:
   Candidates(sycl::queue& queue, size_t source_nodes, size_t target_nodes) : queue(queue), candidates(source_nodes, target_nodes) {
     size_t alloc_size = candidates.getAllocationSize();
     candidates.candidates = sycl::malloc_shared<types::candidates_t>(alloc_size, queue);
-    queue.fill(candidates.candidates, 0, alloc_size).wait();
+    size_t limit = 4194304;
+    sycl::range<1> range(alloc_size < limit ? alloc_size : limit);
+
+    queue
+        .submit([&](sycl::handler& cgh) {
+          cgh.parallel_for(range, [=, candidates = this->candidates](sycl::item<1> item) {
+            for (size_t i = item.get_id(0); i < alloc_size; i += item.get_range(0)) candidates.candidates[i] = 0;
+          });
+        })
+        .wait();
   }
   ~Candidates() { sycl::free(candidates.candidates, queue); }
 
