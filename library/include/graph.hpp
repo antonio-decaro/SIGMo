@@ -102,7 +102,7 @@ struct DeviceBatchedAMGraph {
   uint32_t num_graphs;
   uint32_t* graph_offsets;
 
-  SYCL_EXTERNAL inline uint32_t getGraphId(types::node_t node_id) const { return utils::binarySearch(num_nodes, num_graphs, node_id); }
+  SYCL_EXTERNAL inline uint32_t getGraphId(types::node_t node_id) const { return utils::binaryAMSearch(num_nodes, num_graphs, node_id); }
   SYCL_EXTERNAL inline uint32_t getPreviousNodes(uint32_t graph_id) const { return graph_id ? num_nodes[graph_id - 1] : 0; }
   SYCL_EXTERNAL inline uint32_t getGraphNodes(uint32_t graph_id) const {
     return graph_id ? num_nodes[graph_id] - num_nodes[graph_id - 1] : num_nodes[graph_id];

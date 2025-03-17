@@ -96,7 +96,7 @@ struct Bitset {
 
 } // namespace detail
 
-SYCL_EXTERNAL uint32_t binarySearch(const uint32_t* num_nodes, uint32_t total_graphs, uint32_t node_id) {
+SYCL_EXTERNAL uint32_t binaryAMSearch(const uint32_t* num_nodes, uint32_t total_graphs, uint32_t node_id) {
   uint32_t low = 0;
   uint32_t high = total_graphs - 1;
   while (low < high) {
@@ -108,6 +108,19 @@ SYCL_EXTERNAL uint32_t binarySearch(const uint32_t* num_nodes, uint32_t total_gr
     }
   }
   return low;
+}
+
+SYCL_EXTERNAL uint32_t binarySearch(const uint32_t* vector, uint32_t size, uint32_t value) {
+  size_t lo = 0, hi = size;
+  while (lo < hi) {
+    size_t mid = lo + (hi - lo) / 2;
+    if (value >= vector[mid]) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+  return (lo > 0) ? (lo - 1) : static_cast<uint32_t>(-1);
 }
 
 class BatchedEvent {

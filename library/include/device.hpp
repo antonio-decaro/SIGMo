@@ -37,6 +37,7 @@ class FilterCandidatesKernel;
 template<candidates::CandidatesDomain D>
 class RefineCandidatesKernel;
 class JoinCandidatesKernel;
+class JoinCandidates2Kernel;
 
 } // namespace kernels
 } // namespace device
