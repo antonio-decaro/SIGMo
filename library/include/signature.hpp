@@ -156,10 +156,13 @@ public:
 
   Signature(sycl::queue& queue, size_t data_nodes, size_t query_nodes) : queue(queue), data_nodes(data_nodes), query_nodes(query_nodes) {
     data_signatures = sycl::malloc_shared<SignatureDevice>(data_nodes, queue);
-    data_reachables = sycl::malloc_shared<utils::detail::Bitset<uint64_t>>(data_nodes, queue);
     query_signatures = sycl::malloc_shared<SignatureDevice>(query_nodes, queue);
-    query_reachables = sycl::malloc_shared<utils::detail::Bitset<uint64_t>>(query_nodes, queue);
-    tmp_buff = sycl::malloc_shared<SignatureDevice>(std::max(data_nodes, query_nodes), queue);
+    if constexpr (A == Algorithm::ViewBased) {
+      tmp_buff = sycl::malloc_shared<SignatureDevice>(std::max(data_nodes, query_nodes), queue);
+    } else if constexpr (A == Algorithm::PowerGraph) {
+      data_reachables = sycl::malloc_shared<utils::detail::Bitset<uint64_t>>(data_nodes, queue);
+      query_reachables = sycl::malloc_shared<utils::detail::Bitset<uint64_t>>(query_nodes, queue);
+    }
     queue.fill(data_signatures, 0, data_nodes).wait();
     queue.fill(query_signatures, 0, query_nodes).wait();
   }
@@ -167,11 +170,32 @@ public:
   ~Signature() {
     sycl::free(data_signatures, queue);
     sycl::free(query_signatures, queue);
-    sycl::free(tmp_buff, queue);
+    if constexpr (A == Algorithm::ViewBased) {
+      sycl::free(tmp_buff, queue);
+    } else if constexpr (A == Algorithm::PowerGraph) {
+      sycl::free(data_reachables, queue);
+      sycl::free(query_reachables, queue);
+    }
   }
 
-  size_t getDataSignatureAllocationSize() const { return data_nodes * sizeof(SignatureDevice); }
-  size_t getQuerySignatureAllocationSize() const { return query_nodes * sizeof(SignatureDevice); }
+  size_t getDataSignatureAllocationSize() const {
+    size_t alloc = data_nodes * sizeof(SignatureDevice);
+    if constexpr (A == Algorithm::PowerGraph) {
+      alloc += data_nodes * sizeof(utils::detail::Bitset<uint64_t>);
+    } else if constexpr (A == Algorithm::ViewBased) {
+      alloc += data_nodes * sizeof(SignatureDevice);
+    }
+    return alloc;
+  }
+  size_t getQuerySignatureAllocationSize() const {
+    size_t alloc = query_nodes * sizeof(SignatureDevice);
+    if constexpr (A == Algorithm::PowerGraph) {
+      alloc += query_nodes * sizeof(utils::detail::Bitset<uint64_t>);
+    } else if constexpr (A == Algorithm::ViewBased) {
+      alloc += query_nodes * sizeof(SignatureDevice);
+    }
+    return alloc;
+  }
   SignatureDevice* getDeviceDataSignatures() const { return data_signatures; }
   SignatureDevice* getDeviceQuerySignatures() const { return query_signatures; }
   size_t getMaxLabels() const { return SignatureDevice::getMaxLabels(); }
