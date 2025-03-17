@@ -74,6 +74,7 @@ struct Bitset {
   SYCL_EXTERNAL inline void clear() { data = 0; }
   SYCL_EXTERNAL inline void merge(const Bitset& other) { data |= other.data; }
   SYCL_EXTERNAL inline void intersection(const Bitset& other) { data &= other.data; }
+  SYCL_EXTERNAL inline void difference(const Bitset& other) { data = data & ~other.data; }
   SYCL_EXTERNAL inline Bitset& operator=(const Bitset& other) {
     data = other.data;
     return *this;

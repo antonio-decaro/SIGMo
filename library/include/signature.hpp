@@ -156,7 +156,9 @@ public:
 
   Signature(sycl::queue& queue, size_t data_nodes, size_t query_nodes) : queue(queue), data_nodes(data_nodes), query_nodes(query_nodes) {
     data_signatures = sycl::malloc_shared<SignatureDevice>(data_nodes, queue);
+    data_reachables = sycl::malloc_shared<utils::detail::Bitset<uint64_t>>(data_nodes, queue);
     query_signatures = sycl::malloc_shared<SignatureDevice>(query_nodes, queue);
+    query_reachables = sycl::malloc_shared<utils::detail::Bitset<uint64_t>>(query_nodes, queue);
     tmp_buff = sycl::malloc_shared<SignatureDevice>(std::max(data_nodes, query_nodes), queue);
     queue.fill(data_signatures, 0, data_nodes).wait();
     queue.fill(query_signatures, 0, query_nodes).wait();
@@ -181,6 +183,8 @@ private:
   SignatureDevice* data_signatures;
   SignatureDevice* query_signatures;
   SignatureDevice* tmp_buff;
+  utils::detail::Bitset<uint64_t>* data_reachables;
+  utils::detail::Bitset<uint64_t>* query_reachables;
 
   template<>
   utils::BatchedEvent refineAMSignatures<Algorithm::ViewBased>(DeviceBatchedAMGraph& graphs, size_t view_size, SignatureScope s) {
@@ -310,6 +314,7 @@ private:
     utils::BatchedEvent event;
     sycl::range<1> global_range(graphs.total_nodes);
     auto signatures = s == SignatureScope::Data ? data_signatures : query_signatures;
+    auto old_reachables = s == SignatureScope::Data ? data_reachables : query_reachables;
 
     auto refine_event = queue.submit([&](sycl::handler& cgh) {
       auto* row_offsets = graphs.row_offsets;
@@ -322,6 +327,8 @@ private:
             auto graph_id = graphs.getGraphID(node_id);
             auto prev_nodes = graphs.getPreviousNodes(graph_id);
             utils::detail::Bitset<uint64_t> frontier, reachable;
+            utils::detail::Bitset<uint64_t> old_reachable = old_reachables[node_id];
+
 
             frontier.set(node_id - prev_nodes);
             reachable.set(node_id - prev_nodes);
@@ -342,12 +349,15 @@ private:
               frontier = next_frontier;
             }
             reachable.unset(node_id - prev_nodes);
+            reachable.difference(old_reachable);
             signatures[node_id].clear();
             for (uint idx = 0; idx < reachable.size(); idx++) {
               auto u = reachable.getSetBit(idx) + prev_nodes;
               types::label_t u_label = graphs.labels[u];
               signatures[node_id].incrementLabelCount(u_label);
             }
+            reachable.merge(old_reachable);
+            old_reachables[node_id] = reachable;
           });
     });
     event.add(refine_event);
