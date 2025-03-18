@@ -98,6 +98,7 @@ int main(int argc, char** argv) {
   std::cout << "Filter domain: " << args.candidates_domain << std::endl;
   std::cout << "Filter Work Group Size: " << sigmo::device::deviceOptions.filter_work_group_size << std::endl;
   std::cout << "Join Work Group Size: " << sigmo::device::deviceOptions.join_work_group_size << std::endl;
+  std::cout << "Find all: " << (args.find_all ? "Yes" : "No") << std::endl;
 
   host_time_events.add("setup_data_start");
   std::cout << "------------- Setup Data -------------" << std::endl;
