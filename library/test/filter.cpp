@@ -7,37 +7,37 @@
 #include "./include/utils.hpp"
 #include "gtest/gtest.h"
 #include <bitset>
-#include <mbsm.hpp>
 #include <set>
+#include <sigmo.hpp>
 #include <sycl/sycl.hpp>
 
 TEST(FilterTest, SingleFilter) {
-  auto query_graphs = mbsm::io::loadAMGraphsFromFile(TEST_QUERY_PATH);
-  auto data_graphs = mbsm::io::loadCSRGraphsFromFile(TEST_DATA_PATH);
+  auto query_graphs = sigmo::io::loadAMGraphsFromFile(TEST_QUERY_PATH);
+  auto data_graphs = sigmo::io::loadCSRGraphsFromFile(TEST_DATA_PATH);
 
   sycl::queue queue{sycl::gpu_selector_v};
 
-  auto device_query_graph = mbsm::createDeviceAMGraph(queue, query_graphs);
-  auto device_data_graph = mbsm::createDeviceCSRGraph(queue, data_graphs);
+  auto device_query_graph = sigmo::createDeviceAMGraph(queue, query_graphs);
+  auto device_data_graph = sigmo::createDeviceCSRGraph(queue, data_graphs);
 
-  mbsm::signature::Signature<> signatures{queue, device_data_graph.total_nodes, device_query_graph.total_nodes};
+  sigmo::signature::Signature<> signatures{queue, device_data_graph.total_nodes, device_query_graph.total_nodes};
 
   auto e1 = signatures.generateAMSignatures(device_query_graph);
   auto e2 = signatures.generateCSRSignatures(device_data_graph);
 
   queue.wait();
 
-  mbsm::candidates::Candidates candidates{queue, device_query_graph.total_nodes, device_data_graph.total_nodes};
+  sigmo::candidates::Candidates candidates{queue, device_query_graph.total_nodes, device_data_graph.total_nodes};
 
-  auto e3 = mbsm::isomorphism::filter::filterCandidates(queue, device_query_graph, device_data_graph, signatures, candidates);
+  auto e3 = sigmo::isomorphism::filter::filterCandidates(queue, device_query_graph, device_data_graph, signatures, candidates);
   e3.wait();
 
   auto query_signatures = signatures.getDeviceQuerySignatures();
   auto data_signatures = signatures.getDeviceDataSignatures();
 
   // creating a temporary vector to store the candidates
-  std::unordered_map<mbsm::types::node_t, std::vector<mbsm::types::node_t>> expected_candidates;
-  for (int i = 0; i < device_query_graph.total_nodes; i++) { expected_candidates[i] = std::vector<mbsm::types::node_t>(); }
+  std::unordered_map<sigmo::types::node_t, std::vector<sigmo::types::node_t>> expected_candidates;
+  for (int i = 0; i < device_query_graph.total_nodes; i++) { expected_candidates[i] = std::vector<sigmo::types::node_t>(); }
 
   for (int data_node = 0; data_node < device_data_graph.total_nodes; data_node++) {
     for (int query_node = 0; query_node < device_query_graph.total_nodes; query_node++) {
@@ -48,7 +48,7 @@ TEST(FilterTest, SingleFilter) {
 
       if (data_label != query_label) { continue; }
       bool insert = true;
-      for (mbsm::types::label_t l = 0; l < signatures.getMaxLabels(); l++) {
+      for (sigmo::types::label_t l = 0; l < signatures.getMaxLabels(); l++) {
         insert &= query_signature.getLabelCount(l) <= data_signature.getLabelCount(l);
         if (!insert) break;
       }
@@ -63,32 +63,32 @@ TEST(FilterTest, SingleFilter) {
     for (int j = 0; j < expected.size(); j++) { ASSERT_TRUE(device_candidates.contains(i, expected[j])); }
   }
 
-  mbsm::destroyDeviceCSRGraph(device_data_graph, queue);
-  mbsm::destroyDeviceAMGraph(device_query_graph, queue);
+  sigmo::destroyDeviceCSRGraph(device_data_graph, queue);
+  sigmo::destroyDeviceAMGraph(device_query_graph, queue);
 }
 
 
 TEST(FilterTest, RefinementTest) {
-  auto query_graphs = mbsm::io::loadAMGraphsFromFile(TEST_QUERY_PATH);
-  auto data_graphs = mbsm::io::loadCSRGraphsFromFile(TEST_DATA_PATH);
+  auto query_graphs = sigmo::io::loadAMGraphsFromFile(TEST_QUERY_PATH);
+  auto data_graphs = sigmo::io::loadCSRGraphsFromFile(TEST_DATA_PATH);
 
   sycl::queue queue{sycl::gpu_selector_v};
 
-  auto device_query_graph = mbsm::createDeviceAMGraph(queue, query_graphs);
-  auto device_data_graph = mbsm::createDeviceCSRGraph(queue, data_graphs);
+  auto device_query_graph = sigmo::createDeviceAMGraph(queue, query_graphs);
+  auto device_data_graph = sigmo::createDeviceCSRGraph(queue, data_graphs);
 
-  mbsm::signature::Signature<> signatures{queue, device_data_graph.total_nodes, device_query_graph.total_nodes};
+  sigmo::signature::Signature<> signatures{queue, device_data_graph.total_nodes, device_query_graph.total_nodes};
 
   auto e1 = signatures.generateAMSignatures(device_query_graph);
   auto e2 = signatures.generateCSRSignatures(device_data_graph);
 
 
-  mbsm::candidates::Candidates candidates{queue, device_query_graph.total_nodes, device_data_graph.total_nodes};
+  sigmo::candidates::Candidates candidates{queue, device_query_graph.total_nodes, device_data_graph.total_nodes};
 
-  mbsm::isomorphism::filter::filterCandidates(queue, device_query_graph, device_data_graph, signatures, candidates).wait();
+  sigmo::isomorphism::filter::filterCandidates(queue, device_query_graph, device_data_graph, signatures, candidates).wait();
 
-  std::unordered_map<mbsm::types::node_t, std::set<mbsm::types::node_t>> expected_candidates;
-  for (int i = 0; i < device_query_graph.total_nodes; i++) { expected_candidates[i] = std::set<mbsm::types::node_t>(); }
+  std::unordered_map<sigmo::types::node_t, std::set<sigmo::types::node_t>> expected_candidates;
+  for (int i = 0; i < device_query_graph.total_nodes; i++) { expected_candidates[i] = std::set<sigmo::types::node_t>(); }
 
   auto query_signatures = signatures.getDeviceQuerySignatures();
   auto data_signatures = signatures.getDeviceDataSignatures();
@@ -102,7 +102,7 @@ TEST(FilterTest, RefinementTest) {
 
       if (data_label != query_label) { continue; }
       bool insert = true;
-      for (mbsm::types::label_t l = 0; l < signatures.getMaxLabels(); l++) {
+      for (sigmo::types::label_t l = 0; l < signatures.getMaxLabels(); l++) {
         insert = insert && (query_signature.getLabelCount(l) <= data_signature.getLabelCount(l));
         if (!insert) break;
       }
@@ -114,7 +114,7 @@ TEST(FilterTest, RefinementTest) {
   signatures.refineCSRSignatures(device_data_graph).wait();
   signatures.refineAMSignatures(device_query_graph).wait();
 
-  mbsm::isomorphism::filter::refineCandidates(queue, device_query_graph, device_data_graph, signatures, candidates).wait();
+  sigmo::isomorphism::filter::refineCandidates(queue, device_query_graph, device_data_graph, signatures, candidates).wait();
 
   auto expected_query_signatures = getExpectedQuerySignatures(TEST_QUERY_PATH, 1);
   auto expected_data_signatures = getExpectedDataSignatures(TEST_DATA_PATH, 1);
@@ -128,7 +128,7 @@ TEST(FilterTest, RefinementTest) {
       if (expected_candidates[query_node].find(data_node) == expected_candidates[query_node].end()) { continue; }
 
       bool keep = query_label == data_label;
-      for (mbsm::types::label_t l = 0; l < signatures.getMaxLabels() && keep; l++) {
+      for (sigmo::types::label_t l = 0; l < signatures.getMaxLabels() && keep; l++) {
         keep = keep && (query_signature.getLabelCount(l) <= data_signature.getLabelCount(l));
       }
       if (!keep) { expected_candidates[query_node].erase(data_node); }
@@ -143,8 +143,8 @@ TEST(FilterTest, RefinementTest) {
     for (auto data_node : expected) { ASSERT_TRUE(candidates_device.contains(i, data_node)); }
   }
 
-  mbsm::destroyDeviceCSRGraph(device_data_graph, queue);
-  mbsm::destroyDeviceAMGraph(device_query_graph, queue);
+  sigmo::destroyDeviceCSRGraph(device_data_graph, queue);
+  sigmo::destroyDeviceAMGraph(device_query_graph, queue);
 }
 
 

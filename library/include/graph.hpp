@@ -15,7 +15,7 @@
 #include <sycl/sycl.hpp>
 #include <vector>
 
-namespace mbsm {
+namespace sigmo {
 
 class AMGraph {
 public:
@@ -385,4 +385,4 @@ static size_t getDeviceGraphAllocSize(const std::vector<T>& data) {
   }
 }
 
-} // namespace mbsm
+} // namespace sigmo

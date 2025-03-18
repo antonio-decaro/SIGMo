@@ -4,7 +4,7 @@
  */
 
 #include "./utils.hpp"
-#include <mbsm.hpp>
+#include <sigmo.hpp>
 #include <sycl/sycl.hpp>
 
 struct CandidatesInspector {
@@ -29,10 +29,10 @@ struct CandidatesInspector {
 };
 
 int main(int argc, char** argv) {
-  Args args{argc, argv, mbsm::device::deviceOptions};
+  Args args{argc, argv, sigmo::device::deviceOptions};
 
-  mbsm::DeviceBatchedCSRGraph device_data_graph;
-  mbsm::DeviceBatchedCSRGraph device_query_graph;
+  sigmo::DeviceBatchedCSRGraph device_data_graph;
+  sigmo::DeviceBatchedCSRGraph device_query_graph;
   size_t num_query_graphs;
   size_t num_data_graphs;
 
@@ -43,8 +43,8 @@ int main(int argc, char** argv) {
   TimeEvents host_time_events;
 
   if (args.query_data) {
-    auto query_graphs = mbsm::io::loadCSRGraphsFromFile(args.query_file);
-    auto data_graphs = mbsm::io::loadCSRGraphsFromFile(args.data_file);
+    auto query_graphs = sigmo::io::loadCSRGraphsFromFile(args.query_file);
+    auto data_graphs = sigmo::io::loadCSRGraphsFromFile(args.data_file);
     if (args.query_filter.active) {
       for (int i = 0; i < query_graphs.size(); ++i) {
         if (query_graphs[i].getNumNodes() > args.query_filter.max_nodes || query_graphs[i].getNumNodes() < args.query_filter.min_nodes) {
@@ -61,14 +61,14 @@ int main(int argc, char** argv) {
     for (size_t i = 1; i < args.multiply_factor_data; ++i) {
       data_graphs.insert(data_graphs.end(), data_graphs.begin(), data_graphs.begin() + num_data_graphs);
     }
-    device_query_graph = mbsm::createDeviceCSRGraph(queue, query_graphs);
-    device_data_graph = mbsm::createDeviceCSRGraph(queue, data_graphs);
+    device_query_graph = sigmo::createDeviceCSRGraph(queue, query_graphs);
+    device_data_graph = sigmo::createDeviceCSRGraph(queue, data_graphs);
   } else {
     throw std::runtime_error("Specify input data");
   }
 
-  size_t data_graph_bytes = mbsm::getDeviceGraphAllocSize(device_data_graph);
-  size_t query_graphs_bytes = mbsm::getDeviceGraphAllocSize(device_query_graph);
+  size_t data_graph_bytes = sigmo::getDeviceGraphAllocSize(device_data_graph);
+  size_t query_graphs_bytes = sigmo::getDeviceGraphAllocSize(device_query_graph);
 
   std::vector<std::chrono::duration<double>> data_sig_times, query_sig_times, filter_times;
 
@@ -76,15 +76,15 @@ int main(int argc, char** argv) {
   size_t data_nodes = device_data_graph.total_nodes;
 
   // get the right filter domain method
-  std::function<mbsm::utils::BatchedEvent(
-      sycl::queue&, mbsm::DeviceBatchedCSRGraph&, mbsm::DeviceBatchedCSRGraph&, mbsm::signature::Signature<>&, mbsm::candidates::Candidates&)>
+  std::function<sigmo::utils::BatchedEvent(
+      sycl::queue&, sigmo::DeviceBatchedCSRGraph&, sigmo::DeviceBatchedCSRGraph&, sigmo::signature::Signature<>&, sigmo::candidates::Candidates&)>
       filter_method, refine_method;
   if (args.isCandidateDomainData()) {
-    filter_method = mbsm::isomorphism::filter::filterCandidates<mbsm::candidates::CandidatesDomain::Data>;
-    refine_method = mbsm::isomorphism::filter::refineCandidates<mbsm::candidates::CandidatesDomain::Data>;
+    filter_method = sigmo::isomorphism::filter::filterCandidates<sigmo::candidates::CandidatesDomain::Data>;
+    refine_method = sigmo::isomorphism::filter::refineCandidates<sigmo::candidates::CandidatesDomain::Data>;
   } else {
-    filter_method = mbsm::isomorphism::filter::filterCandidates<mbsm::candidates::CandidatesDomain::Query>;
-    refine_method = mbsm::isomorphism::filter::refineCandidates<mbsm::candidates::CandidatesDomain::Query>;
+    filter_method = sigmo::isomorphism::filter::filterCandidates<sigmo::candidates::CandidatesDomain::Query>;
+    refine_method = sigmo::isomorphism::filter::refineCandidates<sigmo::candidates::CandidatesDomain::Query>;
   }
 
   std::cout << "------------- Input Data -------------" << std::endl;
@@ -96,8 +96,8 @@ int main(int argc, char** argv) {
 
   std::cout << "------------- Configs -------------" << std::endl;
   std::cout << "Filter domain: " << args.candidates_domain << std::endl;
-  std::cout << "Filter Work Group Size: " << mbsm::device::deviceOptions.filter_work_group_size << std::endl;
-  std::cout << "Join Work Group Size: " << mbsm::device::deviceOptions.join_work_group_size << std::endl;
+  std::cout << "Filter Work Group Size: " << sigmo::device::deviceOptions.filter_work_group_size << std::endl;
+  std::cout << "Join Work Group Size: " << sigmo::device::deviceOptions.join_work_group_size << std::endl;
 
   host_time_events.add("setup_data_start");
   std::cout << "------------- Setup Data -------------" << std::endl;
@@ -106,11 +106,11 @@ int main(int argc, char** argv) {
 
   size_t source_nodes = args.isCandidateDomainData() ? data_nodes : query_nodes;
   size_t target_nodes = args.isCandidateDomainData() ? query_nodes : data_nodes;
-  mbsm::candidates::Candidates candidates{queue, source_nodes, target_nodes};
-  size_t candidates_bytes = candidates.getAllocationSize() * sizeof(mbsm::types::candidates_t);
+  sigmo::candidates::Candidates candidates{queue, source_nodes, target_nodes};
+  size_t candidates_bytes = candidates.getAllocationSize() * sizeof(sigmo::types::candidates_t);
   std::cout << "Allocated " << getBytesSize(candidates_bytes) << " for candidates" << std::endl;
 
-  mbsm::signature::Signature<> signatures{queue, device_data_graph.total_nodes, device_query_graph.total_nodes};
+  sigmo::signature::Signature<> signatures{queue, device_data_graph.total_nodes, device_query_graph.total_nodes};
   size_t data_signatures_bytes = signatures.getDataSignatureAllocationSize();
   std::cout << "Allocated " << getBytesSize(data_signatures_bytes) << " for data signatures" << std::endl;
   size_t query_signatures_bytes = signatures.getQuerySignatureAllocationSize();
@@ -177,13 +177,13 @@ int main(int argc, char** argv) {
   if (!args.skip_join) {
     std::cout << "[*] Generating DQCR" << std::endl;
     host_time_events.add("mapping_start");
-    mbsm::isomorphism::mapping::GMCR gmcr{queue};
+    sigmo::isomorphism::mapping::GMCR gmcr{queue};
     gmcr.generateGMCR(device_query_graph, device_data_graph, candidates);
     host_time_events.add("mapping_end");
 
     std::cout << "[*] Starting Join" << std::endl;
     auto join_e
-        = mbsm::isomorphism::join::joinCandidates(queue, device_query_graph, device_data_graph, candidates, gmcr, num_matches, !args.find_all);
+        = sigmo::isomorphism::join::joinCandidates(queue, device_query_graph, device_data_graph, candidates, gmcr, num_matches, !args.find_all);
     join_e.wait();
     join_time = join_e.getProfilingInfo();
   }
@@ -242,6 +242,6 @@ int main(int argc, char** argv) {
             << " ms" << std::endl;
 
   sycl::free(num_matches, queue);
-  mbsm::destroyDeviceCSRGraph(device_data_graph, queue);
-  mbsm::destroyDeviceCSRGraph(device_query_graph, queue);
+  sigmo::destroyDeviceCSRGraph(device_data_graph, queue);
+  sigmo::destroyDeviceCSRGraph(device_query_graph, queue);
 }

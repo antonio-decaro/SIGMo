@@ -8,7 +8,7 @@
 #include <cstdint>
 #include <limits>
 
-namespace mbsm {
+namespace sigmo {
 namespace types {
 
 using row_offset_t = uint32_t;
@@ -26,4 +26,4 @@ constexpr std::size_t MAX_NEIGHBORS = 4;
 
 
 } // namespace types
-} // namespace mbsm
+} // namespace sigmo

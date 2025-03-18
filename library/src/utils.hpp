@@ -9,7 +9,7 @@
 #include <cxxopts.hpp> // Include cxxopts header
 #include <filesystem>
 #include <iostream>
-#include <mbsm.hpp>
+#include <sigmo.hpp>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -35,7 +35,7 @@ public:
   size_t join_work_group_size = 0;
   Args::Filter query_filter;
 
-  Args(int& argc, char**& argv, mbsm::device::DeviceOptions& device_options) {
+  Args(int& argc, char**& argv, sigmo::device::DeviceOptions& device_options) {
     cxxopts::Options options(argv[0], "Command line options");
     options.add_options()("p,print-candidates", "Print the number of candidates for each query node", cxxopts::value<bool>(print_candidates))(
         "i,iterations", "Number of refinement iterations", cxxopts::value<int>(refinement_steps))(

@@ -9,7 +9,7 @@
 #include "utils.hpp"
 #include <sycl/sycl.hpp>
 
-namespace mbsm {
+namespace sigmo {
 namespace isomorphism {
 namespace mapping {
 
@@ -30,7 +30,7 @@ public:
 
   // Offloaded version of generateGMCR using SYCL kernels.
   utils::BatchedEvent
-  generateGMCR(mbsm::DeviceBatchedCSRGraph& query_graphs, mbsm::DeviceBatchedCSRGraph& data_graphs, mbsm::candidates::Candidates& candidates) {
+  generateGMCR(sigmo::DeviceBatchedCSRGraph& query_graphs, sigmo::DeviceBatchedCSRGraph& data_graphs, sigmo::candidates::Candidates& candidates) {
     // Get dimensions
     const size_t total_query_graphs = query_graphs.num_graphs;
     const size_t total_data_graphs = data_graphs.num_graphs;
@@ -131,4 +131,4 @@ public:
 
 } // namespace mapping
 } // namespace isomorphism
-} // namespace mbsm
+} // namespace sigmo

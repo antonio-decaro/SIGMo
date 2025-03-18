@@ -4,7 +4,7 @@
  */
 
 #include <iostream>
-#include <mbsm.hpp>
+#include <sigmo.hpp>
 
 int main(int argc, char** argv) {
   if (argc < 4) {
@@ -17,18 +17,18 @@ int main(int argc, char** argv) {
   std::string output_file = std::string(argv[3]);
 
   std::cout << "Reading query graphs from " << query_graphs_file << std::endl;
-  std::vector<mbsm::AMGraph> query_graphs = mbsm::io::loadAMGraphsFromFile(query_graphs_file);
+  std::vector<sigmo::AMGraph> query_graphs = sigmo::io::loadAMGraphsFromFile(query_graphs_file);
   std::cout << "Number of query graphs: " << query_graphs.size() << std::endl;
 
   std::cout << "Reading data graphs from " << data_graphs_file << std::endl;
-  std::vector<mbsm::CSRGraph> data_graphs = mbsm::io::loadCSRGraphsFromFile(data_graphs_file);
+  std::vector<sigmo::CSRGraph> data_graphs = sigmo::io::loadCSRGraphsFromFile(data_graphs_file);
   std::cout << "Number of data graphs: " << data_graphs.size() << std::endl;
 
   std::cout << "Creating pool" << std::endl;
-  mbsm::GraphPool pool(data_graphs, query_graphs);
+  sigmo::GraphPool pool(data_graphs, query_graphs);
 
   std::cout << "Saving pool to " << output_file << std::endl;
-  mbsm::io::savePoolToBinary(pool, output_file);
+  sigmo::io::savePoolToBinary(pool, output_file);
 
   return 0;
 }

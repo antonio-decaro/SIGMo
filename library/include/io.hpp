@@ -11,15 +11,15 @@
 #include <iostream>
 #include <string>
 
-namespace mbsm {
+namespace sigmo {
 namespace io {
 
 std::vector<AMGraph> loadAMGraphsFromFile(const std::string& filename) {
   std::ifstream file(filename);
   std::string line;
-  std::vector<mbsm::AMGraph> query_graphs;
+  std::vector<sigmo::AMGraph> query_graphs;
   while (std::getline(file, line)) {
-    mbsm::IntermediateGraph intermediate_graph{line};
+    sigmo::IntermediateGraph intermediate_graph{line};
     query_graphs.push_back(intermediate_graph.toAMGraph());
   }
   return query_graphs;
@@ -28,19 +28,19 @@ std::vector<AMGraph> loadAMGraphsFromFile(const std::string& filename) {
 std::vector<CSRGraph> loadCSRGraphsFromFile(const std::string& filename) {
   std::ifstream file(filename);
   std::string line;
-  std::vector<mbsm::CSRGraph> data_graphs;
+  std::vector<sigmo::CSRGraph> data_graphs;
   while (std::getline(file, line)) {
-    mbsm::IntermediateGraph intermediate_graph{line};
+    sigmo::IntermediateGraph intermediate_graph{line};
     data_graphs.push_back(intermediate_graph.toCSRGraph());
   }
   return data_graphs;
 }
 
-mbsm::GraphPool loadPoolFromBinary(const std::string& filename) {
+sigmo::GraphPool loadPoolFromBinary(const std::string& filename) {
   std::ifstream file(filename, std::ios::binary);
   if (!file.is_open()) { throw std::runtime_error("Unable to open file for reading: " + filename); }
 
-  mbsm::GraphPool pool;
+  sigmo::GraphPool pool;
 
   // Read the number of data graphs
   uint32_t num_data_graphs;
@@ -80,7 +80,7 @@ mbsm::GraphPool loadPoolFromBinary(const std::string& filename) {
     file.read(reinterpret_cast<char*>(&num_nodes), sizeof(num_nodes));
 
     // Read the adjacency matrix
-    uint32_t adjacency_size = mbsm::utils::getNumOfAdjacencyIntegers(num_nodes);
+    uint32_t adjacency_size = sigmo::utils::getNumOfAdjacencyIntegers(num_nodes);
     std::vector<types::adjacency_t> adjacency(adjacency_size);
     file.read(reinterpret_cast<char*>(adjacency.data()), adjacency_size * sizeof(types::adjacency_t));
 
@@ -96,7 +96,7 @@ mbsm::GraphPool loadPoolFromBinary(const std::string& filename) {
   return pool;
 }
 
-void savePoolToBinary(mbsm::GraphPool& pool, const std::string& filename) {
+void savePoolToBinary(sigmo::GraphPool& pool, const std::string& filename) {
   std::ofstream file(filename, std::ios::binary);
   if (!file.is_open()) { throw std::runtime_error("Unable to open file for writing: " + filename); }
 
@@ -132,7 +132,7 @@ void savePoolToBinary(mbsm::GraphPool& pool, const std::string& filename) {
     file.write(reinterpret_cast<const char*>(&num_nodes), sizeof(num_nodes));
 
     // Write the adjacency matrix
-    uint32_t adjacency_size = mbsm::utils::getNumOfAdjacencyIntegers(num_nodes);
+    uint32_t adjacency_size = sigmo::utils::getNumOfAdjacencyIntegers(num_nodes);
     file.write(reinterpret_cast<const char*>(graph.getAdjacencyMatrix()), adjacency_size * sizeof(types::adjacency_t));
 
     // Write the labels
@@ -143,4 +143,4 @@ void savePoolToBinary(mbsm::GraphPool& pool, const std::string& filename) {
 }
 
 } // namespace io
-} // namespace mbsm
+} // namespace sigmo

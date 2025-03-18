@@ -4,18 +4,18 @@
 
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-AVAILABLE_BENCHMARKS="VF3,CuTS,GSI,MBSM"
+AVAILABLE_BENCHMARKS="VF3,CuTS,GSI,SIGMO"
 
 benchmarks=$AVAILABLE_BENCHMARKS
-mbsm_arch="nvidia_gpu_sm_70"
-mbsm_compiler="icpx"
+sigmo_arch="nvidia_gpu_sm_70"
+sigmo_compiler="icpx"
 
 help()
 {
     echo "Usage: ./init_msm.sh 
       [ -b=bench1,bench2,bench3] The set of benchmark files to be generated;
-      [ --mbsm-arch= ] The target architecture for MBSM;
-      [ --mbsm-compiler= ] The compiler for MBSM;
+      [ --sigmo-arch= ] The target architecture for SIGMO;
+      [ --sigmo-compiler= ] The compiler for SIGMO;
       [ -h | --help ] Print this help message and exit.
       The available benchmarks are: " $AVAILABLE_BENCHMARKS
 }
@@ -27,12 +27,12 @@ while [[ $# -gt 0 ]]; do
       benchmarks="${1#*=}"
       shift
       ;;
-    --mbsm-arch=*)
-      mbsm_arch="${1#*=}"
+    --sigmo-arch=*)
+      sigmo_arch="${1#*=}"
       shift
       ;;
-    --mbsm-compiler=*)
-      mbsm_compiler="${1#*=}"
+    --sigmo-compiler=*)
+      sigmo_compiler="${1#*=}"
       shift
       ;;
     -h | --help)
@@ -94,12 +94,12 @@ then
   make
 fi
 
-if [[ $benchmarks == *"MBSM"* ]]
+if [[ $benchmarks == *"SIGMO"* ]]
 then
-  echo "[*] Building MBSM"
+  echo "[*] Building SIGMO"
   mkdir build
   cd build
-  cmake ../library -DCMAKE_CXX_COMPILER=$mbsm_compiler -DMBSM_TARGET_ARCHITECTURE=$mbsm_arch -DMBSM_ENABLE_TEST=OFF
+  cmake ../library -DCMAKE_CXX_COMPILER=$sigmo_compiler -DSIGMO_TARGET_ARCHITECTURE=$sigmo_arch -DSIGMO_ENABLE_TEST=OFF
   cmake --build . -j
 fi
 

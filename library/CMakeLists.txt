@@ -4,7 +4,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Set the project name
-project(MBSM)
+project(SIGMO)
 
 # Specify the C++ standard
 set(CMAKE_CXX_STANDARD 17)
@@ -28,8 +28,8 @@ FetchContent_MakeAvailable(cxxopts)
 # Include cxxopts
 include_directories(${cxxopts_SOURCE_DIR}/include)
 
-option (MBSM_ENABLE_TEST OFF)
-if (MBSM_ENABLE_TEST)
+option (SIGMO_ENABLE_TEST OFF)
+if (SIGMO_ENABLE_TEST)
     add_subdirectory(${CMAKE_SOURCE_DIR}/test)
 endif()
 
@@ -40,20 +40,20 @@ add_executable(create_pool
 add_executable(inspector
     ${CMAKE_SOURCE_DIR}/src/inspector.cpp
 )
-add_executable(mbsm
-    ${CMAKE_SOURCE_DIR}/src/mbsm.cpp
+add_executable(sigmo
+    ${CMAKE_SOURCE_DIR}/src/sigmo.cpp
 )
 
 # Link cxxopts to the executables
 target_link_libraries(create_pool PRIVATE cxxopts)
 target_link_libraries(inspector PRIVATE cxxopts)
-target_link_libraries(mbsm PRIVATE cxxopts)
+target_link_libraries(sigmo PRIVATE cxxopts)
 
 # Select the target architecture
-set (MBSM_TARGET_ARCHITECTURE "" CACHE STRING "Target architecture for the MBSM library")
-if (MBSM_TARGET_ARCHITECTURE STREQUAL "")
-    message(FATAL_ERROR "Please specify the target architecture for the MBSM library")
+set (SIGMO_TARGET_ARCHITECTURE "" CACHE STRING "Target architecture for the SIGMO library")
+if (SIGMO_TARGET_ARCHITECTURE STREQUAL "")
+    message(FATAL_ERROR "Please specify the target architecture for the SIGMO library")
 endif()
 
 # Set the target architecture
-set(CMAKE_CXX_FLAGS "-fsycl -fsycl-targets=${MBSM_TARGET_ARCHITECTURE}")
+set(CMAKE_CXX_FLAGS "-fsycl -fsycl-targets=${SIGMO_TARGET_ARCHITECTURE}")

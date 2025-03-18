@@ -11,7 +11,7 @@
 #include <cstdint>
 #include <sycl/sycl.hpp>
 
-namespace mbsm {
+namespace sigmo {
 namespace signature {
 
 enum class Algorithm { ViewBased, PowerGraph };
@@ -102,7 +102,7 @@ public:
     sycl::range<1> global_range(graphs.total_nodes);
     SignatureDevice* signatures = s == SignatureScope::Data ? data_signatures : query_signatures;
     auto e = queue.submit([&](sycl::handler& cgh) {
-      cgh.parallel_for<mbsm::device::kernels::GenerateQuerySignaturesKernel>(
+      cgh.parallel_for<sigmo::device::kernels::GenerateQuerySignaturesKernel>(
           sycl::range<1>{graphs.total_nodes}, [=, graphs = graphs](sycl::item<1> item) {
             auto node_id = item.get_id(0);
             // Get the neighbors of the current node
@@ -133,12 +133,12 @@ public:
       auto* labels = graphs.labels;
 
 
-      cgh.parallel_for<mbsm::device::kernels::GenerateDataSignaturesKernel>(global_range, [=](sycl::item<1> item) {
+      cgh.parallel_for<sigmo::device::kernels::GenerateDataSignaturesKernel>(global_range, [=](sycl::item<1> item) {
         auto node_id = item.get_id(0);
 
         uint32_t start_neighbor = row_offsets[node_id];
         uint32_t end_neighbor = row_offsets[node_id + 1];
-        mbsm::types::label_t node_label = labels[node_id];
+        sigmo::types::label_t node_label = labels[node_id];
 
         for (uint32_t i = start_neighbor; i < end_neighbor; ++i) {
           auto neighbor = column_indices[i];
@@ -226,7 +226,7 @@ private:
       cgh.depends_on(copy_event);
       const uint16_t max_labels_count = Signature::SignatureDevice::getMaxLabels();
 
-      cgh.parallel_for<mbsm::device::kernels::RefineQuerySignaturesKernel>(
+      cgh.parallel_for<sigmo::device::kernels::RefineQuerySignaturesKernel>(
           sycl::range<1>{graphs.total_nodes}, [=, graphs = graphs, tmp_buff = this->tmp_buff](sycl::item<1> item) {
             auto node_id = item.get_id(0);
             // Get the neighbors of the current node
@@ -255,7 +255,7 @@ private:
     auto signatures = s == SignatureScope::Data ? data_signatures : query_signatures;
 
     auto refinement_event = queue.submit([&](sycl::handler& cgh) {
-      cgh.parallel_for<mbsm::device::kernels::RefineQuerySignaturesKernel>(
+      cgh.parallel_for<sigmo::device::kernels::RefineQuerySignaturesKernel>(
           sycl::range<1>{graphs.total_nodes}, [=, graphs = graphs, tmp_buff = this->tmp_buff](sycl::item<1> item) {
             auto node_id = item.get_id(0);
             auto graph_id = graphs.getGraphId(node_id);
@@ -312,12 +312,12 @@ private:
       auto* column_indices = graphs.column_indices;
       auto* labels = graphs.labels;
 
-      cgh.parallel_for<mbsm::device::kernels::RefineDataSignaturesKernel>(global_range, [=](sycl::item<1> item) {
+      cgh.parallel_for<sigmo::device::kernels::RefineDataSignaturesKernel>(global_range, [=](sycl::item<1> item) {
         auto node_id = item.get_id(0);
 
         uint32_t start_neighbor = row_offsets[node_id];
         uint32_t end_neighbor = row_offsets[node_id + 1];
-        mbsm::types::label_t node_label = labels[node_id];
+        sigmo::types::label_t node_label = labels[node_id];
 
         for (uint32_t i = start_neighbor; i < end_neighbor; ++i) {
           auto neighbor = column_indices[i];
@@ -345,7 +345,7 @@ private:
       auto* column_indices = graphs.column_indices;
       auto* labels = graphs.labels;
 
-      cgh.parallel_for<mbsm::device::kernels::RefineDataSignaturesKernel>(
+      cgh.parallel_for<sigmo::device::kernels::RefineDataSignaturesKernel>(
           global_range, [=, max_labels_count = Signature::SignatureDevice::getMaxLabels()](sycl::item<1> item) {
             auto node_id = item.get_id(0);
             auto graph_id = graphs.getGraphID(node_id);
@@ -390,4 +390,4 @@ private:
 };
 
 } // namespace signature
-} // namespace mbsm
+} // namespace sigmo

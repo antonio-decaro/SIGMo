@@ -5,7 +5,7 @@
 # Setting up variables
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DATA_DIR=$SCRIPT_DIR/data
-AVAILABLE_BENCHMARKS="VF3,CuTS,GSI,MBSM"
+AVAILABLE_BENCHMARKS="VF3,CuTS,GSI,SIGMO"
 
 data_limit=-1
 query_limit=-1
@@ -108,7 +108,7 @@ generate_files() {
     python3 $SCRIPT_DIR/scripts/smile2graph.py -f $bench -o $OUT_DIR/${type}.dat <<< "$lines"
   else
     mkdir -p $OUT_DIR/query
-    if [ "$bench" == "MBSM" ]; then
+    if [ "$bench" == "SIGMO" ]; then
       lines=$(head -n $limit $DATA_DIR/${type}.smarts)
       python3 $SCRIPT_DIR/scripts/smile2graph.py -f $bench -o $OUT_DIR/${type}.dat <<< "$lines"
     else

@@ -87,7 +87,7 @@ class VF3Parser(Parser):
     return self.dataframe
 
 
-class MBSMParser(Parser):
+class SIGMOParser(Parser):
   def parse(self):
     pass
 

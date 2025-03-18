@@ -115,7 +115,7 @@ class VF3Parser(Parser):
       for neighbor in neighbors:
         print(node, neighbor, file=file)
 
-class MBSMParser(Parser):
+class SIGMOParser(Parser):
   def parse(self, file):
     for g in self.graphs:
       g: nx.DiGraph

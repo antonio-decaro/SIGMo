@@ -15,16 +15,16 @@
 #include <sycl/sycl.hpp>
 
 
-namespace mbsm {
+namespace sigmo {
 namespace isomorphism {
 namespace filter {
 
 template<candidates::CandidatesDomain D = candidates::CandidatesDomain::Query>
 utils::BatchedEvent filterCandidates(sycl::queue& queue,
-                                     mbsm::DeviceBatchedCSRGraph& query_graph,
-                                     mbsm::DeviceBatchedCSRGraph& data_graph,
-                                     mbsm::signature::Signature<>& signatures,
-                                     mbsm::candidates::Candidates& candidates) {
+                                     sigmo::DeviceBatchedCSRGraph& query_graph,
+                                     sigmo::DeviceBatchedCSRGraph& data_graph,
+                                     sigmo::signature::Signature<>& signatures,
+                                     sigmo::candidates::Candidates& candidates) {
   size_t total_query_nodes = query_graph.total_nodes;
   size_t total_data_nodes = data_graph.total_nodes;
 
@@ -32,28 +32,30 @@ utils::BatchedEvent filterCandidates(sycl::queue& queue,
   sycl::range<1> global_range{total_data_nodes + (local_range[0] - (total_data_nodes % local_range[0]))};
 
   auto e = queue.submit([&](sycl::handler& cgh) {
-    cgh.parallel_for<mbsm::device::kernels::FilterCandidatesKernel<D>>(sycl::nd_range<1>({global_range, local_range}),
-                                                                       [=,
-                                                                        candidates = candidates.getCandidatesDevice(),
-                                                                        query_signatures = signatures.getDeviceQuerySignatures(),
-                                                                        data_signatures = signatures.getDeviceDataSignatures(),
-                                                                        max_labels = signatures.getMaxLabels()](sycl::nd_item<1> item) {
-                                                                         auto data_node_id = item.get_global_id(0);
-                                                                         if (data_node_id >= total_data_nodes) { return; }
-                                                                         auto data_signature = data_signatures[data_node_id];
-                                                                         auto query_labels = query_graph.labels;
-                                                                         auto data_labels = data_graph.labels;
+    cgh.parallel_for<sigmo::device::kernels::FilterCandidatesKernel<D>>(sycl::nd_range<1>({global_range, local_range}),
+                                                                        [=,
+                                                                         candidates = candidates.getCandidatesDevice(),
+                                                                         query_signatures = signatures.getDeviceQuerySignatures(),
+                                                                         data_signatures = signatures.getDeviceDataSignatures(),
+                                                                         max_labels = signatures.getMaxLabels()](sycl::nd_item<1> item) {
+                                                                          auto data_node_id = item.get_global_id(0);
+                                                                          if (data_node_id >= total_data_nodes) { return; }
+                                                                          auto data_signature = data_signatures[data_node_id];
+                                                                          auto query_labels = query_graph.labels;
+                                                                          auto data_labels = data_graph.labels;
 
-                                                                         for (size_t query_node_id = 0; query_node_id < total_query_nodes;
-                                                                              ++query_node_id) {
-                                                                           if (query_labels[query_node_id] != data_labels[data_node_id]) { continue; }
-                                                                           if constexpr (D == candidates::CandidatesDomain::Data) {
-                                                                             candidates.insert(data_node_id, query_node_id);
-                                                                           } else {
-                                                                             candidates.atomicInsert(query_node_id, data_node_id);
-                                                                           }
-                                                                         }
-                                                                       });
+                                                                          for (size_t query_node_id = 0; query_node_id < total_query_nodes;
+                                                                               ++query_node_id) {
+                                                                            if (query_labels[query_node_id] != data_labels[data_node_id]) {
+                                                                              continue;
+                                                                            }
+                                                                            if constexpr (D == candidates::CandidatesDomain::Data) {
+                                                                              candidates.insert(data_node_id, query_node_id);
+                                                                            } else {
+                                                                              candidates.atomicInsert(query_node_id, data_node_id);
+                                                                            }
+                                                                          }
+                                                                        });
   });
 
   utils::BatchedEvent be;
@@ -63,10 +65,10 @@ utils::BatchedEvent filterCandidates(sycl::queue& queue,
 
 template<candidates::CandidatesDomain D = candidates::CandidatesDomain::Query>
 utils::BatchedEvent refineCandidates(sycl::queue& queue,
-                                     mbsm::DeviceBatchedCSRGraph& query_graph,
-                                     mbsm::DeviceBatchedCSRGraph& data_graph,
-                                     mbsm::signature::Signature<>& signatures,
-                                     mbsm::candidates::Candidates& candidates) {
+                                     sigmo::DeviceBatchedCSRGraph& query_graph,
+                                     sigmo::DeviceBatchedCSRGraph& data_graph,
+                                     sigmo::signature::Signature<>& signatures,
+                                     sigmo::candidates::Candidates& candidates) {
   size_t total_query_nodes = query_graph.total_nodes;
   size_t total_data_nodes = data_graph.total_nodes;
 
@@ -74,7 +76,7 @@ utils::BatchedEvent refineCandidates(sycl::queue& queue,
   sycl::range<1> global_range{total_data_nodes + (local_range[0] - (total_data_nodes % local_range[0]))};
 
   auto e = queue.submit([&](sycl::handler& cgh) {
-    cgh.parallel_for<mbsm::device::kernels::RefineCandidatesKernel<D>>(
+    cgh.parallel_for<sigmo::device::kernels::RefineCandidatesKernel<D>>(
         sycl::nd_range<1>({global_range, local_range}),
         [=,
          candidates = candidates.getCandidatesDevice(),
@@ -137,9 +139,9 @@ struct Mapping { // TODO: make it SOA
 SYCL_EXTERNAL bool isValidMapping(types::node_t candidate,
                                   uint depth,
                                   const uint32_t* mapping,
-                                  const mbsm::DeviceBatchedCSRGraph& query_graphs,
+                                  const sigmo::DeviceBatchedCSRGraph& query_graphs,
                                   uint query_graph_id,
-                                  const mbsm::DeviceBatchedCSRGraph& data_graphs,
+                                  const sigmo::DeviceBatchedCSRGraph& data_graphs,
                                   uint data_graph_id) {
   for (int i = 0; i < depth; i++) {
     size_t query_nodes_offset = query_graphs.getPreviousNodes(query_graph_id);
@@ -170,10 +172,10 @@ SYCL_EXTERNAL void defineMatchingOrder(sycl::sub_group sg, size_t num_query_node
 }
 
 utils::BatchedEvent joinCandidates2(sycl::queue& queue,
-                                    mbsm::DeviceBatchedCSRGraph& query_graphs,
-                                    mbsm::DeviceBatchedCSRGraph& data_graphs,
-                                    mbsm::candidates::Candidates& candidates,
-                                    mbsm::isomorphism::mapping::GMCR& gmcr,
+                                    sigmo::DeviceBatchedCSRGraph& query_graphs,
+                                    sigmo::DeviceBatchedCSRGraph& data_graphs,
+                                    sigmo::candidates::Candidates& candidates,
+                                    sigmo::isomorphism::mapping::GMCR& gmcr,
                                     size_t* num_matches,
                                     bool find_first = true) {
   utils::BatchedEvent e;
@@ -270,10 +272,10 @@ utils::BatchedEvent joinCandidates2(sycl::queue& queue,
 }
 
 utils::BatchedEvent joinCandidates(sycl::queue& queue,
-                                   mbsm::DeviceBatchedCSRGraph& query_graphs,
-                                   mbsm::DeviceBatchedCSRGraph& data_graphs,
-                                   mbsm::candidates::Candidates& candidates,
-                                   mbsm::isomorphism::mapping::GMCR& gmcr,
+                                   sigmo::DeviceBatchedCSRGraph& query_graphs,
+                                   sigmo::DeviceBatchedCSRGraph& data_graphs,
+                                   sigmo::candidates::Candidates& candidates,
+                                   sigmo::isomorphism::mapping::GMCR& gmcr,
                                    size_t* num_matches,
                                    bool find_first = true) {
   utils::BatchedEvent e;
@@ -381,4 +383,4 @@ utils::BatchedEvent joinCandidates(sycl::queue& queue,
 
 } // namespace join
 } // namespace isomorphism
-} // namespace mbsm
+} // namespace sigmo

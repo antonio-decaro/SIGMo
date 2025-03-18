@@ -5,33 +5,33 @@
 
 #include "./include/utils.hpp"
 #include "gtest/gtest.h"
-#include <mbsm.hpp>
+#include <sigmo.hpp>
 
 TEST(GraphTest, GetNeighbors) {
   std::string fname1 = std::string(TEST_QUERY_PATH);
-  std::vector<mbsm::AMGraph> query_graphs = mbsm::io::loadAMGraphsFromFile(fname1);
+  std::vector<sigmo::AMGraph> query_graphs = sigmo::io::loadAMGraphsFromFile(fname1);
 
-  mbsm::types::node_t neighbors[4];
+  sigmo::types::node_t neighbors[4];
   for (auto& graph : query_graphs) {
     for (int i = 0; i < graph.getNumNodes(); ++i) {
-      mbsm::utils::adjacency_matrix::getNeighbors(
-          graph.getAdjacencyMatrix(), mbsm::utils::getNumOfAdjacencyIntegers(graph.getNumNodes()), i, neighbors);
+      sigmo::utils::adjacency_matrix::getNeighbors(
+          graph.getAdjacencyMatrix(), sigmo::utils::getNumOfAdjacencyIntegers(graph.getNumNodes()), i, neighbors);
       // Add assertions to verify the correctness of neighbors
-      ASSERT_TRUE(neighbors[0] != mbsm::types::NULL_NODE);
+      ASSERT_TRUE(neighbors[0] != sigmo::types::NULL_NODE);
     }
   }
 }
 
 TEST(GraphTest, IntoQueryDevice) {
   std::string fname1 = std::string(TEST_QUERY_PATH);
-  std::vector<mbsm::AMGraph> query_graphs = mbsm::io::loadAMGraphsFromFile(fname1);
+  std::vector<sigmo::AMGraph> query_graphs = sigmo::io::loadAMGraphsFromFile(fname1);
 
   size_t total_nodes = 0;
   for (auto& graph : query_graphs) { total_nodes += graph.getNumNodes(); }
 
   sycl::queue queue{sycl::gpu_selector_v};
 
-  auto device_query_graph = mbsm::createDeviceAMGraph(queue, query_graphs);
+  auto device_query_graph = sigmo::createDeviceAMGraph(queue, query_graphs);
 
   ASSERT_EQ(device_query_graph.total_nodes, total_nodes);
   ASSERT_EQ(device_query_graph.num_graphs, query_graphs.size());
@@ -40,13 +40,13 @@ TEST(GraphTest, IntoQueryDevice) {
   for (auto& graph : query_graphs) {
     ASSERT_EQ(device_query_graph.graph_offsets[&graph - &query_graphs[0]], adjacency_size);
 
-    size_t curr_size = mbsm::utils::getNumOfAdjacencyIntegers(graph.getNumNodes());
+    size_t curr_size = sigmo::utils::getNumOfAdjacencyIntegers(graph.getNumNodes());
     for (size_t i = 0; i < curr_size; ++i) { ASSERT_EQ(device_query_graph.adjacency[adjacency_size + i], graph.getAdjacencyMatrix()[i]); }
     adjacency_size += curr_size;
   }
 
   // create a vector with all the labels
-  std::vector<mbsm::types::label_t> labels(total_nodes);
+  std::vector<sigmo::types::label_t> labels(total_nodes);
   size_t offset = 0;
   for (auto& graph : query_graphs) {
     for (size_t i = 0; i < graph.getNumNodes(); i++) { labels[offset + i] = graph.getLabels()[i]; }
@@ -58,7 +58,7 @@ TEST(GraphTest, IntoQueryDevice) {
 
 TEST(GraphTest, IntoDataDevice) {
   std::string fname1 = std::string(TEST_DATA_PATH);
-  std::vector<mbsm::CSRGraph> data_graphs = mbsm::io::loadCSRGraphsFromFile(fname1);
+  std::vector<sigmo::CSRGraph> data_graphs = sigmo::io::loadCSRGraphsFromFile(fname1);
 
   size_t total_nodes = 0;
   size_t total_edges = 0;
@@ -69,17 +69,17 @@ TEST(GraphTest, IntoDataDevice) {
 
   sycl::queue queue{sycl::gpu_selector_v};
 
-  auto device_data_graph = mbsm::createDeviceCSRGraph(queue, data_graphs);
+  auto device_data_graph = sigmo::createDeviceCSRGraph(queue, data_graphs);
 
   ASSERT_EQ(device_data_graph.total_nodes, total_nodes);
   ASSERT_EQ(device_data_graph.num_graphs, data_graphs.size());
   ASSERT_EQ(device_data_graph.row_offsets[0], 0);
 
   // create a vector with all the labels, row_offsets and column_indices
-  std::vector<mbsm::types::row_offset_t> graph_offsets(data_graphs.size() + 1);
-  std::vector<mbsm::types::row_offset_t> row_offsets(total_nodes + 1);
-  std::vector<mbsm::types::col_index_t> column_indices(total_edges);
-  std::vector<mbsm::types::label_t> labels(total_nodes);
+  std::vector<sigmo::types::row_offset_t> graph_offsets(data_graphs.size() + 1);
+  std::vector<sigmo::types::row_offset_t> row_offsets(total_nodes + 1);
+  std::vector<sigmo::types::col_index_t> column_indices(total_edges);
+  std::vector<sigmo::types::label_t> labels(total_nodes);
 
   size_t ro_offset = 0;
   size_t col_offset = 0;

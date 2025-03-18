@@ -9,7 +9,7 @@
 #include <cstdint>
 #include <sycl/sycl.hpp>
 
-namespace mbsm {
+namespace sigmo {
 namespace device {
 
 static struct DeviceOptions {
@@ -41,4 +41,4 @@ class JoinCandidates2Kernel;
 
 } // namespace kernels
 } // namespace device
-} // namespace mbsm
+} // namespace sigmo

@@ -8,7 +8,7 @@
 #include <cstdint>
 #include <sycl/sycl.hpp>
 
-namespace mbsm {
+namespace sigmo {
 namespace candidates {
 
 enum class CandidatesDomain { Query, Data };
@@ -192,4 +192,4 @@ public:
 
 }; // class Candidates
 } // namespace candidates
-} // namespace mbsm
+} // namespace sigmo

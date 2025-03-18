@@ -4,7 +4,7 @@
  */
 
 #include <iostream>
-#include <mbsm.hpp>
+#include <sigmo.hpp>
 
 template<typename T>
 size_t countNodes(const std::vector<T>& graphs) {
@@ -28,19 +28,19 @@ int main(int argc, char** argv) {
   std::cout << "Reading from " << file << std::endl;
 
   if (mode == "query") {
-    std::vector<mbsm::AMGraph> query_graphs = mbsm::io::loadAMGraphsFromFile(file);
+    std::vector<sigmo::AMGraph> query_graphs = sigmo::io::loadAMGraphsFromFile(file);
     std::cout << "Number of query graphs: " << query_graphs.size() << std::endl;
     std::cout << "Number of nodes: " << countNodes(query_graphs) << std::endl;
     if (verbose)
       for (auto& query_graph : query_graphs) { std::cout << "Query graph with " << query_graph.getNumNodes() << " nodes" << std::endl; }
   } else if (mode == "data") {
-    std::vector<mbsm::CSRGraph> data_graphs = mbsm::io::loadCSRGraphsFromFile(file);
+    std::vector<sigmo::CSRGraph> data_graphs = sigmo::io::loadCSRGraphsFromFile(file);
     std::cout << "Number of data graphs: " << data_graphs.size() << std::endl;
     std::cout << "Number of nodes: " << countNodes(data_graphs) << std::endl;
     if (verbose)
       for (auto& data_graph : data_graphs) { std::cout << "Data graph with " << data_graph.getNumNodes() << " nodes" << std::endl; }
   } else if (mode == "pool") {
-    mbsm::GraphPool pool = mbsm::io::loadPoolFromBinary(file);
+    sigmo::GraphPool pool = sigmo::io::loadPoolFromBinary(file);
     std::cout << "Number of data graphs: " << pool.getDataGraphs().size() << std::endl;
     std::cout << "Number of query nodes: " << countNodes(pool.getQueryGraphs()) << std::endl;
     std::cout << "Number of query graphs: " << pool.getQueryGraphs().size() << std::endl;

@@ -32,7 +32,7 @@ set(TEST_POOL_PATH "${CMAKE_SOURCE_DIR}/test/data/test_pool.bin")
 set(TEST_TMP_PATH "${CMAKE_SOURCE_DIR}/test/data/tmp")
 
 # Add SYCL flags
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl -fsycl-targets=${MBSM_TARGET_ARCHITECTURE}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl -fsycl-targets=${SIGMO_TARGET_ARCHITECTURE}")
 
 # Loop to add executables and include directories
 foreach(TEST_FILE ${TEST_FILES})

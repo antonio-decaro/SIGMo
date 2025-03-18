@@ -7,11 +7,11 @@
 #include "./include/utils.hpp"
 #include "gtest/gtest.h"
 #include <bitset>
-#include <mbsm.hpp>
+#include <sigmo.hpp>
 #include <sycl/sycl.hpp>
 
 TEST(SignatureTest, CheckSignatureMethods) {
-  mbsm::signature::Signature<>::SignatureDevice signature;
+  sigmo::signature::Signature<>::SignatureDevice signature;
 
   signature.setLabelCount(0, 1);
   signature.setLabelCount(2, 3);
@@ -34,11 +34,11 @@ TEST(SignatureTest, CheckSignatureMethods) {
 TEST(SignatureTest, CheckQuerySignatureGeneration) {
   sycl::queue queue{sycl::gpu_selector_v};
 
-  auto query_graphs = mbsm::io::loadAMGraphsFromFile(TEST_QUERY_PATH);
+  auto query_graphs = sigmo::io::loadAMGraphsFromFile(TEST_QUERY_PATH);
 
-  auto device_query_graph = mbsm::createDeviceAMGraph(queue, query_graphs);
+  auto device_query_graph = sigmo::createDeviceAMGraph(queue, query_graphs);
 
-  mbsm::signature::Signature<> signatures{queue, device_query_graph.total_nodes, device_query_graph.total_nodes};
+  sigmo::signature::Signature<> signatures{queue, device_query_graph.total_nodes, device_query_graph.total_nodes};
 
   auto e = signatures.generateAMSignatures(device_query_graph);
 
@@ -54,11 +54,11 @@ TEST(SignatureTest, CheckQuerySignatureGeneration) {
 TEST(SignatureTest, RefineQuerySignature) {
   sycl::queue queue{sycl::gpu_selector_v};
 
-  auto query_graphs = mbsm::io::loadAMGraphsFromFile(TEST_QUERY_PATH);
+  auto query_graphs = sigmo::io::loadAMGraphsFromFile(TEST_QUERY_PATH);
 
-  auto device_query_graph = mbsm::createDeviceAMGraph(queue, query_graphs);
+  auto device_query_graph = sigmo::createDeviceAMGraph(queue, query_graphs);
 
-  mbsm::signature::Signature<> signatures{queue, device_query_graph.total_nodes, device_query_graph.total_nodes};
+  sigmo::signature::Signature<> signatures{queue, device_query_graph.total_nodes, device_query_graph.total_nodes};
 
   auto e = signatures.generateAMSignatures(device_query_graph);
   e.wait();
@@ -77,11 +77,11 @@ TEST(SignatureTest, RefineQuerySignature) {
 TEST(SignatureTest, CheckDataSignatureGeneration) {
   sycl::queue queue{sycl::gpu_selector_v};
 
-  auto data_graphs = mbsm::io::loadCSRGraphsFromFile(TEST_DATA_PATH);
+  auto data_graphs = sigmo::io::loadCSRGraphsFromFile(TEST_DATA_PATH);
 
-  auto device_data_graph = mbsm::createDeviceCSRGraph(queue, data_graphs);
+  auto device_data_graph = sigmo::createDeviceCSRGraph(queue, data_graphs);
 
-  mbsm::signature::Signature<> signatures{queue, device_data_graph.total_nodes, device_data_graph.total_nodes};
+  sigmo::signature::Signature<> signatures{queue, device_data_graph.total_nodes, device_data_graph.total_nodes};
 
   auto e = signatures.generateCSRSignatures(device_data_graph);
 
@@ -97,11 +97,11 @@ TEST(SignatureTest, CheckDataSignatureGeneration) {
 TEST(SignatureTest, RefineDataSignature) {
   sycl::queue queue{sycl::gpu_selector_v};
 
-  auto data_graphs = mbsm::io::loadCSRGraphsFromFile(TEST_DATA_PATH);
+  auto data_graphs = sigmo::io::loadCSRGraphsFromFile(TEST_DATA_PATH);
 
-  auto device_data_graph = mbsm::createDeviceCSRGraph(queue, data_graphs);
+  auto device_data_graph = sigmo::createDeviceCSRGraph(queue, data_graphs);
 
-  mbsm::signature::Signature<> signatures{queue, device_data_graph.total_nodes, device_data_graph.total_nodes};
+  sigmo::signature::Signature<> signatures{queue, device_data_graph.total_nodes, device_data_graph.total_nodes};
 
   auto e = signatures.generateCSRSignatures(device_data_graph);
   e.wait();
@@ -119,7 +119,7 @@ TEST(SignatureTest, RefineDataSignature) {
 TEST(CandidateTest, CheckInsertAndRemove) {
   sycl::queue queue{sycl::gpu_selector_v};
   const size_t num_nodes = 128;
-  mbsm::candidates::Candidates candidates{queue, 2, num_nodes};
+  sigmo::candidates::Candidates candidates{queue, 2, num_nodes};
 
   auto device_candidates = candidates.getCandidatesDevice();
 

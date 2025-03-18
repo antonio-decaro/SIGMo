@@ -11,7 +11,7 @@
 #include <sycl/sycl.hpp>
 #include <vector>
 
-namespace mbsm {
+namespace sigmo {
 namespace utils {
 
 template<typename TypeT = types::adjacency_t>
@@ -161,4 +161,4 @@ private:
 };
 
 } // namespace utils
-} // namespace mbsm
+} // namespace sigmo
