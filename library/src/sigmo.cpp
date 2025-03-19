@@ -174,7 +174,6 @@ int main(int argc, char** argv) {
   std::chrono::duration<double> join_time{0};
   size_t* num_matches = sycl::malloc_shared<size_t>(1, queue);
   num_matches[0] = 0;
-  host_time_events.add("join_start");
   if (!args.skip_join) {
     std::cout << "[*] Generating DQCR" << std::endl;
     host_time_events.add("mapping_start");
@@ -183,27 +182,14 @@ int main(int argc, char** argv) {
     host_time_events.add("mapping_end");
 
     std::cout << "[*] Starting Join" << std::endl;
+    host_time_events.add("join_start");
     auto join_e
         = sigmo::isomorphism::join::joinCandidates(queue, device_query_graph, device_data_graph, candidates, gmcr, num_matches, !args.find_all);
     join_e.wait();
     join_time = join_e.getProfilingInfo();
+    host_time_events.add("join_end");
   }
-  host_time_events.add("join_end");
   std::cout << "[!] End" << std::endl;
-
-  CandidatesInspector inspector;
-  for (size_t i = 0; i < (args.isCandidateDomainData() ? data_nodes : query_nodes); ++i) {
-    auto count = candidates.getCandidatesCount(i);
-    inspector.add(count);
-    if (args.print_candidates) std::cerr << "Node " << i << ": " << count << std::endl;
-  }
-  inspector.finalize();
-  std::cout << "------------- Results -------------" << std::endl;
-  std::cout << "# Total candidates: " << formatNumber(inspector.total) << std::endl;
-  std::cout << "# Average candidates: " << formatNumber(inspector.avg) << std::endl;
-  std::cout << "# Median candidates: " << formatNumber(inspector.median) << std::endl;
-  std::cout << "# Zero candidates: " << formatNumber(inspector.zero_count) << std::endl;
-  if (!args.skip_join) { std::cout << "# Matches: " << formatNumber(num_matches[0]) << std::endl; }
 
   std::cout << "------------- Overall GPU Stats -------------" << std::endl;
   std::chrono::duration<double> total_sig_query_time
@@ -241,6 +227,20 @@ int main(int argc, char** argv) {
   }
   std::cout << "Total time: " << std::chrono::duration_cast<std::chrono::milliseconds>(host_time_events.getTimeFrom("setup_data_end")).count()
             << " ms" << std::endl;
+
+  CandidatesInspector inspector;
+  for (size_t i = 0; i < (args.isCandidateDomainData() ? data_nodes : query_nodes); ++i) {
+    auto count = candidates.getCandidatesCount(i);
+    inspector.add(count);
+    if (args.print_candidates) std::cerr << "Node " << i << ": " << count << std::endl;
+  }
+  inspector.finalize();
+  std::cout << "------------- Results -------------" << std::endl;
+  std::cout << "# Total candidates: " << formatNumber(inspector.total) << std::endl;
+  std::cout << "# Average candidates: " << formatNumber(inspector.avg) << std::endl;
+  std::cout << "# Median candidates: " << formatNumber(inspector.median) << std::endl;
+  std::cout << "# Zero candidates: " << formatNumber(inspector.zero_count) << std::endl;
+  if (!args.skip_join) { std::cout << "# Matches: " << formatNumber(num_matches[0]) << std::endl; }
 
   sycl::free(num_matches, queue);
   sigmo::destroyDeviceCSRGraph(device_data_graph, queue);
