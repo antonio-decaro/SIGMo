@@ -180,7 +180,6 @@ int main(int argc, char** argv) {
     sigmo::isomorphism::mapping::GMCR gmcr{queue};
     gmcr.generateGMCR(device_query_graph, device_data_graph, candidates);
     host_time_events.add("mapping_end");
-
     std::cout << "[*] Starting Join" << std::endl;
     host_time_events.add("join_start");
     auto join_e
