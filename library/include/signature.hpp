@@ -155,13 +155,13 @@ public:
   utils::BatchedEvent refineCSRSignatures(DeviceBatchedCSRGraph& graphs, size_t view_size, SignatureScope s);
 
   Signature(sycl::queue& queue, size_t data_nodes, size_t query_nodes) : queue(queue), data_nodes(data_nodes), query_nodes(query_nodes) {
-    data_signatures = sycl::malloc_shared<SignatureDevice>(data_nodes, queue);
-    query_signatures = sycl::malloc_shared<SignatureDevice>(query_nodes, queue);
+    data_signatures = sycl::malloc_device<SignatureDevice>(data_nodes, queue);
+    query_signatures = sycl::malloc_device<SignatureDevice>(query_nodes, queue);
     if constexpr (A == Algorithm::ViewBased) {
-      tmp_buff = sycl::malloc_shared<SignatureDevice>(std::max(data_nodes, query_nodes), queue);
+      tmp_buff = sycl::malloc_device<SignatureDevice>(std::max(data_nodes, query_nodes), queue);
     } else if constexpr (A == Algorithm::PowerGraph) {
-      data_reachables = sycl::malloc_shared<utils::detail::Bitset<uint64_t>>(data_nodes, queue);
-      query_reachables = sycl::malloc_shared<utils::detail::Bitset<uint64_t>>(query_nodes, queue);
+      data_reachables = sycl::malloc_device<utils::detail::Bitset<uint64_t>>(data_nodes, queue);
+      query_reachables = sycl::malloc_device<utils::detail::Bitset<uint64_t>>(query_nodes, queue);
     }
     queue.fill(data_signatures, 0, data_nodes).wait();
     queue.fill(query_signatures, 0, query_nodes).wait();

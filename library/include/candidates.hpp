@@ -169,7 +169,7 @@ private:
 public:
   Candidates(sycl::queue& queue, size_t source_nodes, size_t target_nodes) : queue(queue), candidates(source_nodes, target_nodes) {
     size_t alloc_size = candidates.getAllocationSize();
-    candidates.candidates = sycl::malloc_shared<types::candidates_t>(alloc_size, queue);
+    candidates.candidates = sycl::malloc_device<types::candidates_t>(alloc_size, queue);
     size_t limit = 4194304;
     sycl::range<1> range(alloc_size < limit ? alloc_size : limit);
 

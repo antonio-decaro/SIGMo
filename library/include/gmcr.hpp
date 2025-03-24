@@ -36,7 +36,7 @@ public:
     const size_t total_data_graphs = data_graphs.num_graphs;
 
     // Allocate device memory for data_graph_offsets (size = total_data_graphs+1)
-    uint32_t* d_data_graph_offsets = sycl::malloc_shared<uint32_t>(total_data_graphs + 1, queue);
+    uint32_t* d_data_graph_offsets = sycl::malloc_device<uint32_t>(total_data_graphs + 1, queue);
     // Initialize to zero
     queue.fill(d_data_graph_offsets, 0, total_data_graphs + 1).wait();
 
@@ -79,10 +79,10 @@ public:
     queue.copy(&d_data_graph_offsets[total_data_graphs], &total_query_indices, 1).wait();
 
     // Allocate device memory for query_graph_indices.
-    uint32_t* d_query_graph_indices = sycl::malloc_shared<uint32_t>(total_query_indices, queue);
+    uint32_t* d_query_graph_indices = sycl::malloc_device<uint32_t>(total_query_indices, queue);
 
     // Create a copy of the prefix sum array to serve as atomic “current offsets”
-    uint32_t* current_offsets = sycl::malloc_shared<uint32_t>(total_data_graphs + 1, queue);
+    uint32_t* current_offsets = sycl::malloc_device<uint32_t>(total_data_graphs + 1, queue);
     queue.copy(d_data_graph_offsets, current_offsets, total_data_graphs + 1).wait();
 
     // --- Kernel 3: Fill query_graph_indices ---

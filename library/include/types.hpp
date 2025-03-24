@@ -17,7 +17,7 @@ using label_t = uint8_t;
 using node_t = uint32_t;
 using mask_t = uint64_t;
 using adjacency_t = uint64_t;
-using candidates_t = uint64_t;
+using candidates_t = uint32_t;
 
 // define null
 constexpr node_t NULL_NODE = std::numeric_limits<node_t>::max();

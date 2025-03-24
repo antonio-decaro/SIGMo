@@ -214,7 +214,7 @@ public:
 
 // TODO offload on GPU
 static DeviceBatchedCSRGraph createDeviceCSRGraph(sycl::queue& queue, std::vector<CSRGraph>& data_graphs) {
-  DeviceBatchedCSRGraph device_data_graph;
+  DeviceBatchedCSRGraph tmp_device_data_graph;
 
   size_t total_nodes = 0;
   size_t total_edges = 0;
@@ -224,14 +224,14 @@ static DeviceBatchedCSRGraph createDeviceCSRGraph(sycl::queue& queue, std::vecto
     total_edges += graph.getRowOffsets()[graph.getNumNodes()];
   }
 
-  device_data_graph.total_nodes = total_nodes;
-  device_data_graph.graph_offsets = sycl::malloc_shared<types::row_offset_t>(data_graphs.size() + 1, queue);
-  device_data_graph.row_offsets = sycl::malloc_shared<types::row_offset_t>(total_nodes + 1, queue);
-  device_data_graph.column_indices = sycl::malloc_shared<types::col_index_t>(total_edges, queue);
-  device_data_graph.labels = sycl::malloc_shared<types::label_t>(total_nodes, queue);
-  device_data_graph.num_graphs = data_graphs.size();
+  tmp_device_data_graph.total_nodes = total_nodes;
+  tmp_device_data_graph.graph_offsets = sycl::malloc_shared<types::row_offset_t>(data_graphs.size() + 1, queue);
+  tmp_device_data_graph.row_offsets = sycl::malloc_shared<types::row_offset_t>(total_nodes + 1, queue);
+  tmp_device_data_graph.column_indices = sycl::malloc_shared<types::col_index_t>(total_edges, queue);
+  tmp_device_data_graph.labels = sycl::malloc_shared<types::label_t>(total_nodes, queue);
+  tmp_device_data_graph.num_graphs = data_graphs.size();
 
-  device_data_graph.graph_offsets[0] = 0;
+  tmp_device_data_graph.graph_offsets[0] = 0;
   size_t ro_offset = 0;
   size_t col_offset = 0;
   size_t label_offset = 0;
@@ -241,18 +241,39 @@ static DeviceBatchedCSRGraph createDeviceCSRGraph(sycl::queue& queue, std::vecto
     size_t num_nodes = graph.getNumNodes();
     size_t num_row_offsets = num_nodes + 1;
     size_t num_column_indices = graph.getRowOffsets()[num_nodes];
-    device_data_graph.graph_offsets[graph_id + 1] = device_data_graph.graph_offsets[graph_id] + num_nodes;
+    tmp_device_data_graph.graph_offsets[graph_id + 1] = tmp_device_data_graph.graph_offsets[graph_id] + num_nodes;
 
-    for (size_t j = 0; j < num_row_offsets; ++j) { device_data_graph.row_offsets[ro_offset + j] = graph.getRowOffsets()[j] + col_offset; }
+    for (size_t j = 0; j < num_row_offsets; ++j) { tmp_device_data_graph.row_offsets[ro_offset + j] = graph.getRowOffsets()[j] + col_offset; }
 
-    for (size_t j = 0; j < num_column_indices; ++j) { device_data_graph.column_indices[col_offset + j] = graph.getColumnIndices()[j] + label_offset; }
+    for (size_t j = 0; j < num_column_indices; ++j) {
+      tmp_device_data_graph.column_indices[col_offset + j] = graph.getColumnIndices()[j] + label_offset;
+    }
 
-    for (size_t j = 0; j < num_nodes; ++j) { device_data_graph.labels[label_offset + j] = graph.getLabels()[j]; }
+    for (size_t j = 0; j < num_nodes; ++j) { tmp_device_data_graph.labels[label_offset + j] = graph.getLabels()[j]; }
 
     ro_offset += num_nodes;
     col_offset += num_column_indices;
     label_offset += num_nodes;
   }
+
+  DeviceBatchedCSRGraph device_data_graph;
+  device_data_graph.graph_offsets = sycl::malloc_device<types::row_offset_t>(data_graphs.size() + 1, queue);
+  device_data_graph.row_offsets = sycl::malloc_device<types::row_offset_t>(total_nodes + 1, queue);
+  device_data_graph.column_indices = sycl::malloc_device<types::col_index_t>(total_edges, queue);
+  device_data_graph.labels = sycl::malloc_device<types::label_t>(total_nodes, queue);
+  device_data_graph.num_graphs = data_graphs.size();
+  device_data_graph.total_nodes = total_nodes;
+
+  queue.copy(tmp_device_data_graph.graph_offsets, device_data_graph.graph_offsets, data_graphs.size() + 1);
+  queue.copy(tmp_device_data_graph.row_offsets, device_data_graph.row_offsets, total_nodes + 1);
+  queue.copy(tmp_device_data_graph.column_indices, device_data_graph.column_indices, total_edges);
+  queue.copy(tmp_device_data_graph.labels, device_data_graph.labels, total_nodes);
+
+  queue.wait_and_throw();
+  sycl::free(tmp_device_data_graph.graph_offsets, queue);
+  sycl::free(tmp_device_data_graph.row_offsets, queue);
+  sycl::free(tmp_device_data_graph.column_indices, queue);
+  sycl::free(tmp_device_data_graph.labels, queue);
 
   return device_data_graph;
 }
@@ -266,8 +287,8 @@ static void destroyDeviceCSRGraph(DeviceBatchedCSRGraph& device_data_graph, sycl
 
 static size_t getDeviceCSRGraphAllocSize(const DeviceBatchedCSRGraph& device_data_graph) {
   return device_data_graph.total_nodes * sizeof(types::label_t) + (device_data_graph.num_graphs + 1) * sizeof(types::row_offset_t)
-         + (device_data_graph.total_nodes + 1) * sizeof(types::row_offset_t)
-         + device_data_graph.row_offsets[device_data_graph.total_nodes] * sizeof(types::col_index_t);
+         + (device_data_graph.total_nodes + 1) * sizeof(types::row_offset_t);
+  //  + device_data_graph.row_offsets[device_data_graph.total_nodes] * sizeof(types::col_index_t);
 }
 
 static size_t getDeviceCSRGraphAllocSize(const std::vector<CSRGraph>& data_graphs) {
@@ -292,7 +313,7 @@ static DeviceBatchedAMGraph createDeviceAMGraph(sycl::queue& queue, std::vector<
 
   // fetching the adjacency matrix size
   sycl::buffer<uint8_t> adjacency_sizes(query_graphs.size());
-  device_query_graph.num_nodes = sycl::malloc_shared<uint32_t>(query_graphs.size(), queue);
+  device_query_graph.num_nodes = sycl::malloc_device<uint32_t>(query_graphs.size(), queue);
   sycl::host_accessor adjacency_sizes_hacc(adjacency_sizes);
   for (size_t i = 0; i < query_graphs.size(); ++i) {
     auto& graph = query_graphs[i];
@@ -301,20 +322,20 @@ static DeviceBatchedAMGraph createDeviceAMGraph(sycl::queue& queue, std::vector<
   }
 
   // prefix sum to get graph offsets
-  device_query_graph.graph_offsets = sycl::malloc_shared<uint32_t>(query_graphs.size(), queue);
+  device_query_graph.graph_offsets = sycl::malloc_device<uint32_t>(query_graphs.size(), queue);
   device_query_graph.graph_offsets[0] = 0;
   for (size_t i = 1; i < query_graphs.size(); ++i) {
     device_query_graph.graph_offsets[i] = device_query_graph.graph_offsets[i - 1] + adjacency_sizes_hacc[i - 1];
   }
 
   // allocate memory for adjacency matrix
-  device_query_graph.adjacency = sycl::malloc_shared<types::adjacency_t>(
+  device_query_graph.adjacency = sycl::malloc_device<types::adjacency_t>(
       device_query_graph.graph_offsets[query_graphs.size() - 1] + adjacency_sizes_hacc[query_graphs.size() - 1], queue);
 
   // allocate memory for labels
   size_t total_labels = device_query_graph.num_nodes[query_graphs.size() - 1];
   device_query_graph.total_nodes = total_labels;
-  device_query_graph.labels = sycl::malloc_shared<types::label_t>(total_labels, queue);
+  device_query_graph.labels = sycl::malloc_device<types::label_t>(total_labels, queue);
 
   // copy data to device
   size_t nodes_offset = 0;
