@@ -63,6 +63,7 @@ struct DeviceBatchedCSRGraph {
   types::label_t* labels;
   uint32_t num_graphs;
   size_t total_nodes;
+  size_t total_edges;
 
   SYCL_EXTERNAL inline bool isNeighbor(types::node_t node_id, types::node_t neighbor_id) const {
     for (size_t i = row_offsets[node_id]; i < row_offsets[node_id + 1]; ++i) {
@@ -214,8 +215,6 @@ public:
 
 // TODO offload on GPU
 static DeviceBatchedCSRGraph createDeviceCSRGraph(sycl::queue& queue, std::vector<CSRGraph>& data_graphs) {
-  DeviceBatchedCSRGraph device_data_graph;
-
   size_t total_nodes = 0;
   size_t total_edges = 0;
 
@@ -224,14 +223,12 @@ static DeviceBatchedCSRGraph createDeviceCSRGraph(sycl::queue& queue, std::vecto
     total_edges += graph.getRowOffsets()[graph.getNumNodes()];
   }
 
-  device_data_graph.total_nodes = total_nodes;
-  device_data_graph.graph_offsets = sycl::malloc_shared<types::row_offset_t>(data_graphs.size() + 1, queue);
-  device_data_graph.row_offsets = sycl::malloc_shared<types::row_offset_t>(total_nodes + 1, queue);
-  device_data_graph.column_indices = sycl::malloc_shared<types::col_index_t>(total_edges, queue);
-  device_data_graph.labels = sycl::malloc_shared<types::label_t>(total_nodes, queue);
-  device_data_graph.num_graphs = data_graphs.size();
+  std::vector<types::row_offset_t> graph_offsets(data_graphs.size() + 1);
+  std::vector<types::row_offset_t> row_offsets(total_nodes + 1);
+  std::vector<types::col_index_t> column_indices(total_edges);
+  std::vector<types::label_t> labels(total_nodes);
 
-  device_data_graph.graph_offsets[0] = 0;
+  graph_offsets[0] = 0;
   size_t ro_offset = 0;
   size_t col_offset = 0;
   size_t label_offset = 0;
@@ -241,18 +238,33 @@ static DeviceBatchedCSRGraph createDeviceCSRGraph(sycl::queue& queue, std::vecto
     size_t num_nodes = graph.getNumNodes();
     size_t num_row_offsets = num_nodes + 1;
     size_t num_column_indices = graph.getRowOffsets()[num_nodes];
-    device_data_graph.graph_offsets[graph_id + 1] = device_data_graph.graph_offsets[graph_id] + num_nodes;
+    graph_offsets[graph_id + 1] = graph_offsets[graph_id] + num_nodes;
 
-    for (size_t j = 0; j < num_row_offsets; ++j) { device_data_graph.row_offsets[ro_offset + j] = graph.getRowOffsets()[j] + col_offset; }
+    for (size_t j = 0; j < num_row_offsets; ++j) { row_offsets[ro_offset + j] = graph.getRowOffsets()[j] + col_offset; }
 
-    for (size_t j = 0; j < num_column_indices; ++j) { device_data_graph.column_indices[col_offset + j] = graph.getColumnIndices()[j] + label_offset; }
+    for (size_t j = 0; j < num_column_indices; ++j) { column_indices[col_offset + j] = graph.getColumnIndices()[j] + label_offset; }
 
-    for (size_t j = 0; j < num_nodes; ++j) { device_data_graph.labels[label_offset + j] = graph.getLabels()[j]; }
+    for (size_t j = 0; j < num_nodes; ++j) { labels[label_offset + j] = graph.getLabels()[j]; }
 
     ro_offset += num_nodes;
     col_offset += num_column_indices;
     label_offset += num_nodes;
   }
+
+  DeviceBatchedCSRGraph device_data_graph;
+  device_data_graph.num_graphs = data_graphs.size();
+  device_data_graph.total_nodes = total_nodes;
+  device_data_graph.total_edges = total_edges;
+  device_data_graph.graph_offsets = sigmo::device::memory::malloc<types::row_offset_t>(data_graphs.size() + 1, queue);
+  device_data_graph.row_offsets = sigmo::device::memory::malloc<types::row_offset_t>(total_nodes + 1, queue);
+  device_data_graph.column_indices = sigmo::device::memory::malloc<types::col_index_t>(total_edges, queue);
+  device_data_graph.labels = sigmo::device::memory::malloc<types::label_t>(total_nodes, queue);
+
+  queue.copy(graph_offsets.data(), device_data_graph.graph_offsets, data_graphs.size() + 1);
+  queue.copy(row_offsets.data(), device_data_graph.row_offsets, total_nodes + 1);
+  queue.copy(column_indices.data(), device_data_graph.column_indices, total_edges);
+  queue.copy(labels.data(), device_data_graph.labels, total_nodes);
+  queue.wait_and_throw();
 
   return device_data_graph;
 }
@@ -266,8 +278,7 @@ static void destroyDeviceCSRGraph(DeviceBatchedCSRGraph& device_data_graph, sycl
 
 static size_t getDeviceCSRGraphAllocSize(const DeviceBatchedCSRGraph& device_data_graph) {
   return device_data_graph.total_nodes * sizeof(types::label_t) + (device_data_graph.num_graphs + 1) * sizeof(types::row_offset_t)
-         + (device_data_graph.total_nodes + 1) * sizeof(types::row_offset_t)
-         + device_data_graph.row_offsets[device_data_graph.total_nodes] * sizeof(types::col_index_t);
+         + (device_data_graph.total_nodes + 1) * sizeof(types::row_offset_t) + device_data_graph.total_edges * sizeof(types::col_index_t);
 }
 
 static size_t getDeviceCSRGraphAllocSize(const std::vector<CSRGraph>& data_graphs) {

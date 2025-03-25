@@ -80,11 +80,11 @@ int main(int argc, char** argv) {
       sycl::queue&, sigmo::DeviceBatchedCSRGraph&, sigmo::DeviceBatchedCSRGraph&, sigmo::signature::Signature<>&, sigmo::candidates::Candidates&)>
       filter_method, refine_method;
   if (args.isCandidateDomainData()) {
-    filter_method = sigmo::isomorphism::filter::filterCandidates<sigmo::candidates::CandidatesDomain::Data>;
-    refine_method = sigmo::isomorphism::filter::refineCandidates<sigmo::candidates::CandidatesDomain::Data>;
+    filter_method = sigmo::isomorphism::filter::filterCandidates<sigmo::CandidatesDomain::Data>;
+    refine_method = sigmo::isomorphism::filter::refineCandidates<sigmo::CandidatesDomain::Data>;
   } else {
-    filter_method = sigmo::isomorphism::filter::filterCandidates<sigmo::candidates::CandidatesDomain::Query>;
-    refine_method = sigmo::isomorphism::filter::refineCandidates<sigmo::candidates::CandidatesDomain::Query>;
+    filter_method = sigmo::isomorphism::filter::filterCandidates<sigmo::CandidatesDomain::Query>;
+    refine_method = sigmo::isomorphism::filter::refineCandidates<sigmo::CandidatesDomain::Query>;
   }
 
   std::cout << "------------- Input Data -------------" << std::endl;
@@ -228,8 +228,9 @@ int main(int argc, char** argv) {
             << " ms" << std::endl;
 
   CandidatesInspector inspector;
+  auto host_candidates = candidates.getHostCandidates();
   for (size_t i = 0; i < (args.isCandidateDomainData() ? data_nodes : query_nodes); ++i) {
-    auto count = candidates.getCandidatesCount(i);
+    auto count = host_candidates.getCandidatesCount(i);
     inspector.add(count);
     if (args.print_candidates) std::cerr << "Node " << i << ": " << count << std::endl;
   }

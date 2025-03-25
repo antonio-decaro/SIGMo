@@ -5,11 +5,13 @@
 
 #pragma once
 
-#include "candidates.hpp"
 #include <cstdint>
 #include <sycl/sycl.hpp>
 
 namespace sigmo {
+
+
+enum class CandidatesDomain { Query, Data };
 namespace device {
 
 static struct DeviceOptions {
@@ -32,13 +34,46 @@ class RefineQuerySignaturesKernel;
 class GenerateDataSignaturesKernel;
 class RefineDataSignaturesKernel;
 
-template<candidates::CandidatesDomain D>
+template<CandidatesDomain D>
 class FilterCandidatesKernel;
-template<candidates::CandidatesDomain D>
+template<CandidatesDomain D>
 class RefineCandidatesKernel;
 class JoinCandidatesKernel;
 class JoinCandidates2Kernel;
 
 } // namespace kernels
+
+namespace memory {
+
+enum class MemoryScope {
+  Device,
+  Host,
+  Shared,
+};
+
+#if SIGMO_ALLOCATION == 0
+constexpr MemoryScope default_location = MemoryScope::Host;
+#elif SIGMO_ALLOCATION == 1
+constexpr MemoryScope default_location = MemoryScope::Device;
+#elif SIGMO_ALLOCATION == 2
+constexpr MemoryScope default_location = MemoryScope::Shared;
+#else
+#error "Invalid GRAPH_LOCATION value. Must be 0 (host), 1 (device), or 2 (shared)."
+#endif
+
+template<typename T>
+inline T* malloc(size_t count, sycl::queue& queue, MemoryScope scope = default_location) {
+  if (scope == MemoryScope::Device) {
+    return sycl::malloc_device<T>(count, queue);
+  } else if (scope == MemoryScope::Host) {
+    return sycl::malloc_host<T>(count, queue);
+  } else if (scope == MemoryScope::Shared) {
+    return sycl::malloc_shared<T>(count, queue);
+  }
+  throw std::runtime_error("Invalid memory scope");
+}
+
+} // namespace memory
+
 } // namespace device
 } // namespace sigmo

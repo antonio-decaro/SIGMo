@@ -28,6 +28,22 @@ FetchContent_MakeAvailable(cxxopts)
 # Include cxxopts
 include_directories(${cxxopts_SOURCE_DIR}/include)
 
+# Define the GRAPH_LOCATION parameter
+set(SIGMO_ALLOCATION "device" CACHE STRING "Location of the graph: host, device, or shared")
+set_property(CACHE GRAPH_LOCATION PROPERTY STRINGS "host" "device" "shared")
+
+# Map GRAPH_LOCATION to integers in compile definitions
+if (SIGMO_ALLOCATION STREQUAL "host")
+    message(WARNING "GRAPH_LOCATION=host is not recommended for performance. Use at your own risk.")
+    add_compile_definitions(SIGMO_ALLOCATION=0)
+elseif (SIGMO_ALLOCATION STREQUAL "device")
+    add_compile_definitions(SIGMO_ALLOCATION=1)
+elseif (SIGMO_ALLOCATION STREQUAL "shared")
+    add_compile_definitions(SIGMO_ALLOCATION=2)
+else()
+    message(FATAL_ERROR "Invalid SIGMO_ALLOCATION value. Must be 'host', 'device', or 'shared'.")
+endif()
+
 option (SIGMO_ENABLE_TEST OFF)
 if (SIGMO_ENABLE_TEST)
     add_subdirectory(${CMAKE_SOURCE_DIR}/test)

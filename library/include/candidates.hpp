@@ -4,14 +4,13 @@
  */
 
 #pragma once
+#include "device.hpp"
 #include "types.hpp"
 #include <cstdint>
 #include <sycl/sycl.hpp>
 
 namespace sigmo {
 namespace candidates {
-
-enum class CandidatesDomain { Query, Data };
 
 class Candidates {
 private:
@@ -165,11 +164,13 @@ private:
   }; // struct CandidatesDevice
   sycl::queue& queue;
   CandidatesDevice candidates;
+  CandidatesDevice host_candidates;
 
 public:
-  Candidates(sycl::queue& queue, size_t source_nodes, size_t target_nodes) : queue(queue), candidates(source_nodes, target_nodes) {
+  Candidates(sycl::queue& queue, size_t source_nodes, size_t target_nodes)
+      : queue(queue), candidates(source_nodes, target_nodes), host_candidates(source_nodes, target_nodes) {
     size_t alloc_size = candidates.getAllocationSize();
-    candidates.candidates = sycl::malloc_shared<types::candidates_t>(alloc_size, queue);
+    candidates.candidates = sycl::malloc_device<types::candidates_t>(alloc_size, queue);
     size_t limit = 4194304;
     sycl::range<1> range(alloc_size < limit ? alloc_size : limit);
 
@@ -181,7 +182,20 @@ public:
         })
         .wait();
   }
-  ~Candidates() { sycl::free(candidates.candidates, queue); }
+  ~Candidates() {
+    sycl::free(candidates.candidates, queue);
+    if (host_candidates.candidates != nullptr) delete[] host_candidates.candidates;
+  }
+
+  CandidatesDevice getHostCandidates() {
+    if (device::memory::default_location == device::memory::MemoryScope::Host
+        || device::memory::default_location == device::memory::MemoryScope::Shared) {
+      return candidates;
+    }
+    host_candidates.setDataCandidates(new types::candidates_t[candidates.source_nodes * candidates.single_node_size]);
+    queue.copy(candidates.candidates, host_candidates.candidates, candidates.source_nodes * candidates.single_node_size).wait();
+    return host_candidates;
+  }
 
   size_t getCandidatesCount(types::node_t source_node) const { return candidates.getCandidatesCount(source_node); }
   size_t getCandidatesCount(types::node_t source_node, uint32_t graph_start, uint32_t graph_end) const {

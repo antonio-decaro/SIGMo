@@ -19,7 +19,7 @@ namespace sigmo {
 namespace isomorphism {
 namespace filter {
 
-template<candidates::CandidatesDomain D = candidates::CandidatesDomain::Query>
+template<CandidatesDomain D = CandidatesDomain::Query>
 utils::BatchedEvent filterCandidates(sycl::queue& queue,
                                      sigmo::DeviceBatchedCSRGraph& query_graph,
                                      sigmo::DeviceBatchedCSRGraph& data_graph,
@@ -49,7 +49,7 @@ utils::BatchedEvent filterCandidates(sycl::queue& queue,
                                                                             if (query_labels[query_node_id] != data_labels[data_node_id]) {
                                                                               continue;
                                                                             }
-                                                                            if constexpr (D == candidates::CandidatesDomain::Data) {
+                                                                            if constexpr (D == CandidatesDomain::Data) {
                                                                               candidates.insert(data_node_id, query_node_id);
                                                                             } else {
                                                                               candidates.atomicInsert(query_node_id, data_node_id);
@@ -63,7 +63,7 @@ utils::BatchedEvent filterCandidates(sycl::queue& queue,
   return be;
 }
 
-template<candidates::CandidatesDomain D = candidates::CandidatesDomain::Query>
+template<CandidatesDomain D = CandidatesDomain::Query>
 utils::BatchedEvent refineCandidates(sycl::queue& queue,
                                      sigmo::DeviceBatchedCSRGraph& query_graph,
                                      sigmo::DeviceBatchedCSRGraph& data_graph,
@@ -88,7 +88,7 @@ utils::BatchedEvent refineCandidates(sycl::queue& queue,
           auto data_signature = data_signatures[data_node_id];
 
           for (size_t query_node_id = 0; query_node_id < total_query_nodes; ++query_node_id) {
-            if constexpr (D == candidates::CandidatesDomain::Data) {
+            if constexpr (D == CandidatesDomain::Data) {
               if (!candidates.contains(data_node_id, query_node_id)) { continue; }
             } else {
               if (!candidates.atomicContains(query_node_id, data_node_id)) { continue; }
@@ -100,7 +100,7 @@ utils::BatchedEvent refineCandidates(sycl::queue& queue,
               keep = keep && (query_signature.getLabelCount(l) <= data_signature.getLabelCount(l));
             }
             if (!keep) {
-              if constexpr (D == candidates::CandidatesDomain::Data) {
+              if constexpr (D == CandidatesDomain::Data) {
                 candidates.remove(data_node_id, query_node_id);
               } else {
                 candidates.atomicRemove(query_node_id, data_node_id);
