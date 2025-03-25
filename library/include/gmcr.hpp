@@ -18,6 +18,7 @@ private:
   struct GMCRDevice {
     uint32_t* data_graph_offsets;
     uint32_t* query_graph_indices;
+    size_t total_query_indices;
   } gmcr;
   sycl::queue& queue;
 
@@ -77,6 +78,7 @@ public:
     // The total number of query indices is now the last element in d_data_graph_offsets.
     uint32_t total_query_indices;
     queue.copy(&d_data_graph_offsets[total_data_graphs], &total_query_indices, 1).wait();
+    gmcr.total_query_indices = total_query_indices;
 
     // Allocate device memory for query_graph_indices.
     uint32_t* d_query_graph_indices = device::memory::malloc<uint32_t>(total_query_indices, queue);

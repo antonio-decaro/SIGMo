@@ -186,18 +186,18 @@ utils::BatchedEvent joinCandidates2(sycl::queue& queue,
 
   const size_t preferred_workgroup_size = device::deviceOptions.join_work_group_size;
 
-  size_t size = gmcr.getGMCRDevice().data_graph_offsets[total_data_graphs];
+  size_t size = gmcr.getGMCRDevice().total_query_indices;
 
-  size = size + (preferred_workgroup_size - (size % preferred_workgroup_size));
+  size_t global_size = size + (preferred_workgroup_size - (size % preferred_workgroup_size));
 
-  sycl::nd_range<1> nd_range{size, preferred_workgroup_size};
+  sycl::nd_range<1> nd_range{global_size, preferred_workgroup_size};
   constexpr size_t MAX_QUERY_NODES = 30;
   auto e1 = queue.submit([&](sycl::handler& cgh) {
     cgh.parallel_for<device::kernels::JoinCandidates2Kernel>(
         nd_range,
         [=, query_graphs = query_graphs, data_graphs = data_graphs, candidates = candidates.getCandidatesDevice(), gmcr = gmcr.getGMCRDevice()](
             sycl::nd_item<1> item) {
-          const size_t wgid = item.get_group(0);
+          const size_t wgid = item.get_global_linear_id();
           if (wgid >= size) { return; }
           const uint32_t query_graph_id = gmcr.query_graph_indices[wgid];
 
@@ -206,7 +206,7 @@ utils::BatchedEvent joinCandidates2(sycl::queue& queue,
           types::node_t mapping[MAX_QUERY_NODES];
           size_t private_num_matches = 0;
 
-          size_t data_graph_id = utils::binarySearch(gmcr.data_graph_offsets, total_data_graphs, query_graph_id);
+          size_t data_graph_id = utils::binarySearch(gmcr.data_graph_offsets, total_data_graphs, wgid);
 
           const uint32_t start_data_graph = data_graphs.graph_offsets[data_graph_id];
           const uint32_t end_data_graph = data_graphs.graph_offsets[data_graph_id + 1];

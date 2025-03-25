@@ -183,7 +183,7 @@ int main(int argc, char** argv) {
     std::cout << "[*] Starting Join" << std::endl;
     host_time_events.add("join_start");
     auto join_e
-        = sigmo::isomorphism::join::joinCandidates(queue, device_query_graph, device_data_graph, candidates, gmcr, num_matches, !args.find_all);
+        = sigmo::isomorphism::join::joinCandidates2(queue, device_query_graph, device_data_graph, candidates, gmcr, num_matches, !args.find_all);
     join_e.wait();
     join_time = join_e.getProfilingInfo();
     host_time_events.add("join_end");
