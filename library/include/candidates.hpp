@@ -188,10 +188,7 @@ public:
   }
 
   CandidatesDevice getHostCandidates() {
-    if (device::memory::default_location == device::memory::MemoryScope::Host
-        || device::memory::default_location == device::memory::MemoryScope::Shared) {
-      return candidates;
-    }
+    if (device::memory::default_location == device::memory::MemoryScope::Host) { return candidates; }
     host_candidates.setDataCandidates(new types::candidates_t[candidates.source_nodes * candidates.single_node_size]);
     queue.copy(candidates.candidates, host_candidates.candidates, candidates.source_nodes * candidates.single_node_size).wait();
     return host_candidates;

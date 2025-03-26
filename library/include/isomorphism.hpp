@@ -146,7 +146,11 @@ SYCL_EXTERNAL bool isValidMapping(types::node_t candidate,
   for (int i = 0; i < depth; i++) {
     size_t query_nodes_offset = query_graphs.getPreviousNodes(query_graph_id);
 
-    if (query_graphs.isNeighbor(i + query_nodes_offset, depth + query_nodes_offset) != data_graphs.isNeighbor(mapping[i], candidate)) {
+    bool isQueryNeighbor = query_graphs.isNeighbor(i + query_nodes_offset, depth + query_nodes_offset);
+
+    if ((isQueryNeighbor != data_graphs.isNeighbor(mapping[i], candidate))
+        || ((isQueryNeighbor)
+            && (data_graphs.getEdgeLabel(mapping[i], candidate) != query_graphs.getEdgeLabel(i + query_nodes_offset, depth + query_nodes_offset)))) {
       return false;
     }
   }

@@ -85,6 +85,18 @@ struct DeviceBatchedCSRGraph {
 
   SYCL_EXTERNAL inline uint32_t getPreviousNodes(uint32_t graph_id) const { return graph_offsets[graph_id]; }
 
+  SYCL_EXTERNAL inline types::label_t getEdgeLabel(types::node_t node_id, types::node_t neighbor_id) const {
+    for (size_t i = row_offsets[node_id]; i < row_offsets[node_id + 1]; ++i) {
+      if (column_indices[i] == neighbor_id) { return edge_labels[i]; }
+    }
+    return -1;
+  }
+
+  SYCL_EXTERNAL inline types::label_t getEdgeLabel(uint32_t graph_id, types::node_t node_id, types::node_t neighbor_id) const {
+    auto previous_nodes = graph_offsets[graph_id];
+    return getEdgeLabel(node_id + previous_nodes, neighbor_id + previous_nodes);
+  }
+
   SYCL_EXTERNAL inline size_t getGraphID(types::node_t node_id) const {
     size_t lo = 0, hi = num_graphs;
     while (lo < hi) {
@@ -172,9 +184,8 @@ public:
     // Read edges
     for (size_t i = 0; i < num_edges; ++i) {
       types::node_t u, v;
-      types::label_t label;
-      iss >> u >> v >> label;
-      edges[i] = std::make_tuple(u, v, label);
+      iss >> u >> v >> curr_label;
+      edges[i] = std::make_tuple(u, v, curr_label);
     }
   }
 
