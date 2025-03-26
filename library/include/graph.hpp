@@ -181,11 +181,27 @@ public:
     num_edges = std::stoul(token);
     edges.resize(num_edges);
 
-    // Read edges
-    for (size_t i = 0; i < num_edges; ++i) {
-      types::node_t u, v;
-      iss >> u >> v >> curr_label;
-      edges[i] = std::make_tuple(u, v, curr_label);
+    std::vector<std::string> edge_tokens;
+    types::node_t u, v;
+    while (iss >> token) { edge_tokens.push_back(token); }
+    // Check if edge labels are represented
+    if (edge_tokens.size() == num_edges * 3) {
+      // Edge labels are represented
+      for (size_t i = 0; i < num_edges; ++i) {
+        u = std::stoul(edge_tokens[i * 3]);
+        v = std::stoul(edge_tokens[i * 3 + 1]);
+        curr_label = std::stoi(edge_tokens[i * 3 + 2]);
+        edges[i] = std::make_tuple(u, v, curr_label);
+      }
+    } else if (edge_tokens.size() == num_edges * 2) {
+      // Edge labels are not represented, assign a default label (e.g., 0)
+      for (size_t i = 0; i < num_edges; ++i) {
+        u = std::stoul(edge_tokens[i * 2]);
+        v = std::stoul(edge_tokens[i * 2 + 1]);
+        edges[i] = std::make_tuple(u, v, 0); // Default label is 0
+      }
+    } else {
+      throw std::runtime_error("Invalid graph format");
     }
   }
 
