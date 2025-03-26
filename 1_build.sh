@@ -102,11 +102,3 @@ then
   cmake ../library -DCMAKE_CXX_COMPILER=$sigmo_compiler -DSIGMO_TARGET_ARCHITECTURE=$sigmo_arch -DSIGMO_ENABLE_TEST=OFF
   cmake --build . -j
 fi
-
-# echo "[*] Building EGSM"
-# cd $SCRIPT_DIR/benchmarks/EGSM
-# mkdir build
-# cd build
-# cmake ..
-# make
-
