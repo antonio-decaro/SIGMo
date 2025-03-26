@@ -49,7 +49,7 @@ TEST(GraphTest, IntoQueryDevice) {
   std::vector<sigmo::types::label_t> node_labels(total_nodes);
   size_t offset = 0;
   for (auto& graph : query_graphs) {
-    for (size_t i = 0; i < graph.getNumNodes(); i++) { node_labels[offset + i] = graph.getLabels()[i]; }
+    for (size_t i = 0; i < graph.getNumNodes(); i++) { node_labels[offset + i] = graph.getNodeLabels()[i]; }
     offset += graph.getNumNodes();
   }
 
@@ -98,7 +98,7 @@ TEST(GraphTest, IntoDataDevice) {
 
     for (size_t j = 0; j < num_column_indices; ++j) { column_indices[col_offset + j] = graph.getColumnIndices()[j] + label_offset; }
 
-    for (size_t j = 0; j < num_nodes; ++j) { node_labels[label_offset + j] = graph.getLabels()[j]; }
+    for (size_t j = 0; j < num_nodes; ++j) { node_labels[label_offset + j] = graph.getNodeLabels()[j]; }
 
     ro_offset += num_nodes;
     col_offset += num_column_indices;

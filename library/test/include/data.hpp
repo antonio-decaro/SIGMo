@@ -194,7 +194,7 @@ std::vector<sigmo::signature::Signature<>::SignatureDevice> getExpectedDataSigna
 
       for (int j = start_node; j < end_node; ++j) {
         auto neighbor = graph.getColumnIndices()[j];
-        signatures[offset + i].incrementLabelCount(graph.getLabels()[neighbor]);
+        signatures[offset + i].incrementLabelCount(graph.getNodeLabels()[neighbor]);
       }
     }
     offset += graph.getNumNodes();
@@ -213,7 +213,7 @@ std::vector<sigmo::signature::Signature<>::SignatureDevice> getExpectedDataSigna
           auto neighbor = graph.getColumnIndices()[j];
           for (int l = 0; l < sigmo::signature::Signature<>::SignatureDevice::getMaxLabels(); ++l) {
             auto count = db_signatures[offset + neighbor].getLabelCount(l);
-            if (l == graph.getLabels()[i]) { count -= 1; }
+            if (l == graph.getNodeLabels()[i]) { count -= 1; }
             signatures[offset + i].incrementLabelCount(l, count);
           }
         }
@@ -244,7 +244,7 @@ std::vector<sigmo::signature::Signature<>::SignatureDevice> getExpectedQuerySign
 
       for (int j = 0; neighbors[j] != sigmo::types::NULL_NODE && j < sigmo::types::MAX_NEIGHBORS; ++j) {
         auto neighbor = neighbors[j];
-        auto label = graph.getLabels()[neighbor];
+        auto label = graph.getNodeLabels()[neighbor];
         signatures[offset + i].incrementLabelCount(label);
       }
     }
@@ -266,7 +266,7 @@ std::vector<sigmo::signature::Signature<>::SignatureDevice> getExpectedQuerySign
           auto neighbor = neighbors[j];
           for (int l = 0; l < sigmo::signature::Signature<>::SignatureDevice::getMaxLabels(); ++l) {
             auto count = db_signatures[offset + neighbor].getLabelCount(l);
-            if (l == graph.getLabels()[i]) { count -= 1; }
+            if (l == graph.getNodeLabels()[i]) { count -= 1; }
             signatures[offset + i].incrementLabelCount(l, count);
           }
         }

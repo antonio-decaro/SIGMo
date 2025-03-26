@@ -10,6 +10,7 @@ import sys
 from tqdm import tqdm
 
 organic_subset = {l: (i) for i, l in enumerate('N Cl * Br I P H O C S F'.split())}
+bond_types = {l: (i) for i, l in enumerate([Chem.rdchem.BondType.UNSPECIFIED, Chem.rdchem.BondType.SINGLE, Chem.rdchem.BondType.DOUBLE, Chem.rdchem.BondType.TRIPLE, Chem.rdchem.BondType.AROMATIC])}
 NUM_LABELS = len(organic_subset)
 
 def molToGraph(mol):
@@ -31,13 +32,18 @@ def smartsToGraph(smarts: str) -> nx.DiGraph:
     return None
   return molToGraph(mol_smart)
 
-def getLabel(g: dict, digit: bool = True):
+def getNodeLabel(g: dict, digit: bool = True):
   if digit:
     if g['atom_symbol'] in organic_subset:
       return organic_subset[g['atom_symbol']]
     else:
       return 0
   return g['atom_symbol']
+
+def getEdgeLabel(e: dict):
+  if e['bond_type'] not in bond_types:
+    bond_types[e['bond_type']] = len(bond_types)
+  return bond_types[e['bond_type']]
 
 def process_single_graph(mol):
   g = smartsToGraph(mol)
@@ -95,7 +101,7 @@ class GSIParser(Parser):
     print("t # 0", file=file)
     print(len(g.nodes), len(g.edges), NUM_LABELS, 1, file=file)
     for i in tqdm(range(len(g.nodes)), desc="Printing nodes", file=sys.stderr):
-      print('v', i, getLabel(g.nodes[i]), file=file)
+      print('v', i, getNodeLabel(g.nodes[i]), file=file)
     
     for u, v in tqdm(g.edges, desc="Printing edges", file=sys.stderr):
       print('e', u, v, 1, file=file)
@@ -107,7 +113,7 @@ class VF3Parser(Parser):
     g = self.join_graphs()
     print(len(g.nodes), file=file)
     for n in g.nodes:
-      print(n, getLabel(g.nodes[n], True), file=file)
+      print(n, getNodeLabel(g.nodes[n], True), file=file)
     
     for node in g.nodes:
       neighbors = list(g.neighbors(node))
@@ -122,10 +128,10 @@ class SIGMOParser(Parser):
       g = g.to_undirected()
       print(f'n#{g.number_of_nodes()} l#{NUM_LABELS}',  end=' ', file=file)
       for i, n in enumerate(g.nodes):
-        print(i, getLabel(g.nodes[i]), end=' ', file=file)
+        print(i, getNodeLabel(g.nodes[i]), end=' ', file=file)
       print(f'e#{g.number_of_edges()}', end=' ', file=file)
-      for a, b in g.edges:
-        print(a, b, end=' ', file=file)
+      for a, b, d in g.edges(data=True):
+        print(a, b, getEdgeLabel(d), end=' ', file=file)
       print(file=file)
 
 

@@ -24,7 +24,7 @@ void printDataGraph(const sigmo::CSRGraph& graph) {
   std::cout << std::endl;
 
   std::cout << "node_labels: ";
-  for (size_t i = 0; i < graph.getNumNodes(); ++i) { std::cout << static_cast<int>(graph.getLabels()[i]) << " "; }
+  for (size_t i = 0; i < graph.getNumNodes(); ++i) { std::cout << static_cast<int>(graph.getNodeLabels()[i]) << " "; }
   std::cout << std::endl;
 }
 
@@ -32,12 +32,12 @@ void compareGraphs(sigmo::CSRGraph& g1, sigmo::CSRGraph& g2) {
   ASSERT_EQ(g1.getNumNodes(), g2.getNumNodes());
   for (size_t i = 0; i < g1.getNumNodes() + 1; ++i) { ASSERT_EQ(g1.getRowOffsets()[i], g2.getRowOffsets()[i]); }
   for (size_t i = 0; i < g1.getRowOffsets()[g1.getNumNodes()]; ++i) { ASSERT_EQ(g1.getColumnIndices()[i], g2.getColumnIndices()[i]); }
-  for (size_t i = 0; i < g1.getNumNodes(); ++i) { ASSERT_EQ(g1.getLabels()[i], g2.getLabels()[i]); }
+  for (size_t i = 0; i < g1.getNumNodes(); ++i) { ASSERT_EQ(g1.getNodeLabels()[i], g2.getNodeLabels()[i]); }
 }
 
 void compareGraphs(sigmo::AMGraph& g1, sigmo::AMGraph& g2) {
   ASSERT_EQ(g1.getNumNodes(), g2.getNumNodes());
   int size = sigmo::utils::getNumOfAdjacencyIntegers(g1.getNumNodes());
   for (int i = 0; i < size; ++i) { ASSERT_EQ(g1.getAdjacencyMatrix()[i], g2.getAdjacencyMatrix()[i]); }
-  for (int i = 0; i < g1.getNumNodes(); ++i) { ASSERT_EQ(g1.getLabels()[i], g2.getLabels()[i]); }
+  for (int i = 0; i < g1.getNumNodes(); ++i) { ASSERT_EQ(g1.getNodeLabels()[i], g2.getNodeLabels()[i]); }
 }
