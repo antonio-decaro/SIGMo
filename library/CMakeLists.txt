@@ -30,7 +30,7 @@ include_directories(${cxxopts_SOURCE_DIR}/include)
 
 # Define the GRAPH_LOCATION parameter
 set(SIGMO_ALLOCATION "device" CACHE STRING "Location of the graph: host, device, or shared")
-set_property(CACHE GRAPH_LOCATION PROPERTY STRINGS "host" "device" "shared")
+set_property(CACHE SIGMO_ALLOCATION PROPERTY STRINGS "host" "device" "shared")
 
 # Map GRAPH_LOCATION to integers in compile definitions
 if (SIGMO_ALLOCATION STREQUAL "host")
