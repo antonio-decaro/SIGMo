@@ -45,15 +45,15 @@ TEST(GraphTest, IntoQueryDevice) {
     adjacency_size += curr_size;
   }
 
-  // create a vector with all the labels
-  std::vector<sigmo::types::label_t> labels(total_nodes);
+  // create a vector with all the node_labels
+  std::vector<sigmo::types::label_t> node_labels(total_nodes);
   size_t offset = 0;
   for (auto& graph : query_graphs) {
-    for (size_t i = 0; i < graph.getNumNodes(); i++) { labels[offset + i] = graph.getLabels()[i]; }
+    for (size_t i = 0; i < graph.getNumNodes(); i++) { node_labels[offset + i] = graph.getLabels()[i]; }
     offset += graph.getNumNodes();
   }
 
-  for (size_t i = 0; i < device_query_graph.total_nodes; ++i) { ASSERT_EQ(device_query_graph.labels[i], labels[i]); }
+  for (size_t i = 0; i < device_query_graph.total_nodes; ++i) { ASSERT_EQ(device_query_graph.node_labels[i], node_labels[i]); }
 }
 
 TEST(GraphTest, IntoDataDevice) {
@@ -75,11 +75,11 @@ TEST(GraphTest, IntoDataDevice) {
   ASSERT_EQ(device_data_graph.num_graphs, data_graphs.size());
   ASSERT_EQ(device_data_graph.row_offsets[0], 0);
 
-  // create a vector with all the labels, row_offsets and column_indices
+  // create a vector with all the node_labels, row_offsets and column_indices
   std::vector<sigmo::types::row_offset_t> graph_offsets(data_graphs.size() + 1);
   std::vector<sigmo::types::row_offset_t> row_offsets(total_nodes + 1);
   std::vector<sigmo::types::col_index_t> column_indices(total_edges);
-  std::vector<sigmo::types::label_t> labels(total_nodes);
+  std::vector<sigmo::types::label_t> node_labels(total_nodes);
 
   size_t ro_offset = 0;
   size_t col_offset = 0;
@@ -98,7 +98,7 @@ TEST(GraphTest, IntoDataDevice) {
 
     for (size_t j = 0; j < num_column_indices; ++j) { column_indices[col_offset + j] = graph.getColumnIndices()[j] + label_offset; }
 
-    for (size_t j = 0; j < num_nodes; ++j) { labels[label_offset + j] = graph.getLabels()[j]; }
+    for (size_t j = 0; j < num_nodes; ++j) { node_labels[label_offset + j] = graph.getLabels()[j]; }
 
     ro_offset += num_nodes;
     col_offset += num_column_indices;
@@ -108,11 +108,11 @@ TEST(GraphTest, IntoDataDevice) {
   // Verify the unique graph
   ASSERT_EQ(row_offsets.size(), total_nodes + 1);
   ASSERT_EQ(column_indices.size(), total_edges);
-  ASSERT_EQ(labels.size(), total_nodes);
+  ASSERT_EQ(node_labels.size(), total_nodes);
 
   for (size_t i = 0; i < graph_offsets.size(); ++i) { ASSERT_EQ(graph_offsets[i], device_data_graph.graph_offsets[i]); }
 
-  for (size_t i = 0; i < total_nodes; ++i) { ASSERT_EQ(labels[i], device_data_graph.labels[i]); }
+  for (size_t i = 0; i < total_nodes; ++i) { ASSERT_EQ(node_labels[i], device_data_graph.node_labels[i]); }
 
   for (size_t i = 0; i < column_indices.size(); ++i) { ASSERT_EQ(column_indices[i], device_data_graph.column_indices[i]); }
 

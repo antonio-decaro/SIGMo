@@ -43,8 +43,8 @@ TEST(FilterTest, SingleFilter) {
     for (int query_node = 0; query_node < device_query_graph.total_nodes; query_node++) {
       auto query_signature = query_signatures[query_node];
       auto data_signature = data_signatures[data_node];
-      auto data_label = device_data_graph.labels[data_node];
-      auto query_label = device_query_graph.labels[query_node];
+      auto data_label = device_data_graph.node_labels[data_node];
+      auto query_label = device_query_graph.node_labels[query_node];
 
       if (data_label != query_label) { continue; }
       bool insert = true;
@@ -97,8 +97,8 @@ TEST(FilterTest, RefinementTest) {
     for (int query_node = 0; query_node < device_query_graph.total_nodes; query_node++) {
       auto query_signature = query_signatures[query_node];
       auto data_signature = data_signatures[data_node];
-      auto data_label = device_data_graph.labels[data_node];
-      auto query_label = device_query_graph.labels[query_node];
+      auto data_label = device_data_graph.node_labels[data_node];
+      auto query_label = device_query_graph.node_labels[query_node];
 
       if (data_label != query_label) { continue; }
       bool insert = true;
@@ -122,8 +122,8 @@ TEST(FilterTest, RefinementTest) {
     for (int query_node = 0; query_node < device_query_graph.total_nodes; query_node++) {
       auto query_signature = expected_query_signatures[query_node];
       auto data_signature = expected_data_signatures[data_node];
-      auto data_label = device_data_graph.labels[data_node];
-      auto query_label = device_query_graph.labels[query_node];
+      auto data_label = device_data_graph.node_labels[data_node];
+      auto query_label = device_query_graph.node_labels[query_node];
 
       if (expected_candidates[query_node].find(data_node) == expected_candidates[query_node].end()) { continue; }
 

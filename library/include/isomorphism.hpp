@@ -41,8 +41,8 @@ utils::BatchedEvent filterCandidates(sycl::queue& queue,
                                                                           auto data_node_id = item.get_global_id(0);
                                                                           if (data_node_id >= total_data_nodes) { return; }
                                                                           auto data_signature = data_signatures[data_node_id];
-                                                                          auto query_labels = query_graph.labels;
-                                                                          auto data_labels = data_graph.labels;
+                                                                          auto query_labels = query_graph.node_labels;
+                                                                          auto data_labels = data_graph.node_labels;
 
                                                                           for (size_t query_node_id = 0; query_node_id < total_query_nodes;
                                                                                ++query_node_id) {

@@ -9,7 +9,7 @@ def generate_signature(graph, bits=4, refinement_steps=1):
     max_labels = 64 // bits
     max_count = (1 << bits) - 1
     
-    # Modify the signature according to the labels
+    # Modify the signature according to the node_labels
     for node in graph.nodes(data=True):
         signature = np.int64(0)
         label_counts = [0] * max_labels  # Adjust based on the number of bits
@@ -28,7 +28,7 @@ def generate_signature(graph, bits=4, refinement_steps=1):
         
         signatures.append(signature)
 
-    # Refine the signatures based on neighbor labels
+    # Refine the signatures based on neighbor node_labels
     for _ in range(refinement_steps):
         new_signatures = []
         for node in graph.nodes(data=True):

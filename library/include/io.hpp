@@ -61,12 +61,12 @@ sigmo::GraphPool loadPoolFromBinary(const std::string& filename) {
     std::vector<types::col_index_t> column_indices(num_edges);
     file.read(reinterpret_cast<char*>(column_indices.data()), num_edges * sizeof(types::col_index_t));
 
-    // Read the labels
-    std::vector<types::label_t> labels(num_nodes);
-    file.read(reinterpret_cast<char*>(labels.data()), num_nodes * sizeof(types::label_t));
+    // Read the node_labels
+    std::vector<types::label_t> node_labels(num_nodes);
+    file.read(reinterpret_cast<char*>(node_labels.data()), num_nodes * sizeof(types::label_t));
 
     // Create the CSRGraph and add it to the pool
-    pool.getDataGraphs().emplace_back(row_offsets, column_indices, labels, num_nodes);
+    pool.getDataGraphs().emplace_back(row_offsets, column_indices, node_labels, num_nodes);
   }
 
   // Read the number of query graphs
@@ -84,12 +84,12 @@ sigmo::GraphPool loadPoolFromBinary(const std::string& filename) {
     std::vector<types::adjacency_t> adjacency(adjacency_size);
     file.read(reinterpret_cast<char*>(adjacency.data()), adjacency_size * sizeof(types::adjacency_t));
 
-    // Read the labels
-    std::vector<types::label_t> labels(num_nodes);
-    file.read(reinterpret_cast<char*>(labels.data()), num_nodes * sizeof(types::label_t));
+    // Read the node_labels
+    std::vector<types::label_t> node_labels(num_nodes);
+    file.read(reinterpret_cast<char*>(node_labels.data()), num_nodes * sizeof(types::label_t));
 
     // Create the AMGraph and add it to the pool
-    pool.getQueryGraphs().emplace_back(adjacency, labels, num_nodes);
+    pool.getQueryGraphs().emplace_back(adjacency, node_labels, num_nodes);
   }
 
   file.close();
@@ -117,7 +117,7 @@ void savePoolToBinary(sigmo::GraphPool& pool, const std::string& filename) {
     uint32_t num_edges = graph.getRowOffsets()[num_nodes];
     file.write(reinterpret_cast<const char*>(graph.getColumnIndices()), num_edges * sizeof(types::col_index_t));
 
-    // Write the labels
+    // Write the node_labels
     file.write(reinterpret_cast<const char*>(graph.getLabels()), num_nodes * sizeof(types::label_t));
   }
 
@@ -135,7 +135,7 @@ void savePoolToBinary(sigmo::GraphPool& pool, const std::string& filename) {
     uint32_t adjacency_size = sigmo::utils::getNumOfAdjacencyIntegers(num_nodes);
     file.write(reinterpret_cast<const char*>(graph.getAdjacencyMatrix()), adjacency_size * sizeof(types::adjacency_t));
 
-    // Write the labels
+    // Write the node_labels
     file.write(reinterpret_cast<const char*>(graph.getLabels()), num_nodes * sizeof(types::label_t));
   }
 

@@ -110,7 +110,7 @@ public:
             graphs.getNeighbors(node_id, neighbors);
             for (types::node_t i = 0; neighbors[i] != types::NULL_NODE && i < types::MAX_NEIGHBORS; ++i) {
               auto neighbor = neighbors[i];
-              signatures[node_id].incrementLabelCount(graphs.labels[neighbor]);
+              signatures[node_id].incrementLabelCount(graphs.node_labels[neighbor]);
             }
           });
     });
@@ -130,7 +130,7 @@ public:
     auto e = queue.submit([&](sycl::handler& cgh) {
       auto* row_offsets = graphs.row_offsets;
       auto* column_indices = graphs.column_indices;
-      auto* labels = graphs.labels;
+      auto* node_labels = graphs.node_labels;
 
 
       cgh.parallel_for<sigmo::device::kernels::GenerateDataSignaturesKernel>(global_range, [=](sycl::item<1> item) {
@@ -138,11 +138,11 @@ public:
 
         uint32_t start_neighbor = row_offsets[node_id];
         uint32_t end_neighbor = row_offsets[node_id + 1];
-        sigmo::types::label_t node_label = labels[node_id];
+        sigmo::types::label_t node_label = node_labels[node_id];
 
         for (uint32_t i = start_neighbor; i < end_neighbor; ++i) {
           auto neighbor = column_indices[i];
-          signatures[node_id].incrementLabelCount(labels[neighbor]);
+          signatures[node_id].incrementLabelCount(node_labels[neighbor]);
         }
       });
     });
@@ -231,7 +231,7 @@ private:
             auto node_id = item.get_id(0);
             // Get the neighbors of the current node
             types::node_t neighbors[types::MAX_NEIGHBORS];
-            types::label_t node_label = graphs.labels[node_id];
+            types::label_t node_label = graphs.node_labels[node_id];
             graphs.getNeighbors(node_id, neighbors);
             for (types::node_t i = 0; neighbors[i] != types::NULL_NODE && i < types::MAX_NEIGHBORS; ++i) {
               auto neighbor = neighbors[i];
@@ -286,7 +286,7 @@ private:
             signatures[node_id].clear();
             for (uint idx = 0; idx < reachable.size(); idx++) {
               auto u = reachable.getSetBit(idx) + prev_nodes;
-              types::label_t u_label = graphs.labels[u];
+              types::label_t u_label = graphs.node_labels[u];
               signatures[node_id].incrementLabelCount(u_label);
             }
           });
@@ -310,14 +310,14 @@ private:
       cgh.depends_on(copy_event);
       auto* row_offsets = graphs.row_offsets;
       auto* column_indices = graphs.column_indices;
-      auto* labels = graphs.labels;
+      auto* node_labels = graphs.node_labels;
 
       cgh.parallel_for<sigmo::device::kernels::RefineDataSignaturesKernel>(global_range, [=](sycl::item<1> item) {
         auto node_id = item.get_id(0);
 
         uint32_t start_neighbor = row_offsets[node_id];
         uint32_t end_neighbor = row_offsets[node_id + 1];
-        sigmo::types::label_t node_label = labels[node_id];
+        sigmo::types::label_t node_label = node_labels[node_id];
 
         for (uint32_t i = start_neighbor; i < end_neighbor; ++i) {
           auto neighbor = column_indices[i];
@@ -343,7 +343,7 @@ private:
     auto refine_event = queue.submit([&](sycl::handler& cgh) {
       auto* row_offsets = graphs.row_offsets;
       auto* column_indices = graphs.column_indices;
-      auto* labels = graphs.labels;
+      auto* node_labels = graphs.node_labels;
 
       cgh.parallel_for<sigmo::device::kernels::RefineDataSignaturesKernel>(
           global_range, [=, max_labels_count = Signature::SignatureDevice::getMaxLabels()](sycl::item<1> item) {
@@ -377,7 +377,7 @@ private:
             signatures[node_id].clear();
             for (uint idx = 0; idx < reachable.size(); idx++) {
               auto u = reachable.getSetBit(idx) + prev_nodes;
-              types::label_t u_label = graphs.labels[u];
+              types::label_t u_label = graphs.node_labels[u];
               signatures[node_id].incrementLabelCount(u_label);
             }
             reachable.merge(old_reachable);

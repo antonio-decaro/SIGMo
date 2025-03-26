@@ -23,7 +23,7 @@ void printDataGraph(const sigmo::CSRGraph& graph) {
   for (size_t i = 0; i < graph.getRowOffsets()[graph.getNumNodes()]; ++i) { std::cout << graph.getColumnIndices()[i] << " "; }
   std::cout << std::endl;
 
-  std::cout << "Labels: ";
+  std::cout << "node_labels: ";
   for (size_t i = 0; i < graph.getNumNodes(); ++i) { std::cout << static_cast<int>(graph.getLabels()[i]) << " "; }
   std::cout << std::endl;
 }

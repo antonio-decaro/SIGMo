@@ -21,16 +21,16 @@ class AMGraph {
 public:
   AMGraph(const AMGraph& other) = default;
 
-  AMGraph(std::vector<types::adjacency_t> adjacency, std::vector<types::label_t> labels, uint8_t num_nodes)
-      : _adjacency(adjacency), _labels(labels), _num_nodes(num_nodes) {}
+  AMGraph(std::vector<types::adjacency_t> adjacency, std::vector<types::label_t> node_labels, uint8_t num_nodes)
+      : _adjacency(adjacency), _node_labels(node_labels), _num_nodes(num_nodes) {}
 
   types::adjacency_t* getAdjacencyMatrix() { return _adjacency.data(); }
-  types::label_t* getLabels() { return _labels.data(); }
+  types::label_t* getLabels() { return _node_labels.data(); }
   int getNumNodes() const { return _num_nodes; }
 
 private:
   std::vector<types::adjacency_t> _adjacency;
-  std::vector<types::label_t> _labels;
+  std::vector<types::label_t> _node_labels;
   uint8_t _num_nodes;
 };
 
@@ -40,19 +40,19 @@ public:
 
   CSRGraph(std::vector<types::row_offset_t> row_offsets,
            std::vector<types::col_index_t> column_indices,
-           std::vector<types::label_t> labels,
+           std::vector<types::label_t> node_labels,
            size_t num_nodes)
-      : _row_offsets(row_offsets), _column_indices(column_indices), _labels(labels), _num_nodes(num_nodes) {}
+      : _row_offsets(row_offsets), _column_indices(column_indices), _node_labels(node_labels), _num_nodes(num_nodes) {}
 
   const types::row_offset_t* getRowOffsets() const { return _row_offsets.data(); }
   const types::col_index_t* getColumnIndices() const { return _column_indices.data(); }
-  const types::label_t* getLabels() const { return _labels.data(); }
+  const types::label_t* getLabels() const { return _node_labels.data(); }
   size_t getNumNodes() const { return _num_nodes; }
 
 private:
   std::vector<types::row_offset_t> _row_offsets;   // CSR row pointers
   std::vector<types::col_index_t> _column_indices; // CSR column data
-  std::vector<types::label_t> _labels;
+  std::vector<types::label_t> _node_labels;
   size_t _num_nodes;
 };
 
@@ -60,7 +60,7 @@ struct DeviceBatchedCSRGraph {
   types::row_offset_t* graph_offsets;
   types::row_offset_t* row_offsets;
   types::col_index_t* column_indices;
-  types::label_t* labels;
+  types::label_t* node_labels;
   uint32_t num_graphs;
   size_t total_nodes;
   size_t total_edges;
@@ -97,7 +97,7 @@ struct DeviceBatchedCSRGraph {
 
 struct DeviceBatchedAMGraph {
   types::adjacency_t* adjacency;
-  types::label_t* labels;
+  types::label_t* node_labels;
   uint32_t* num_nodes;
   size_t total_nodes;
   uint32_t num_graphs;
@@ -146,7 +146,7 @@ public:
     token = token.substr(2);
     num_nodes = std::stoul(token);
     node_labels.resize(num_nodes);
-    // Read labels
+    // Read node_labels
     iss >> token;
     token = token.substr(2);
     num_labels = std::stoul(token);
@@ -182,9 +182,8 @@ public:
   }
 
   CSRGraph toCSRGraph() {
-    std::vector<types::row_offset_t> row_offsets(node_labels.size() + 1);
+    std::vector<types::row_offset_t> row_offsets(this->node_labels.size() + 1);
     std::vector<types::col_index_t> column_indices;
-    std::vector<types::label_t> labels(node_labels.size());
 
     row_offsets[0] = 0;
     for (size_t i = 0; i < edges.size(); ++i) {
@@ -226,7 +225,7 @@ static DeviceBatchedCSRGraph createDeviceCSRGraph(sycl::queue& queue, std::vecto
   std::vector<types::row_offset_t> graph_offsets(data_graphs.size() + 1);
   std::vector<types::row_offset_t> row_offsets(total_nodes + 1);
   std::vector<types::col_index_t> column_indices(total_edges);
-  std::vector<types::label_t> labels(total_nodes);
+  std::vector<types::label_t> node_labels(total_nodes);
 
   graph_offsets[0] = 0;
   size_t ro_offset = 0;
@@ -244,7 +243,7 @@ static DeviceBatchedCSRGraph createDeviceCSRGraph(sycl::queue& queue, std::vecto
 
     for (size_t j = 0; j < num_column_indices; ++j) { column_indices[col_offset + j] = graph.getColumnIndices()[j] + label_offset; }
 
-    for (size_t j = 0; j < num_nodes; ++j) { labels[label_offset + j] = graph.getLabels()[j]; }
+    for (size_t j = 0; j < num_nodes; ++j) { node_labels[label_offset + j] = graph.getLabels()[j]; }
 
     ro_offset += num_nodes;
     col_offset += num_column_indices;
@@ -258,12 +257,12 @@ static DeviceBatchedCSRGraph createDeviceCSRGraph(sycl::queue& queue, std::vecto
   device_data_graph.graph_offsets = sigmo::device::memory::malloc<types::row_offset_t>(data_graphs.size() + 1, queue);
   device_data_graph.row_offsets = sigmo::device::memory::malloc<types::row_offset_t>(total_nodes + 1, queue);
   device_data_graph.column_indices = sigmo::device::memory::malloc<types::col_index_t>(total_edges, queue);
-  device_data_graph.labels = sigmo::device::memory::malloc<types::label_t>(total_nodes, queue);
+  device_data_graph.node_labels = sigmo::device::memory::malloc<types::label_t>(total_nodes, queue);
 
   queue.copy(graph_offsets.data(), device_data_graph.graph_offsets, data_graphs.size() + 1);
   queue.copy(row_offsets.data(), device_data_graph.row_offsets, total_nodes + 1);
   queue.copy(column_indices.data(), device_data_graph.column_indices, total_edges);
-  queue.copy(labels.data(), device_data_graph.labels, total_nodes);
+  queue.copy(node_labels.data(), device_data_graph.node_labels, total_nodes);
   queue.wait_and_throw();
 
   return device_data_graph;
@@ -272,7 +271,7 @@ static DeviceBatchedCSRGraph createDeviceCSRGraph(sycl::queue& queue, std::vecto
 static void destroyDeviceCSRGraph(DeviceBatchedCSRGraph& device_data_graph, sycl::queue& queue) {
   sycl::free(device_data_graph.row_offsets, queue);
   sycl::free(device_data_graph.column_indices, queue);
-  sycl::free(device_data_graph.labels, queue);
+  sycl::free(device_data_graph.node_labels, queue);
   sycl::free(device_data_graph.graph_offsets, queue);
 }
 
@@ -322,10 +321,10 @@ static DeviceBatchedAMGraph createDeviceAMGraph(sycl::queue& queue, std::vector<
   device_query_graph.adjacency = sycl::malloc_shared<types::adjacency_t>(
       device_query_graph.graph_offsets[query_graphs.size() - 1] + adjacency_sizes_hacc[query_graphs.size() - 1], queue);
 
-  // allocate memory for labels
+  // allocate memory for node_labels
   size_t total_labels = device_query_graph.num_nodes[query_graphs.size() - 1];
   device_query_graph.total_nodes = total_labels;
-  device_query_graph.labels = sycl::malloc_shared<types::label_t>(total_labels, queue);
+  device_query_graph.node_labels = sycl::malloc_shared<types::label_t>(total_labels, queue);
 
   // copy data to device
   size_t nodes_offset = 0;
@@ -335,7 +334,7 @@ static DeviceBatchedAMGraph createDeviceAMGraph(sycl::queue& queue, std::vector<
                device_query_graph.adjacency + device_query_graph.graph_offsets[&graph - &query_graphs[0]],
                utils::getNumOfAdjacencyIntegers(graph_size));
 
-    queue.copy(graph.getLabels(), device_query_graph.labels + nodes_offset, graph_size);
+    queue.copy(graph.getLabels(), device_query_graph.node_labels + nodes_offset, graph_size);
     nodes_offset += graph_size;
   }
 
@@ -347,7 +346,7 @@ static DeviceBatchedAMGraph createDeviceAMGraph(sycl::queue& queue, std::vector<
 
 static void destroyDeviceAMGraph(DeviceBatchedAMGraph& device_query_graph, sycl::queue& queue) {
   sycl::free(device_query_graph.adjacency, queue);
-  sycl::free(device_query_graph.labels, queue);
+  sycl::free(device_query_graph.node_labels, queue);
   sycl::free(device_query_graph.num_nodes, queue);
   sycl::free(device_query_graph.graph_offsets, queue);
 }
