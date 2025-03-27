@@ -378,7 +378,7 @@ private:
             for (uint idx = 0; idx < reachable.size(); idx++) {
               auto u = reachable.getSetBit(idx) + prev_nodes;
               types::label_t u_label = graphs.node_labels[u];
-              if (u_label == types::WILDCARD_NODE) { continue; }
+              // if (u_label == types::WILDCARD_NODE) { continue; }
               signatures[node_id].incrementLabelCount(u_label);
             }
             reachable.merge(old_reachable);

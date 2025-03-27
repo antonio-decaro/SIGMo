@@ -17,7 +17,7 @@ using label_t = uint8_t;
 using node_t = uint32_t;
 using mask_t = uint64_t;
 using adjacency_t = uint64_t;
-using candidates_t = uint64_t;
+using candidates_t = uint32_t;
 
 constexpr label_t WILDCARD_NODE = -1;
 constexpr label_t WILDCARD_EDGE = 0;
