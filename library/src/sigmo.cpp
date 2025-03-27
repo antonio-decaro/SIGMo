@@ -108,7 +108,7 @@ int main(int argc, char** argv) {
   size_t source_nodes = args.isCandidateDomainData() ? data_nodes : query_nodes;
   size_t target_nodes = args.isCandidateDomainData() ? query_nodes : data_nodes;
   sigmo::candidates::Candidates candidates{queue, source_nodes, target_nodes};
-  size_t candidates_bytes = candidates.getAllocationSize() * sizeof(sigmo::types::candidates_t);
+  size_t candidates_bytes = candidates.getAllocationSize();
   std::cout << "Allocated " << getBytesSize(candidates_bytes) << " for candidates" << std::endl;
 
   sigmo::signature::Signature<> signatures{queue, device_data_graph.total_nodes, device_query_graph.total_nodes};

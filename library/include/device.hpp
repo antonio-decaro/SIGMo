@@ -39,6 +39,7 @@ class FilterCandidatesKernel;
 template<CandidatesDomain D>
 class RefineCandidatesKernel;
 class JoinCandidatesKernel;
+class JoinWildcardCandidatesKernel;
 class JoinCandidates2Kernel;
 
 } // namespace kernels

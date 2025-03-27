@@ -19,6 +19,9 @@ using mask_t = uint64_t;
 using adjacency_t = uint64_t;
 using candidates_t = uint64_t;
 
+constexpr label_t WILDCARD_NODE = -1;
+constexpr label_t WILDCARD_EDGE = 0;
+
 // define null
 constexpr node_t NULL_NODE = std::numeric_limits<node_t>::max();
 

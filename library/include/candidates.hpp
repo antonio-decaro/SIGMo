@@ -11,9 +11,8 @@
 
 namespace sigmo {
 namespace candidates {
-
 class Candidates {
-private:
+public:
   struct CandidatesDevice {
     types::candidates_t* candidates;
     constexpr static types::candidates_t num_bits = sizeof(types::candidates_t) * 8;
@@ -162,11 +161,7 @@ private:
       return static_cast<types::node_t>(-1);
     }
   }; // struct CandidatesDevice
-  sycl::queue& queue;
-  CandidatesDevice candidates;
-  CandidatesDevice host_candidates;
 
-public:
   Candidates(sycl::queue& queue, size_t source_nodes, size_t target_nodes)
       : queue(queue), candidates(source_nodes, target_nodes), host_candidates(source_nodes, target_nodes) {
     size_t alloc_size = candidates.getAllocationSize();
@@ -200,6 +195,11 @@ public:
   }
   size_t getAllocationSize() const { return candidates.getAllocationSize(); }
   Candidates::CandidatesDevice getCandidatesDevice() const { return candidates; }
+
+private:
+  sycl::queue& queue;
+  CandidatesDevice candidates;
+  CandidatesDevice host_candidates;
 
 }; // class Candidates
 } // namespace candidates
