@@ -10,3 +10,4 @@ tmp
 !test_data.dat
 !test_query.dat
 *.log
+logs/

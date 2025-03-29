@@ -67,8 +67,12 @@ def get_graph_list(lines):
 
 
 class Parser:
-  def __init__(self, graphs: List[nx.DiGraph]):
-    self.graphs = graphs
+  def __init__(self, graphs: List[nx.DiGraph], no_wildcards: bool = False):
+    if no_wildcards:
+      self.graphs = [g for g in graphs if self.check_wildcards(g)]
+    else:
+      self.graphs = graphs
+    
   
   @abstractmethod
   def parse(self, file):
@@ -77,15 +81,21 @@ class Parser:
   def join_graphs(self):
     return nx.disjoint_union_all(self.graphs)
 
+  def check_wildcards(self, g):
+    for n in g.nodes:
+      if g.nodes[n]['atom_symbol'] == '*':
+        return False
+    return True
+
   @classmethod
   def get_parsers(cls):
     return [subclass.__name__.replace('Parser', '') for subclass in cls.__subclasses__()]
   
   @classmethod
-  def create_parser(cls, framework: str, g: nx.DiGraph):
+  def create_parser(cls, framework: str, g: nx.DiGraph, no_wildcards: bool = False):
     for subclass in cls.__subclasses__():
       if subclass.__name__ == framework + 'Parser':
-        return subclass(g)
+        return subclass(g, no_wildcards)
     raise ValueError(f"Parser for framework '{framework}' not found")
   
 class CuTSParser(Parser):
@@ -140,8 +150,8 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='Convert SMILES to graph')
   parser.add_argument('--output', '-o', type=str, help='Output file, if None, print to stdout')
   parser.add_argument('--framework', '-f', choices=Parser.get_parsers(), type=str, help='Framework to use', default='cuts')
+  parser.add_argument('--no-wildcards', action='store_true', help='Do not use wildcards')
   args = parser.parse_args()
-  
   if sys.stdin.isatty():
     print(f'Usage: python {sys.argv[0]} < smarts_file')
     sys.exit(1)
@@ -151,6 +161,6 @@ if __name__ == '__main__':
   
   if args.output:
     with open(args.output, 'w') as f:
-      Parser.create_parser(args.framework, graphs).parse(f)
+      Parser.create_parser(args.framework, graphs, args.no_wildcards).parse(f)
   else:
-    Parser.create_parser(args.framework, graphs).parse(sys.stdout)
+    Parser.create_parser(args.framework, graphs, args.no_wildcards).parse(sys.stdout)

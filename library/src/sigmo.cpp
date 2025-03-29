@@ -4,6 +4,7 @@
  */
 
 #include "./utils.hpp"
+#include <numeric>
 #include <sigmo.hpp>
 #include <sycl/sycl.hpp>
 
