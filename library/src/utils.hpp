@@ -149,3 +149,25 @@ std::string getBytesSize(size_t num_bytes, bool round = true) {
   if (round) return std::to_string(static_cast<int>(std::round(bytes))) + " " + unit;
   return std::to_string(bytes) + " " + unit;
 }
+
+struct CandidatesInspector {
+
+  std::vector<size_t> candidates_sizes;
+  size_t total = 0;
+  size_t avg = 0;
+  size_t median = 0;
+  size_t zero_count = 0;
+
+  void add(size_t size) { candidates_sizes.push_back(size); }
+
+  void finalize() {
+    for (auto& size : candidates_sizes) {
+      total += size;
+      if (size == 0) zero_count++;
+    }
+
+    avg = total / candidates_sizes.size();
+    std::sort(candidates_sizes.begin(), candidates_sizes.end());
+    median = candidates_sizes[candidates_sizes.size() / 2];
+  }
+};
