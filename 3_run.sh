@@ -5,7 +5,7 @@
 # Setting up variables
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DATA_DIR=$SCRIPT_DIR/data
-AVAILABLE_BENCHMARKS="VF3,CuTS,GSI"
+AVAILABLE_BENCHMARKS="VF3,CuTS,GSI,SIGMO,SIGMO_MPI"
 
 benchmarks=""
 
@@ -52,6 +52,17 @@ done
 if [ -z "$benchmarks" ]
 then
   benchmarks=$AVAILABLE_BENCHMARKS
+fi
+
+if [[ $benchmarks == *"SIGMO_MPI"* ]]
+then
+  $SCRIPT_DIR/scripts/slurm_sigmo.sh
+  benchmarks=${benchmarks//SIGMO_MPI/}
+fi
+if [[ $benchmarks == *"SIGMO"* ]]
+then
+  $SCRIPT_DIR/scripts/run_sigmo.sh
+  benchmarks=${benchmarks//SIGMO/}
 fi
 
 for bench in $(echo $benchmarks | sed "s/,/ /g")
