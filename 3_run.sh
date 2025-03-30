@@ -8,6 +8,7 @@ DATA_DIR=$SCRIPT_DIR/data
 AVAILABLE_BENCHMARKS="VF3,CuTS,GSI,SIGMO,SIGMO_MPI"
 
 benchmarks=""
+forward_arguments=""
 
 help()
 {
@@ -31,10 +32,9 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     *)
-      echo "Invalid argument: $1"
-      help
-      return 1 2>/dev/null
-      exit 1
+      # Collect unrecognized arguments for forwarding
+      forward_arguments="$forward_arguments $1"
+      shift
       ;;
   esac
 done
@@ -56,12 +56,14 @@ fi
 
 if [[ $benchmarks == *"SIGMO_MPI"* ]]
 then
-  $SCRIPT_DIR/scripts/slurm_sigmo.sh
+  for N in 4 8 16 32 64; do
+    sbatch $SCRIPT_DIR/scripts/slurm_sigmo.sh $N $forward_arguments
+  done
   benchmarks=${benchmarks//SIGMO_MPI/}
 fi
 if [[ $benchmarks == *"SIGMO"* ]]
 then
-  $SCRIPT_DIR/scripts/run_sigmo.sh
+  $SCRIPT_DIR/scripts/run_sigmo.sh $forward_arguments
   benchmarks=${benchmarks//SIGMO/}
 fi
 
