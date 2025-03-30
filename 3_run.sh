@@ -57,7 +57,8 @@ fi
 if [[ $benchmarks == *"SIGMO_MPI"* ]]
 then
   for N in 4 8 16 32 64; do
-    sbatch $SCRIPT_DIR/scripts/slurm_sigmo.sh $N $forward_arguments
+    sbatch -N $N -o ./logs/sigmo_mpi_${N}.log -e ./logs/err_sigmo_mpi_${N}.log $SCRIPT_DIR/scripts/slurm/run_slurm.sh $N 0 $SCRATCH/all.graph
+    sbatch -N $N -o ./logs/sigmo_mpi_${N}_findall.log -e ./logs/err_sigmo_mpi_${N}_findall.log $SCRIPT_DIR/scripts/slurm/run_slurm.sh $N 1 $SCRATCH/all.graph
   done
   benchmarks=${benchmarks//SIGMO_MPI/}
 fi
