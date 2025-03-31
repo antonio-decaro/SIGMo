@@ -57,7 +57,7 @@ then
 fi
 
 if [[ $experiments == *"sota"* ]]; then
-  echo "Running single GPU experiments..."
+  echo "Running SOTA experiments..."
   OUT_DIR="$SCRIPT_DIR/out/SIGMO/logs/sota"
   mkdir -p $OUT_DIR
 
@@ -70,15 +70,16 @@ fi
 
 
 if [[ $experiments == *"gpu_scale"* ]]; then
-  echo "Running SOTA experiments..."
+  echo "Running single GPU experiments..."
   OUT_DIR="$SCRIPT_DIR/out/SIGMO/logs/gpu_scale"
   mkdir -p $OUT_DIR
-  for k in {1..13}
+  for k in {14..25}
+  # for k in {1..13}
   do
-    touch $OUT_DIR/logs_$k.log
-    touch $OUT_DIR/logs_findall_$k.log
-    touch $OUT_DIR/err_$k.log
-    touch $OUT_DIR/err_findall_$k.log
+    rm -f $OUT_DIR/logs_$k.log
+    rm -f $OUT_DIR/logs_findall_$k.log
+    rm -f $OUT_DIR/err_$k.log
+    rm -f $OUT_DIR/err_findall_$k.log
     for i in {1..5}
     do
       $SCRIPT_DIR/build/sigmo -i 5 -c query -Q $SCRIPT_DIR/data/SIGMO/query_nowildcards.dat -D $SCRIPT_DIR/data/SIGMO/data.dat --find-all --mul-data=$k --skip-candidates-analysis >> $OUT_DIR/logs_findall_$k.log 2>> $OUT_DIR/err_findall_$k.log

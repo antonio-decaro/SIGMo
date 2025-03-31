@@ -25,7 +25,7 @@ public:
     CandidatesDevice(size_t source_nodes, size_t target_nodes)
         : source_nodes(source_nodes), target_nodes(target_nodes), single_node_size((target_nodes + (num_bits - 1)) / num_bits) {}
 
-    size_t getAllocationSize() const { return source_nodes * single_node_size * sizeof(types::candidates_t); }
+    size_t getAllocationSize() const { return source_nodes * single_node_size; }
 
     void setDataCandidates(types::candidates_t* data_candidates) { candidates = data_candidates; }
 
@@ -193,7 +193,7 @@ public:
   size_t getCandidatesCount(types::node_t source_node, uint32_t graph_start, uint32_t graph_end) const {
     return candidates.getCandidatesCount(source_node, graph_start, graph_end);
   }
-  size_t getAllocationSize() const { return candidates.getAllocationSize(); }
+  size_t getAllocationSize() const { return candidates.getAllocationSize() * sizeof(types::candidates_t); }
   Candidates::CandidatesDevice getCandidatesDevice() const { return candidates; }
 
 private:

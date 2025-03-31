@@ -47,13 +47,16 @@ int main(int argc, char** argv) {
     throw std::runtime_error("Specify input data");
   }
 
+  num_query_graphs = device_query_graph.num_graphs;
+  num_data_graphs = device_data_graph.num_graphs;
+  size_t query_nodes = device_query_graph.total_nodes;
+  size_t data_nodes = device_data_graph.total_nodes;
+
   size_t data_graph_bytes = sigmo::getDeviceGraphAllocSize(device_data_graph);
   size_t query_graphs_bytes = sigmo::getDeviceGraphAllocSize(device_query_graph);
 
   std::vector<std::chrono::duration<double>> data_sig_times, query_sig_times, filter_times;
 
-  size_t query_nodes = device_query_graph.total_nodes;
-  size_t data_nodes = device_data_graph.total_nodes;
 
   // get the right filter domain method
   std::function<sigmo::utils::BatchedEvent(
