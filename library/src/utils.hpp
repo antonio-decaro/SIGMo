@@ -34,6 +34,7 @@ public:
   std::string candidates_domain = "query";
   size_t join_work_group_size = 0;
   Args::Filter query_filter;
+  bool skip_print_candidates = false;
 
   Args(int& argc, char**& argv, sigmo::device::DeviceOptions& device_options) {
     cxxopts::Options options(argv[0], "Command line options");
@@ -48,6 +49,7 @@ public:
         "skip-join", "Skip the join phase", cxxopts::value<bool>(skip_join))("h,help", "Print usage")(
         "find-all", "Find all matches without stopping at the first one", cxxopts::value<bool>(find_all))(
         "query-filter", "Apply a filter to the query graphs. Format: min[:max]", cxxopts::value<std::string>())(
+        "skip-candidates-analysis", "Skip the analysis of the candidates", cxxopts::value<bool>(skip_print_candidates))(
         "join-work-group", "Set the work group size for the join kernel. Default 128.", cxxopts::value<size_t>(device_options.join_work_group_size))(
         "filter-work-group",
         "Set the work group size for the filter kernel. Default 512.",

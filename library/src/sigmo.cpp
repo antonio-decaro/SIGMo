@@ -227,19 +227,21 @@ int main(int argc, char** argv) {
   std::cout << "Total time: " << std::chrono::duration_cast<std::chrono::milliseconds>(host_time_events.getTimeFrom("setup_data_end")).count()
             << " ms" << std::endl;
 
-  CandidatesInspector inspector;
-  auto host_candidates = candidates.getHostCandidates();
-  for (size_t i = 0; i < (args.isCandidateDomainData() ? data_nodes : query_nodes); ++i) {
-    auto count = host_candidates.getCandidatesCount(i);
-    inspector.add(count);
-    if (args.print_candidates) std::cerr << "Node " << i << ": " << count << std::endl;
-  }
-  inspector.finalize();
   std::cout << "------------- Results -------------" << std::endl;
-  std::cout << "# Total candidates: " << formatNumber(inspector.total) << std::endl;
-  std::cout << "# Average candidates: " << formatNumber(inspector.avg) << std::endl;
-  std::cout << "# Median candidates: " << formatNumber(inspector.median) << std::endl;
-  std::cout << "# Zero candidates: " << formatNumber(inspector.zero_count) << std::endl;
+  if (!args.skip_print_candidates) {
+    CandidatesInspector inspector;
+    auto host_candidates = candidates.getHostCandidates();
+    for (size_t i = 0; i < (args.isCandidateDomainData() ? data_nodes : query_nodes); ++i) {
+      auto count = host_candidates.getCandidatesCount(i);
+      inspector.add(count);
+      if (args.print_candidates) std::cerr << "Node " << i << ": " << count << std::endl;
+    }
+    inspector.finalize();
+    std::cout << "# Total candidates: " << formatNumber(inspector.total) << std::endl;
+    std::cout << "# Average candidates: " << formatNumber(inspector.avg) << std::endl;
+    std::cout << "# Median candidates: " << formatNumber(inspector.median) << std::endl;
+    std::cout << "# Zero candidates: " << formatNumber(inspector.zero_count) << std::endl;
+  }
   if (!args.skip_join) { std::cout << "# Matches: " << formatNumber(num_matches[0]) << std::endl; }
 
   sycl::free(num_matches, queue);
