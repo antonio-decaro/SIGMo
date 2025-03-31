@@ -73,8 +73,7 @@ if [[ $experiments == *"gpu_scale"* ]]; then
   echo "Running single GPU experiments..."
   OUT_DIR="$SCRIPT_DIR/out/SIGMO/logs/gpu_scale"
   mkdir -p $OUT_DIR
-  for k in {14..25}
-  # for k in {1..13}
+  for k in {1..25}
   do
     rm -f $OUT_DIR/logs_$k.log
     rm -f $OUT_DIR/logs_findall_$k.log
