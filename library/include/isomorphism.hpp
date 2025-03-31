@@ -184,7 +184,7 @@ utils::BatchedEvent joinCandidates2(sycl::queue& queue,
 
   size_t size = gmcr.getGMCRDevice().total_query_indices;
 
-  size_t global_size = (size + preferred_workgroup_size - 1) / preferred_workgroup_size;
+  size_t global_size = ((size + preferred_workgroup_size - 1) / preferred_workgroup_size) * preferred_workgroup_size;
 
   sycl::nd_range<1> nd_range{global_size, preferred_workgroup_size};
   constexpr size_t MAX_QUERY_NODES = 30;
