@@ -323,7 +323,8 @@ static void destroyDeviceCSRGraph(DeviceBatchedCSRGraph& device_data_graph, sycl
 
 static size_t getDeviceCSRGraphAllocSize(const DeviceBatchedCSRGraph& device_data_graph) {
   return device_data_graph.total_nodes * sizeof(types::label_t) + (device_data_graph.num_graphs + 1) * sizeof(types::row_offset_t)
-         + (device_data_graph.total_nodes + 1) * sizeof(types::row_offset_t) + device_data_graph.total_edges * sizeof(types::col_index_t);
+         + (device_data_graph.total_nodes + 1) * sizeof(types::row_offset_t) + device_data_graph.total_edges * sizeof(types::col_index_t)
+         + device_data_graph.total_edges * sizeof(types::label_t);
 }
 
 static size_t getDeviceCSRGraphAllocSize(const std::vector<CSRGraph>& data_graphs) {

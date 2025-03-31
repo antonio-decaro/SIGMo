@@ -33,6 +33,7 @@ public:
   bool find_all = false;
   std::string candidates_domain = "query";
   size_t join_work_group_size = 0;
+  size_t max_data_graphs = 1000000;
   Args::Filter query_filter;
   bool skip_print_candidates = false;
 
@@ -50,6 +51,7 @@ public:
         "find-all", "Find all matches without stopping at the first one", cxxopts::value<bool>(find_all))(
         "query-filter", "Apply a filter to the query graphs. Format: min[:max]", cxxopts::value<std::string>())(
         "skip-candidates-analysis", "Skip the analysis of the candidates", cxxopts::value<bool>(skip_print_candidates))(
+        "max-data-graphs", "Limit the number of data graphs", cxxopts::value<size_t>(max_data_graphs))(
         "join-work-group", "Set the work group size for the join kernel. Default 128.", cxxopts::value<size_t>(device_options.join_work_group_size))(
         "filter-work-group",
         "Set the work group size for the filter kernel. Default 512.",
@@ -151,3 +153,24 @@ std::string getBytesSize(size_t num_bytes, bool round = true) {
   if (round) return std::to_string(static_cast<int>(std::round(bytes))) + " " + unit;
   return std::to_string(bytes) + " " + unit;
 }
+
+struct CandidatesInspector {
+  std::vector<size_t> candidates_sizes;
+  size_t total = 0;
+  size_t avg = 0;
+  size_t median = 0;
+  size_t zero_count = 0;
+
+  void add(size_t size) { candidates_sizes.push_back(size); }
+
+  void finalize() {
+    for (auto& size : candidates_sizes) {
+      total += size;
+      if (size == 0) zero_count++;
+    }
+
+    avg = total / candidates_sizes.size();
+    std::sort(candidates_sizes.begin(), candidates_sizes.end());
+    median = candidates_sizes[candidates_sizes.size() / 2];
+  }
+};

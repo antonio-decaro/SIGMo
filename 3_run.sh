@@ -5,9 +5,10 @@
 # Setting up variables
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 DATA_DIR=$SCRIPT_DIR/data
-AVAILABLE_BENCHMARKS="VF3,CuTS,GSI"
+AVAILABLE_BENCHMARKS="VF3,CuTS,GSI,SIGMO,SIGMO_MPI"
 
 benchmarks=""
+forward_arguments=""
 
 help()
 {
@@ -31,10 +32,9 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     *)
-      echo "Invalid argument: $1"
-      help
-      return 1 2>/dev/null
-      exit 1
+      # Collect unrecognized arguments for forwarding
+      forward_arguments="$forward_arguments $1"
+      shift
       ;;
   esac
 done
@@ -52,6 +52,20 @@ done
 if [ -z "$benchmarks" ]
 then
   benchmarks=$AVAILABLE_BENCHMARKS
+fi
+
+if [[ $benchmarks == *"SIGMO_MPI"* ]]
+then
+  for N in 4 8 16 32 64; do
+    sbatch -N $N -o ./logs/sigmo_mpi_${N}.log -e ./logs/err_sigmo_mpi_${N}.log $SCRIPT_DIR/scripts/slurm/run_slurm.sh $N 0 $SCRATCH/all.graph
+    sbatch -N $N -o ./logs/sigmo_mpi_${N}_findall.log -e ./logs/err_sigmo_mpi_${N}_findall.log $SCRIPT_DIR/scripts/slurm/run_slurm.sh $N 1 $SCRATCH/all.graph
+  done
+  benchmarks=${benchmarks//SIGMO_MPI/}
+fi
+if [[ $benchmarks == *"SIGMO"* ]]
+then
+  $SCRIPT_DIR/scripts/run_sigmo.sh $forward_arguments
+  benchmarks=${benchmarks//SIGMO/}
 fi
 
 for bench in $(echo $benchmarks | sed "s/,/ /g")

@@ -14,7 +14,16 @@
 namespace sigmo {
 namespace io {
 
-std::vector<AMGraph> loadAMGraphsFromFile(const std::string& filename) {
+  std::vector<sigmo::AMGraph> loadAMGraphsFromLines(const std::vector<std::string>& lines) {
+    std::vector<sigmo::AMGraph> query_graphs;
+    for (const auto& line : lines) {
+      sigmo::IntermediateGraph intermediate_graph{line};
+      query_graphs.push_back(intermediate_graph.toAMGraph());
+    }
+    return query_graphs;
+  }
+
+  std::vector<AMGraph> loadAMGraphsFromFile(const std::string& filename) {
   std::ifstream file(filename);
   std::string line;
   std::vector<sigmo::AMGraph> query_graphs;
@@ -23,6 +32,15 @@ std::vector<AMGraph> loadAMGraphsFromFile(const std::string& filename) {
     query_graphs.push_back(intermediate_graph.toAMGraph());
   }
   return query_graphs;
+}
+
+std::vector<sigmo::CSRGraph> loadCSRGraphsFromLines(const std::vector<std::string>& lines) {
+  std::vector<sigmo::CSRGraph> data_graphs;
+  for (const auto& line : lines) {
+    sigmo::IntermediateGraph intermediate_graph{line};
+    data_graphs.push_back(intermediate_graph.toCSRGraph());
+  }
+  return data_graphs;
 }
 
 std::vector<CSRGraph> loadCSRGraphsFromFile(const std::string& filename) {

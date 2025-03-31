@@ -7,11 +7,12 @@ cmake_minimum_required(VERSION 3.10)
 project(SIGMO)
 
 # Specify the C++ standard
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Include the SYCL setup module
 include(${CMAKE_SOURCE_DIR}/cmake/SetupSYCL.cmake)
+find_package(MPI REQUIRED)
 
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR}/include)
@@ -49,21 +50,16 @@ if (SIGMO_ENABLE_TEST)
     add_subdirectory(${CMAKE_SOURCE_DIR}/test)
 endif()
 
-# Add the executable
-add_executable(create_pool
-    ${CMAKE_SOURCE_DIR}/src/create_pool.cpp
-)
-add_executable(inspector
-    ${CMAKE_SOURCE_DIR}/src/inspector.cpp
-)
 add_executable(sigmo
     ${CMAKE_SOURCE_DIR}/src/sigmo.cpp
 )
+add_executable(sigmo_mpi
+    ${CMAKE_SOURCE_DIR}/src/sigmo_mpi.cpp
+)
 
 # Link cxxopts to the executables
-target_link_libraries(create_pool PRIVATE cxxopts)
-target_link_libraries(inspector PRIVATE cxxopts)
 target_link_libraries(sigmo PRIVATE cxxopts)
+target_link_libraries(sigmo_mpi PRIVATE MPI::MPI_CXX)
 
 # Select the target architecture
 set (SIGMO_TARGET_ARCHITECTURE "" CACHE STRING "Target architecture for the SIGMO library")

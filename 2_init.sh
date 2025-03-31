@@ -10,6 +10,7 @@ AVAILABLE_BENCHMARKS="VF3,CuTS,GSI,SIGMO"
 data_limit=-1
 query_limit=-1
 benchmarks=""
+no_wildcards=""
 
 help()
 {
@@ -17,6 +18,7 @@ help()
       [ -b=bench1,bench2,bench3] The set of benchmark files to be generated;
       [ --data-limit= ] Limit the number of data files to be generated;
       [ --query-limit= ] Limit the number of query files to be generated;
+      [ --no-wildcards ] Do not use wildcards in the query files;
       [ -h | --help ] Print this help message and exit.
       The available benchmarks are: " $AVAILABLE_BENCHMARKS
 }
@@ -30,6 +32,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --query-limit=*)
       query_limit="${1#*=}"
+      shift
+      ;;
+    --no-wildcards)
+      no_wildcards="--no-wildcards"
       shift
       ;;
     -b=*)
@@ -110,11 +116,11 @@ generate_files() {
     mkdir -p $OUT_DIR/query
     if [ "$bench" == "SIGMO" ]; then
       lines=$(head -n $limit $DATA_DIR/${type}.smarts)
-      python3 $SCRIPT_DIR/scripts/smile2graph.py -f $bench -o $OUT_DIR/${type}.dat <<< "$lines"
+      python3 $SCRIPT_DIR/scripts/smile2graph.py -f $bench -o $OUT_DIR/${type}.dat $no_wildcards <<< "$lines"
     else
       while read -r line && [ $i -lt $limit ];
       do
-        python3 $SCRIPT_DIR/scripts/smile2graph.py -f $bench -o $OUT_DIR/${type}/${type}_${i}.dat <<< "$line" 2> /dev/null
+        python3 $SCRIPT_DIR/scripts/smile2graph.py -f $bench -o $OUT_DIR/${type}/${type}_${i}.dat $no_wildcards <<< "$line" 2> /dev/null
         i=$((i+1))
         printf "\rProgress ($type): %d\%d" $i $total
       done < $DATA_DIR/query.smarts
