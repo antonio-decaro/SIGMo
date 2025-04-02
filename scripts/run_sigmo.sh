@@ -103,4 +103,5 @@ if [[ $experiments == *"gpu_usage"* ]]; then
   wait $DCGMI_PID 2>/dev/null
 
   ncu --set full -f -o $OUT_DIR/sigmo $SCRIPT_DIR/build/sigmo -i 5 -c query -Q $SCRIPT_DIR/data/SIGMO/query.dat -D $SCRIPT_DIR/data/SIGMO/data.dat --join-work-group=64 --skip-candidates-analysis
+  ncu -i $OUT_DIR/sigmo.ncu-rep --print-details all --csv --print-metric-name label-name > $OUT_DIR/metrics.csv
 fi
