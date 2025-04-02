@@ -101,4 +101,6 @@ if [[ $experiments == *"gpu_usage"* ]]; then
   echo "SIGMO PID: $!"
   kill $DCGMI_PID
   wait $DCGMI_PID 2>/dev/null
+
+  ncu --set full -f -o $OUT_DIR/sigmo $SCRIPT_DIR/build/sigmo -i 5 -c query -Q $SCRIPT_DIR/data/SIGMO/query.dat -D $SCRIPT_DIR/data/SIGMO/data.dat --join-work-group=64 --skip-candidates-analysis
 fi
