@@ -34,6 +34,7 @@ public:
   std::string candidates_domain = "query";
   size_t join_work_group_size = 0;
   size_t max_data_graphs = 1000000;
+  size_t max_query_graphs = 1000;
   Args::Filter query_filter;
   bool skip_print_candidates = false;
 
@@ -52,6 +53,7 @@ public:
         "query-filter", "Apply a filter to the query graphs. Format: min[:max]", cxxopts::value<std::string>())(
         "skip-candidates-analysis", "Skip the analysis of the candidates", cxxopts::value<bool>(skip_print_candidates))(
         "max-data-graphs", "Limit the number of data graphs", cxxopts::value<size_t>(max_data_graphs))(
+        "max-query-graphs", "Limit the number of query graphs", cxxopts::value<size_t>(max_query_graphs))(
         "join-work-group", "Set the work group size for the join kernel. Default 128.", cxxopts::value<size_t>(device_options.join_work_group_size))(
         "filter-work-group",
         "Set the work group size for the filter kernel. Default 512.",

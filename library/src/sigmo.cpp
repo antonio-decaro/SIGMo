@@ -41,6 +41,8 @@ int main(int argc, char** argv) {
     for (size_t i = 1; i < args.multiply_factor_data; ++i) {
       data_graphs.insert(data_graphs.end(), data_graphs.begin(), data_graphs.begin() + num_data_graphs);
     }
+    if (query_graphs.size() > args.max_query_graphs) { query_graphs.erase(query_graphs.begin() + args.max_query_graphs, query_graphs.end()); }
+    if (data_graphs.size() > args.max_data_graphs) { data_graphs.erase(data_graphs.begin() + args.max_data_graphs, data_graphs.end()); }
     device_query_graph = sigmo::createDeviceCSRGraph(queue, query_graphs);
     device_data_graph = sigmo::createDeviceCSRGraph(queue, data_graphs);
   } else {
@@ -56,19 +58,6 @@ int main(int argc, char** argv) {
   size_t query_graphs_bytes = sigmo::getDeviceGraphAllocSize(device_query_graph);
 
   std::vector<std::chrono::duration<double>> data_sig_times, query_sig_times, filter_times;
-
-
-  // get the right filter domain method
-  std::function<sigmo::utils::BatchedEvent(
-      sycl::queue&, sigmo::DeviceBatchedCSRGraph&, sigmo::DeviceBatchedCSRGraph&, sigmo::signature::Signature<>&, sigmo::candidates::Candidates&)>
-      filter_method, refine_method;
-  if (args.isCandidateDomainData()) {
-    filter_method = sigmo::isomorphism::filter::filterCandidates<sigmo::CandidatesDomain::Data>;
-    refine_method = sigmo::isomorphism::filter::refineCandidates<sigmo::CandidatesDomain::Data>;
-  } else {
-    filter_method = sigmo::isomorphism::filter::filterCandidates<sigmo::CandidatesDomain::Query>;
-    refine_method = sigmo::isomorphism::filter::refineCandidates<sigmo::CandidatesDomain::Query>;
-  }
 
   std::cout << "------------- Input Data -------------" << std::endl;
   std::cout << "Reed data graph and query graph" << std::endl;
@@ -88,9 +77,7 @@ int main(int argc, char** argv) {
   std::cout << "Allocated " << getBytesSize(data_graph_bytes) << " for graph data" << std::endl;
   std::cout << "Allocated " << getBytesSize(query_graphs_bytes) << " for query data" << std::endl;
 
-  size_t source_nodes = args.isCandidateDomainData() ? data_nodes : query_nodes;
-  size_t target_nodes = args.isCandidateDomainData() ? query_nodes : data_nodes;
-  sigmo::candidates::Candidates candidates{queue, source_nodes, target_nodes};
+  sigmo::candidates::Candidates candidates{queue, query_nodes, data_nodes};
   size_t candidates_bytes = candidates.getAllocationSize();
   std::cout << "Allocated " << getBytesSize(candidates_bytes) << " for candidates" << std::endl;
 
@@ -124,7 +111,7 @@ int main(int argc, char** argv) {
   query_sig_times.push_back(time);
   std::cout << "- Query signatures generated in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
 
-  auto e3 = filter_method(queue, device_query_graph, device_data_graph, signatures, candidates);
+  auto e3 = sigmo::isomorphism::filter::filterCandidates(queue, device_query_graph, device_data_graph, signatures, candidates);
   queue.wait_and_throw();
   time = e3.getProfilingInfo();
   filter_times.push_back(time);
@@ -146,7 +133,7 @@ int main(int argc, char** argv) {
     query_sig_times.push_back(time);
     std::cout << "- Query signatures refined in " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() << " ms" << std::endl;
 
-    auto e3 = refine_method(queue, device_query_graph, device_data_graph, signatures, candidates);
+    auto e3 = sigmo::isomorphism::filter::refineCandidates(queue, device_query_graph, device_data_graph, signatures, candidates);
     queue.wait_and_throw();
     time = e3.getProfilingInfo();
     filter_times.push_back(time);
@@ -214,7 +201,7 @@ int main(int argc, char** argv) {
   if (!args.skip_print_candidates) {
     CandidatesInspector inspector;
     auto host_candidates = candidates.getHostCandidates();
-    for (size_t i = 0; i < (args.isCandidateDomainData() ? data_nodes : query_nodes); ++i) {
+    for (size_t i = 0; i < query_nodes; ++i) {
       auto count = host_candidates.getCandidatesCount(i);
       inspector.add(count);
       if (args.print_candidates) std::cerr << "Node " << i << ": " << count << std::endl;
