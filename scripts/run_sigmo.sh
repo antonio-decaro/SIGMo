@@ -5,7 +5,7 @@
 SCRIPT_DIR=$1
 shift
 
-EXPERIMENTS="gpu_scale,sota,gpu_usage"
+EXPERIMENTS="gpu-scale,sota,gpu-usage"
 experiments=""
 total_iterations=7
 
@@ -69,7 +69,7 @@ if [[ $experiments == *"sota"* ]]; then
 fi
 
 
-if [[ $experiments == *"gpu_scale"* ]]; then
+if [[ $experiments == *"gpu-scale"* ]]; then
   echo "Running single GPU experiments..."
   OUT_DIR="$SCRIPT_DIR/out/SIGMO/logs/gpu_scale"
   mkdir -p $OUT_DIR
@@ -87,7 +87,7 @@ if [[ $experiments == *"gpu_scale"* ]]; then
   done
 fi
 
-if [[ $experiments == *"gpu_usage"* ]]; then
+if [[ $experiments == *"gpu-usage"* ]]; then
   echo "Running GPU usage experiments..."
   OUT_DIR="$SCRIPT_DIR/out/SIGMO/logs/gpu_usage"
   mkdir -p $OUT_DIR
