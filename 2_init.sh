@@ -116,7 +116,13 @@ generate_files() {
     mkdir -p $OUT_DIR/query
     if [ "$bench" == "SIGMO" ]; then
       lines=$(head -n $limit $DATA_DIR/${type}.smarts)
-      python3 $SCRIPT_DIR/scripts/smile2graph.py -f $bench -o $OUT_DIR/${type}.dat $no_wildcards <<< "$lines"
+      if [ "$type" == "query" ]; then
+        python3 $SCRIPT_DIR/scripts/smile2graph.py -f $bench -o $OUT_DIR/query.dat <<< "$lines"
+        python3 $SCRIPT_DIR/scripts/smile2graph.py -f $bench -o $OUT_DIR/query_nowildcards.dat --no-wildcards <<< "$lines"
+        python3 $SCRIPT_DIR/scripts/smile2graph.py -f $bench -o $OUT_DIR/query/ --group-diameter <<< "$lines"
+      else
+        python3 $SCRIPT_DIR/scripts/smile2graph.py -f $bench -o $OUT_DIR/data.dat <<< "$lines"
+      fi
     else
       while read -r line && [ $i -lt $limit ];
       do

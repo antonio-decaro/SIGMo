@@ -3,6 +3,7 @@
 
 from abc import abstractmethod
 import argparse
+import os
 from typing import List
 import networkx as nx
 from rdkit import Chem
@@ -67,11 +68,12 @@ def get_graph_list(lines):
 
 
 class Parser:
-  def __init__(self, graphs: List[nx.DiGraph], no_wildcards: bool = False):
+  def __init__(self, graphs: List[nx.DiGraph], no_wildcards: bool = False, group_diameter: bool = False):
     if no_wildcards:
       self.graphs = [g for g in graphs if self.check_wildcards(g)]
     else:
       self.graphs = graphs
+    self.group_diameter = group_diameter
     
   
   @abstractmethod
@@ -92,10 +94,10 @@ class Parser:
     return [subclass.__name__.replace('Parser', '') for subclass in cls.__subclasses__()]
   
   @classmethod
-  def create_parser(cls, framework: str, g: nx.DiGraph, no_wildcards: bool = False):
+  def create_parser(cls, framework: str, g: nx.DiGraph, no_wildcards: bool = False, group_diameter: bool = False):
     for subclass in cls.__subclasses__():
       if subclass.__name__ == framework + 'Parser':
-        return subclass(g, no_wildcards)
+        return subclass(g, no_wildcards, group_diameter)
     raise ValueError(f"Parser for framework '{framework}' not found")
   
 class CuTSParser(Parser):
@@ -133,16 +135,49 @@ class VF3Parser(Parser):
 
 class SIGMOParser(Parser):
   def parse(self, file):
-    for g in self.graphs:
-      g: nx.DiGraph
-      g = g.to_undirected()
-      print(f'n#{g.number_of_nodes()} l#{NUM_LABELS}',  end=' ', file=file)
-      for i, n in enumerate(g.nodes):
-        print(i, getNodeLabel(g.nodes[i]), end=' ', file=file)
-      print(f'e#{g.number_of_edges()}', end=' ', file=file)
-      for a, b, d in g.edges(data=True):
-        print(a, b, getEdgeLabel(d), end=' ', file=file)
-      print(file=file)
+    if self.group_diameter:
+      diameter_groups = {}
+      for g in self.graphs:
+        d = nx.diameter(g)
+        if d not in diameter_groups:
+          diameter_groups[d] = []
+        diameter_groups[d].append(g)
+      
+      max_num_graphs = max([len(diameter_groups[d]) for d in diameter_groups])
+      
+      for d in diameter_groups:
+        to_add = max_num_graphs - len(diameter_groups[d])
+        while to_add > 0:
+          curr_len = len(diameter_groups[d])
+          if to_add < curr_len:
+            diameter_groups[d].extend(diameter_groups[d][:to_add])
+          else:
+            diameter_groups[d].extend(diameter_groups[d])
+          to_add = max_num_graphs - len(diameter_groups[d])
+
+      for d, graphs in diameter_groups.items():
+        with open(f'{file}/query_d{d}.dat', 'w') as dfile:
+          for g in graphs:
+            g: nx.DiGraph
+            g = g.to_undirected()
+            print(f'n#{g.number_of_nodes()} l#{NUM_LABELS}',  end=' ', file=dfile)
+            for i, n in enumerate(g.nodes):
+              print(i, getNodeLabel(g.nodes[i]), end=' ', file=dfile)
+            print(f'e#{g.number_of_edges()}', end=' ', file=dfile)
+            for a, b, d in g.edges(data=True):
+              print(a, b, getEdgeLabel(d), end=' ', file=dfile)
+            print(file=dfile)
+    else:
+      for g in self.graphs:
+        g: nx.DiGraph
+        g = g.to_undirected()
+        print(f'n#{g.number_of_nodes()} l#{NUM_LABELS}',  end=' ', file=file)
+        for i, n in enumerate(g.nodes):
+          print(i, getNodeLabel(g.nodes[i]), end=' ', file=file)
+        print(f'e#{g.number_of_edges()}', end=' ', file=file)
+        for a, b, d in g.edges(data=True):
+          print(a, b, getEdgeLabel(d), end=' ', file=file)
+        print(file=file)
 
 
 
@@ -151,6 +186,7 @@ if __name__ == '__main__':
   parser.add_argument('--output', '-o', type=str, help='Output file, if None, print to stdout')
   parser.add_argument('--framework', '-f', choices=Parser.get_parsers(), type=str, help='Framework to use', default='cuts')
   parser.add_argument('--no-wildcards', action='store_true', help='Do not use wildcards')
+  parser.add_argument('--group-diameter', action='store_true', help='Group graphs by diameter and creates a file for each graph diameter')
   args = parser.parse_args()
   if sys.stdin.isatty():
     print(f'Usage: python {sys.argv[0]} < smarts_file')
@@ -160,7 +196,10 @@ if __name__ == '__main__':
   graphs = get_graph_list(lines)
   
   if args.output:
-    with open(args.output, 'w') as f:
-      Parser.create_parser(args.framework, graphs, args.no_wildcards).parse(f)
+    if os.path.isdir(args.output):
+      Parser.create_parser(args.framework, graphs, args.no_wildcards, args.group_diameter).parse(args.output)
+    else:
+      with open(args.output, 'w') as f:
+        Parser.create_parser(args.framework, graphs, args.no_wildcards, args.group_diameter).parse(f)
   else:
-    Parser.create_parser(args.framework, graphs, args.no_wildcards).parse(sys.stdout)
+    Parser.create_parser(args.framework, graphs, args.no_wildcards, args.group_diameter).parse(sys.stdout)
