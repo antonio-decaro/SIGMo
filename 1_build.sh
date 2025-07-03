@@ -99,6 +99,6 @@ then
   echo "[*] Building SIGMO"
   mkdir build
   cd build
-  cmake ../library -DCMAKE_CXX_COMPILER=$sigmo_compiler -DSIGMO_TARGET_ARCHITECTURE=$sigmo_arch -DSIGMO_ENABLE_TEST=OFF
+  cmake ../library -DCMAKE_CXX_COMPILER=$sigmo_compiler -DSIGMO_TARGET_ARCHITECTURE=$sigmo_arch -DSIGMO_ENABLE_TEST=OFF -DCMAKE_BUILD_TYPE=Release -DCXXOPTS_BUILD_EXAMPLES=OFF -DCXXOPTS_BUILD_TESTS=OFF -DCXXOPTS_ENABLE_INSTALL=OFF
   cmake --build . -j
 fi
