@@ -67,7 +67,9 @@ if [[ $experiments == *"core"* ]]; then
     $SCRIPT_DIR/build/sigmo -i $i -Q $SCRIPT_DIR/data/SIGMO/query.dat -D $SCRIPT_DIR/data/SIGMO/data.dat -p -c query --find-all > $OUT_DIR/sigmo_findall_${i}.log 2> $OUT_DIR/err_sigmo_findall_${i}.log
   done
 
-  python $SCRIPT_DIR/scripts/output_analyzer.py $OUT_DIR $SCRIPT_DIR/out/SIGMO/sigmo_results.csv
+  source $SCRIPT_DIR/.venv/bin/activate
+  python $SCRIPT_DIR/scripts/utils/output_analyzer.py $OUT_DIR $SCRIPT_DIR/out/SIGMO/sigmo_results.csv
+  deactivate
 fi
 
 
