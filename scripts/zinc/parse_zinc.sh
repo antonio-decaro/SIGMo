@@ -8,7 +8,18 @@
 #SBATCH --error=logs/parse_%A_%a.err
 #SBATCH --job-name=parse_zinc
 
-$SCRIPT_DIR=$(dirname "$(realpath "$0")")
-echo "Running parse_zinc.sh in directory: $SCRIPT_DIR"
+SCRIPT_DIR=$1
+DIR=$2
 
-# srun $SCRIPT_DIR/parse_zinc.py ${SLURM_ARRAY_TASK_ID}
+if [ -z "$DIR" ]; then
+    echo "Usage: $0 <path_to_zinc_dataset>"
+    exit 1
+fi
+if [ ! -d "$DIR" ]; then
+    echo "Directory $DIR does not exist."
+    exit 1
+fi
+
+DIR=$(realpath "$DIR")
+
+srun $SCRIPT_DIR/scripts/zinc/parse_zinc.py ${SLURM_ARRAY_TASK_ID} "$DIR"

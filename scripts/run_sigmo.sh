@@ -13,9 +13,9 @@ zinc_dataset=""
 function help() {
   echo "Usage: $0 [options]"
   echo "Options:"
-  echo "  -e, --experiments <exp1,exp2,...>  Comma-separated list of experiments to run (default: $EXPERIMENTS)"
-  echo "  -i, --iterations <num>            Number of iterations for each experiment (default: $total_iterations)"
-  echo "  --zinc-dataset <path>             Path to the ZINC dataset (required if running mpi experiment)"
+  echo "  -e=, --experiments=<exp1,exp2,...>  Comma-separated list of experiments to run (default: $EXPERIMENTS)"
+  echo "  -i=, --iterations=<num>            Number of iterations for each experiment (default: $total_iterations)"
+  echo "  --zinc=<path>             Path to the ZINC dataset (required if running mpi experiment)"
   echo "  -H, --help                        Display this help message"
 }
 
@@ -30,7 +30,7 @@ while [[ $# -gt 0 ]]; do
       total_iterations="${1#*=}"
       shift
       ;;
-    --zinc-dataset=*)
+    --zinc=*)
       zinc_dataset="${1#*=}"
       if [ ! -d "$zinc_dataset" ]; then
         echo "[!] Invalid ZINC dataset path: $zinc_dataset"

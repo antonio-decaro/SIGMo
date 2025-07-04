@@ -11,7 +11,10 @@ data_limit=-1
 query_limit=-1
 benchmarks=""
 no_wildcards=""
-download_zinc=""
+zinc=""
+skip_zinc_download=False
+skip_zinc_parsing=False
+skip_parsing=False
 
 help()
 {
@@ -19,7 +22,10 @@ help()
       [ -b=bench1,bench2,bench3] The set of benchmark files to be generated;
       [ --data-limit= ] Limit the number of data files to be generated;
       [ --query-limit= ] Limit the number of query files to be generated;
-      [ --download-zinc= ] Download the ZINC dataset in the specified path (careful, it is large);
+      [ --skip-parsing=<True|False> ] Skip parsing of the single-node files (default: False);
+      [ --zinc= ] Download the ZINC dataset in the specified path (careful, it is large);
+      [ --skip-zinc-download=<True|False> ] Skip downloading the ZINC dataset (default: False);
+      [ --skip-zinc-parsing=<True|False> ] Skip parsing the ZINC dataset (default: False);
       [ --no-wildcards ] Do not use wildcards in the query files;
       [ -h | --help ] Print this help message and exit.
       The available benchmarks are: " $AVAILABLE_BENCHMARKS
@@ -40,9 +46,21 @@ while [[ $# -gt 0 ]]; do
       no_wildcards="--no-wildcards"
       shift
       ;;
-    --download-zinc=*)
-      download_zinc="${1#*=}"
-      download_zinc=$(realpath "$download_zinc")
+    --zinc=*)
+      zinc="${1#*=}"
+      zinc=$(realpath "$zinc")
+      shift
+      ;;
+    --skip-zinc-download)
+      skip_zinc_download=True
+      shift
+      ;;
+    --skip-zinc-parsing)
+      skip_zinc_parsing=True
+      shift
+      ;;
+    --skip-parsing)
+      skip_parsing=True
       shift
       ;;
     -b=*)
@@ -78,7 +96,7 @@ then
 fi
 
 # if zinc is true
-if [ "$download_zinc" != "" ]; then
+if [ "$zinc" != "" ]; then
   # if SIGMO is not in benchmarks kill the script
   if [[ $benchmarks != *"SIGMO"* ]]
   then
@@ -152,24 +170,34 @@ generate_files() {
   fi
 }
 
-for bench in $(echo $benchmarks | sed "s/,/ /g")
-do
-  echo "[*] Generating $bench files..."
-  mkdir -p $DATA_DIR/$bench
+if [ "$skip_parsing" == "False" ]; then
+  echo "[*] Skipping parsing of single-node files."
+  for bench in $(echo $benchmarks | sed "s/,/ /g")
+  do
+    echo "[*] Generating $bench files..."
+    mkdir -p $DATA_DIR/$bench
 
-  # generate query and data files in parallel
-  echo "[*] Generating query files..."
-  generate_files $bench "query" $query_limit
-  echo "[*] Generating data files..."
-  generate_files $bench "data" $data_limit
-  wait
-done
+    # generate query and data files in parallel
+    echo "[*] Generating query files..."
+    generate_files $bench "query" $query_limit
+    echo "[*] Generating data files..."
+    generate_files $bench "data" $data_limit
+    wait
+  done
+fi
 
-# if download_zinc is set, download the ZINC dataset
-if [ "$download_zinc" != "" ]; then
-  echo "[*] Downloading ZINC dataset to $download_zinc"
-  mkdir -p $download_zinc
-  $SCRIPT_DIR/scripts/zinc/download_zinc.sh $SCRIPT_DIR/data/ZINC_URLS $download_zinc
+# if zinc is set, download the ZINC dataset
+if [ "$zinc" != "" ]; then
+  mkdir -p $zinc
+  if [ "$skip_zinc_download" == "False" ]; then
+    echo "[*] Downloading ZINC dataset to $zinc"
+    $SCRIPT_DIR/scripts/zinc/download_zinc.sh $SCRIPT_DIR/data/ZINC_URLS $zinc
+    cat $zinc/*.smi > $zinc/all.smiles
+  fi
+  if [ "$skip_zinc_parsing" == "False" ]; then
+    echo "[*] Parsing ZINC dataset to $zinc"
+    sbatch $SCRIPT_DIR/scripts/zinc/parse_zinc.sh $SCRIPT_DIR $zinc
+  fi
 fi
 
 # deactivate venv

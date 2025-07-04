@@ -8,7 +8,6 @@ import sys
 import glob
 from tqdm import tqdm
 
-out_folder = "/leonardo_scratch/large/userexternal/adecaro0/zinc_graphs"
 organic_subset = {l: (i) for i, l in enumerate('N Cl * Br I P H O C S F B Sn'.split())}
 
 def smileToGraph(smarts: str) -> nx.DiGraph:
@@ -35,17 +34,18 @@ def printGraph(g: nx.DiGraph, file):
   print(file=file)
 
 if __name__ == '__main__':
-  parser  =argparse.ArgumentParser(description='Converts a SMILES file to a graph file')
+  parser = argparse.ArgumentParser(description='Converts a SMILES file to a graph file')
   parser.add_argument('id', help='id', type=int, default=0)
+  parser.add_argument('folder', help='ZINC dataset folder', type=str)
   args = parser.parse_args()
 
-  folder = "/leonardo_scratch/large/userinternal/fficarel/zinc/"
-
-  files = glob.glob(folder + "*.smi")
+  files = glob.glob(os.path.join(args.folder, "*.smi"))
 
   file = files[args.id]
   fname = file.split("/")[-1].split(".")[0]
-  with open(f"{out_folder}/{args.id}_{fname}.dat", "w") as f:
+  out_file = os.path.join(args.folder, f"{args.id}_{fname}.dat")
+  
+  with open(out_file, "w") as f:
     with open(file) as f_in:
       for line in f_in.readlines():
         try:
