@@ -77,14 +77,16 @@ if [[ $experiments == *"dataset-scale"* ]]; then
   mkdir -p $OUT_DIR
   for k in {1..25}
   do
+    printf "Dataset scale %i\n" $k
     rm -f $OUT_DIR/logs_$k.log
     rm -f $OUT_DIR/logs_findall_$k.log
     rm -f $OUT_DIR/err_$k.log
     rm -f $OUT_DIR/err_findall_$k.log
     for i in {1..5}
     do
-      $SCRIPT_DIR/build/sigmo -i 5 -c query -Q $SCRIPT_DIR/data/SIGMO/query_nowildcards.dat -D $SCRIPT_DIR/data/SIGMO/data.dat --find-all --mul-data=$k --skip-candidates-analysis >> $OUT_DIR/logs_findall_$k.log 2>> $OUT_DIR/err_findall_$k.log
-      $SCRIPT_DIR/build/sigmo -i 5 -c query -Q $SCRIPT_DIR/data/SIGMO/query_nowildcards.dat -D $SCRIPT_DIR/data/SIGMO/data.dat --mul-data=$k --skip-candidates-analysis >> $OUT_DIR/logs_$k.log 2>> $OUT_DIR/err_findall_$k.log
+      printf "Iteration %i/%s\n" $i 5
+      $SCRIPT_DIR/build/sigmo -i 5 -c query -Q $SCRIPT_DIR/data/SIGMO/query_nowildcards.dat -D $SCRIPT_DIR/data/SIGMO/data.dat --max-data-graphs 1000000000 --find-all --mul-data=$k --skip-candidates-analysis >> $OUT_DIR/logs_findall_$k.log 2>> $OUT_DIR/err_findall_$k.log
+      $SCRIPT_DIR/build/sigmo -i 5 -c query -Q $SCRIPT_DIR/data/SIGMO/query_nowildcards.dat -D $SCRIPT_DIR/data/SIGMO/data.dat --max-data-graphs 1000000000 --mul-data=$k --skip-candidates-analysis >> $OUT_DIR/logs_$k.log 2>> $OUT_DIR/err_findall_$k.log
     done
   done
 fi
