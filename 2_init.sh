@@ -11,6 +11,7 @@ data_limit=-1
 query_limit=-1
 benchmarks=""
 no_wildcards=""
+download_zinc=False
 
 help()
 {
@@ -19,6 +20,7 @@ help()
       [ --data-limit= ] Limit the number of data files to be generated;
       [ --query-limit= ] Limit the number of query files to be generated;
       [ --no-wildcards ] Do not use wildcards in the query files;
+      [ --download-zinc ] Download the ZINC dataset (careful, it is large);
       [ -h | --help ] Print this help message and exit.
       The available benchmarks are: " $AVAILABLE_BENCHMARKS
 }
@@ -36,6 +38,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --no-wildcards)
       no_wildcards="--no-wildcards"
+      shift
+      ;;
+    --download-zinc)
+      download_zinc=True
       shift
       ;;
     -b=*)
@@ -68,6 +74,17 @@ done
 if [ -z "$benchmarks" ]
 then
   benchmarks=$AVAILABLE_BENCHMARKS
+fi
+
+# if zinc is true
+if [ "$download_zinc" == "True" ]; then
+  # if SIGMO is not in benchmarks kill the script
+  if [[ $benchmarks != *"SIGMO"* ]]
+  then
+    echo "[!] SIGMO benchmark is required to download ZINC dataset."
+    return 1 2>/dev/null
+    exit 1
+  fi
 fi
 
 echo "Selected benchmarks: $benchmarks"
@@ -146,6 +163,13 @@ do
   generate_files $bench "data" $data_limit
   wait
 done
+
+# if download_zinc is set, download the ZINC dataset
+if [ "$download_zinc" == "True" ]; then
+  echo "[*] Downloading ZINC dataset..."
+  mkdir -p $DATA_DIR/SIGMO/ZINC
+  $SCRIPT_DIR/scripts/zinc/download_zinc.sh $SCRIPT_DIR/data/ZINC_URLS $DATA_DIR/SIGMO/ZINC
+fi
 
 # deactivate venv
 deactivate
