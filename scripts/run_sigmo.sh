@@ -5,7 +5,7 @@
 SCRIPT_DIR=$1
 shift
 
-EXPERIMENTS="gpu-scale,sota,gpu-usage"
+EXPERIMENTS="core,diameter,dataset-scale,gpu-metrics"
 experiments=""
 total_iterations=7
 
@@ -56,9 +56,9 @@ then
   experiments=$EXPERIMENTS
 fi
 
-if [[ $experiments == *"sota"* ]]; then
-  echo "Running SOTA experiments..."
-  OUT_DIR="$SCRIPT_DIR/out/SIGMO/logs/sota"
+if [[ $experiments == *"core"* ]]; then
+  echo "Running SIGMo assessment experiments..."
+  OUT_DIR="$SCRIPT_DIR/out/SIGMO/logs/core"
   mkdir -p $OUT_DIR
 
   for i in $(seq 0 $total_iterations); do
@@ -69,9 +69,9 @@ if [[ $experiments == *"sota"* ]]; then
 fi
 
 
-if [[ $experiments == *"gpu-scale"* ]]; then
+if [[ $experiments == *"dataset-scale"* ]]; then
   echo "Running single GPU experiments..."
-  OUT_DIR="$SCRIPT_DIR/out/SIGMO/logs/gpu_scale"
+  OUT_DIR="$SCRIPT_DIR/out/SIGMO/logs/dataset_scale"
   mkdir -p $OUT_DIR
   for k in {1..25}
   do
@@ -87,9 +87,28 @@ if [[ $experiments == *"gpu-scale"* ]]; then
   done
 fi
 
-if [[ $experiments == *"gpu-usage"* ]]; then
-  echo "Running GPU usage experiments..."
-  OUT_DIR="$SCRIPT_DIR/out/SIGMO/logs/gpu_usage"
+if [[ $experiments == *"diameter"* ]]; then
+  echo "Running diameter experiments..."
+  OUT_DIR="$SCRIPT_DIR/out/SIGMO/logs/diameter"
+  mkdir -p $OUT_DIR
+
+  # list all the files in $SCIRPT_DIR/data/SIGMO/query/*.dat
+  query_files=($SCRIPT_DIR/data/SIGMO/query/*.dat)
+  
+
+  for query_file in "${query_files[@]}"; do
+    query_name=$(basename "$query_file" .dat)
+    query_name=$(echo "$query_name" | sed 's/^query_//')
+    for i in $(seq 0 $total_iterations); do
+      printf "Query %s - Iteration %i/%s\n" "$query_name" $i $total_iterations
+      $SCRIPT_DIR/build/sigmo -i $i -c query -Q "$query_file" -D $SCRIPT_DIR/data/SIGMO/data.dat --find-all --skip-candidates-analysis > $OUT_DIR/sigmo_${query_name}_${i}.log
+    done
+  done
+fi
+
+if [[ $experiments == *"gpu-metrics"* ]]; then
+  echo "Running GPU metrics experiments..."
+  OUT_DIR="$SCRIPT_DIR/out/SIGMO/logs/gpu_metrics"
   mkdir -p $OUT_DIR
 
   # Start dcgmi in the background and save its PID
@@ -103,5 +122,5 @@ if [[ $experiments == *"gpu-usage"* ]]; then
   wait $DCGMI_PID 2>/dev/null
 
   ncu --set full -f -o $OUT_DIR/sigmo $SCRIPT_DIR/build/sigmo -i 5 -c query -Q $SCRIPT_DIR/data/SIGMO/query.dat -D $SCRIPT_DIR/data/SIGMO/data.dat --join-work-group=64 --skip-candidates-analysis
-  ncu -i $OUT_DIR/sigmo.ncu-rep --print-details all --csv --print-metric-name label-name > $OUT_DIR/metrics.csv
+  ncu -i $OUT_DIR/sigmo.ncu-rep --print-details all --csv --print-metric-name name > $OUT_DIR/metrics.csv
 fi
