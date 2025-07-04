@@ -5,15 +5,17 @@
 SCRIPT_DIR=$1
 shift
 
-EXPERIMENTS="core,diameter,dataset-scale,gpu-metrics"
+EXPERIMENTS="core,diameter,dataset-scale,gpu-metrics,mpi"
 experiments=""
 total_iterations=7
+zinc_dataset=""
 
 function help() {
   echo "Usage: $0 [options]"
   echo "Options:"
   echo "  -e, --experiments <exp1,exp2,...>  Comma-separated list of experiments to run (default: $EXPERIMENTS)"
   echo "  -i, --iterations <num>            Number of iterations for each experiment (default: $total_iterations)"
+  echo "  --zinc-dataset <path>             Path to the ZINC dataset (required if running mpi experiment)"
   echo "  -H, --help                        Display this help message"
 }
 
@@ -26,6 +28,15 @@ while [[ $# -gt 0 ]]; do
       ;;
     -i=*|--iterations=*)
       total_iterations="${1#*=}"
+      shift
+      ;;
+    --zinc-dataset=*)
+      zinc_dataset="${1#*=}"
+      if [ ! -d "$zinc_dataset" ]; then
+        echo "[!] Invalid ZINC dataset path: $zinc_dataset"
+        exit 1
+      fi
+      zinc_dataset=$(realpath "$zinc_dataset")
       shift
       ;;
     -H)
@@ -129,6 +140,22 @@ if [[ $experiments == *"gpu-metrics"* ]]; then
 
   ncu --set full -f -o $OUT_DIR/sigmo $SCRIPT_DIR/build/sigmo -i 5 -c query -Q $SCRIPT_DIR/data/SIGMO/query.dat -D $SCRIPT_DIR/data/SIGMO/data.dat --join-work-group=64 --skip-candidates-analysis
   ncu -i $OUT_DIR/sigmo.ncu-rep --print-details all --csv --print-metric-name name > $OUT_DIR/metrics.csv
+fi
+
+if [[ $experiments == *"mpi"* ]]; then
+  if [ -z "$zinc_dataset" ]; then
+    echo "[!] ZINC dataset path is required for MPI experiments."
+    exit 1
+  fi
+
+  echo "Running MPI experiments..."
+  OUT_DIR="$SCRIPT_DIR/out/SIGMO/logs/mpi"
+  mkdir -p $OUT_DIR
+
+  for N in 4 8 16 32 64; do
+    sbatch -N $N -o $OUT_DIR/sigmo_mpi_${N}.log -e $OUT_DIR/err_sigmo_mpi_${N}.log $SCRIPT_DIR/scripts/slurm/run_slurm.sh $N 0 $zinc_dataset/all.graph
+    sbatch -N $N -o $OUT_DIR/sigmo_mpi_${N}_findall.log -e $OUT_DIR/err_sigmo_mpi_${N}_findall.log $SCRIPT_DIR/scripts/slurm/run_slurm.sh $N 1 $zinc_dataset/all.graph
+  done
 fi
 
 end_time=$(date +%s)
