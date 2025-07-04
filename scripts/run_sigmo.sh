@@ -14,20 +14,18 @@ function help() {
   echo "Options:"
   echo "  -e, --experiments <exp1,exp2,...>  Comma-separated list of experiments to run (default: $EXPERIMENTS)"
   echo "  -i, --iterations <num>            Number of iterations for each experiment (default: $total_iterations)"
-  echo "  -h, --help                        Display this help message"
+  echo "  -H, --help                        Display this help message"
 }
 
 # Parsing arguments
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -e|--experiments)
-      experiments="$2"
-      shift
+    -e=*|--experiments=*)
+      experiments="${1#*=}"
       shift
       ;;
-    -i|--iterations)
-      total_iterations="$2"
-      shift
+    -i=*|--iterations=*)
+      total_iterations="${1#*=}"
       shift
       ;;
     -H)
@@ -56,6 +54,8 @@ then
   experiments=$EXPERIMENTS
 fi
 
+start_time=$(date +%s)
+
 if [[ $experiments == *"core"* ]]; then
   echo "Running SIGMo assessment experiments..."
   OUT_DIR="$SCRIPT_DIR/out/SIGMO/logs/core"
@@ -66,11 +66,13 @@ if [[ $experiments == *"core"* ]]; then
     $SCRIPT_DIR/build/sigmo -i $i -Q $SCRIPT_DIR/data/SIGMO/query.dat -D $SCRIPT_DIR/data/SIGMO/data.dat -p -c query > $OUT_DIR/sigmo_${i}.log 2> $OUT_DIR/err_sigmo_${i}.log
     $SCRIPT_DIR/build/sigmo -i $i -Q $SCRIPT_DIR/data/SIGMO/query.dat -D $SCRIPT_DIR/data/SIGMO/data.dat -p -c query --find-all > $OUT_DIR/sigmo_findall_${i}.log 2> $OUT_DIR/err_sigmo_findall_${i}.log
   done
+
+  python $SCRIPT_DIR/scripts/output_analyzer.py $OUT_DIR $SCRIPT_DIR/out/SIGMO/sigmo_results.csv
 fi
 
 
 if [[ $experiments == *"dataset-scale"* ]]; then
-  echo "Running single GPU experiments..."
+  echo "Running Dataset Scaling experiments..."
   OUT_DIR="$SCRIPT_DIR/out/SIGMO/logs/dataset_scale"
   mkdir -p $OUT_DIR
   for k in {1..25}
@@ -124,3 +126,7 @@ if [[ $experiments == *"gpu-metrics"* ]]; then
   ncu --set full -f -o $OUT_DIR/sigmo $SCRIPT_DIR/build/sigmo -i 5 -c query -Q $SCRIPT_DIR/data/SIGMO/query.dat -D $SCRIPT_DIR/data/SIGMO/data.dat --join-work-group=64 --skip-candidates-analysis
   ncu -i $OUT_DIR/sigmo.ncu-rep --print-details all --csv --print-metric-name name > $OUT_DIR/metrics.csv
 fi
+
+end_time=$(date +%s)
+elapsed_time=$((end_time - start_time))
+echo "Experiments completed in $elapsed_time seconds."
