@@ -5,3 +5,4 @@ pysmiles
 rdkit
 seaborn
 tqdm
+gdown

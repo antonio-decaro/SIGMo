@@ -12,8 +12,6 @@ query_limit=-1
 benchmarks=""
 no_wildcards=""
 zinc=""
-skip_zinc_download=False
-skip_zinc_parsing=False
 skip_parsing=False
 
 help()
@@ -24,8 +22,6 @@ help()
       [ --query-limit= ] Limit the number of query files to be generated;
       [ --skip-parsing=<True|False> ] Skip parsing of the single-node files (default: False);
       [ --zinc= ] Download the ZINC dataset in the specified path (careful, it is large);
-      [ --skip-zinc-download=<True|False> ] Skip downloading the ZINC dataset (default: False);
-      [ --skip-zinc-parsing=<True|False> ] Skip parsing the ZINC dataset (default: False);
       [ --no-wildcards ] Do not use wildcards in the query files;
       [ -h | --help ] Print this help message and exit.
       The available benchmarks are: " $AVAILABLE_BENCHMARKS
@@ -49,14 +45,6 @@ while [[ $# -gt 0 ]]; do
     --zinc=*)
       zinc="${1#*=}"
       zinc=$(realpath "$zinc")
-      shift
-      ;;
-    --skip-zinc-download)
-      skip_zinc_download=True
-      shift
-      ;;
-    --skip-zinc-parsing)
-      skip_zinc_parsing=True
       shift
       ;;
     --skip-parsing)
@@ -93,17 +81,6 @@ done
 if [ -z "$benchmarks" ]
 then
   benchmarks=$AVAILABLE_BENCHMARKS
-fi
-
-# if zinc is true
-if [ "$zinc" != "" ]; then
-  # if SIGMO is not in benchmarks kill the script
-  if [[ $benchmarks != *"SIGMO"* ]]
-  then
-    echo "[!] SIGMO benchmark is required to download ZINC dataset."
-    return 1 2>/dev/null
-    exit 1
-  fi
 fi
 
 echo "Selected benchmarks: $benchmarks"
@@ -188,17 +165,23 @@ fi
 
 # if zinc is set, download the ZINC dataset
 if [ "$zinc" != "" ]; then
-  mkdir -p $zinc
-  if [ "$skip_zinc_download" == "False" ]; then
-    echo "[*] Downloading ZINC dataset to $zinc"
-    $SCRIPT_DIR/scripts/zinc/download_zinc.sh $SCRIPT_DIR/data/ZINC_URLS $zinc
-    cat $zinc/*.smi > $zinc/all.smiles
+  # if it's a direcotry add the trailing slash and the file name
+  if [ -d "$zinc" ]; then
+    zinc="$zinc/zinc.zst"
   fi
-  if [ "$skip_zinc_parsing" == "False" ]; then
-    echo "[*] Parsing ZINC dataset to $zinc"
-    sbatch $SCRIPT_DIR/scripts/zinc/parse_zinc.sh $SCRIPT_DIR $zinc
+  echo "[*] Downloading ZINC dataset to $zinc ..."
+  python $SCRIPT_DIR/scripts/zinc/download_zinc.py -o $zinc
+
+  zinc_dir=$(dirname "$zinc")
+  echo "[*] Decompressing ZINC dataset to $zinc_dir/zinc.dat ..."
+  zstd -d $zinc -o $zinc_dir/zinc.dat
+  rm -f $zinc
+
+  check_hash=fcc2c2a95c89560721438b7f73cd0f226cd9973343b24e506c7cf6d77d9682d6
+  echo "[*] Checking ZINC dataset hash..."
+  if [ "$(sha256sum $zinc_dir/zinc.dat | awk '{print $1}')" != "$check_hash" ]; then
+    echo "[!] ZINC dataset hash does not match!"
   fi
 fi
-
 # deactivate venv
 deactivate
