@@ -32,10 +32,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --zinc=*)
       zinc_dataset="${1#*=}"
-      if [ ! -d "$zinc_dataset" ]; then
-        echo "[!] Invalid ZINC dataset path: $zinc_dataset"
-        exit 1
-      fi
       zinc_dataset=$(realpath "$zinc_dataset")
       shift
       ;;

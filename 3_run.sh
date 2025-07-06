@@ -59,15 +59,6 @@ mkdir -p $SCRIPT_DIR/out/plots
 mkdir -p $SCRIPT_DIR/out/SIGMO
 mkdir -p $SCRIPT_DIR/out/SIGMO/logs
 
-if [[ $benchmarks == *"SIGMO_MPI"* ]]
-then
-  mkdir -p $SCRIPT_DIR/out/SIGMO/logs/sigmo_mpi
-  for N in 4 8 16 32 64; do
-    sbatch -N $N -o $SCRIPT_DIR/out/SIGMO/logs/sigmo_mpi/sigmo_mpi_${N}.log -e $SCRIPT_DIR/out/SIGMO/logs/sigmo_mpi/err_sigmo_mpi_${N}.log $SCRIPT_DIR/scripts/slurm/run_slurm.sh $N 0 $SCRATCH/all.graph
-    sbatch -N $N -o $SCRIPT_DIR/out/SIGMO/logs/sigmo_mpi/sigmo_mpi_${N}_findall.log -e $SCRIPT_DIR/out/SIGMO/logs/sigmo_mpi/err_sigmo_mpi_${N}_findall.log $SCRIPT_DIR/scripts/slurm/run_slurm.sh $N 1 $SCRATCH/all.graph
-  done
-  benchmarks=${benchmarks//SIGMO_MPI/}
-fi
 if [[ $benchmarks == *"SIGMO"* ]]
 then
   $SCRIPT_DIR/scripts/run_sigmo.sh $SCRIPT_DIR $forward_arguments
