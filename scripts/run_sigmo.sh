@@ -140,7 +140,7 @@ fi
 
 if [[ $experiments == *"mpi"* ]]; then
   if [ -z "$zinc_dataset" ]; then
-    echo "[!] ZINC dataset path is required for MPI experiments."
+    echo "[!] ZINC dataset path is required for MPI experiments. Please provide it using --zinc=<path>."
     exit 1
   fi
 
@@ -149,8 +149,8 @@ if [[ $experiments == *"mpi"* ]]; then
   mkdir -p $OUT_DIR
 
   for N in 4 8 16 32 64; do
-    sbatch -N $N -o $OUT_DIR/sigmo_mpi_${N}.log -e $OUT_DIR/err_sigmo_mpi_${N}.log $SCRIPT_DIR/scripts/slurm/run_slurm.sh $N 0 $zinc_dataset/all.graph
-    sbatch -N $N -o $OUT_DIR/sigmo_mpi_${N}_findall.log -e $OUT_DIR/err_sigmo_mpi_${N}_findall.log $SCRIPT_DIR/scripts/slurm/run_slurm.sh $N 1 $zinc_dataset/all.graph
+    sbatch -N $N -o $OUT_DIR/sigmo_mpi_${N}.log -e $OUT_DIR/err_sigmo_mpi_${N}.log $SCRIPT_DIR/scripts/slurm/run_slurm.sh $SCRIPT_DIR $N 0 $zinc_dataset
+    sbatch -N $N -o $OUT_DIR/sigmo_mpi_${N}_findall.log -e $OUT_DIR/err_sigmo_mpi_${N}_findall.log $SCRIPT_DIR/scripts/slurm/run_slurm.sh $SCRIPT_DIR $N 1 $zinc_dataset
   done
 fi
 
