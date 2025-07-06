@@ -83,10 +83,14 @@ std::vector<std::string> loadFileLinesMPI(const std::string &filename, int max_l
 	// Initialize MPI.
 	MPI_Init(&argc, &argv);
 	
-	// Get MPI rank and size (useful for debugging or further logic).
-	int mpi_rank, mpi_size;
+	// Get MPI rank and size 
+	int mpi_rank, mpi_size, local_rank;
 	MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+	MPI_Comm local_comm;
+	MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, mpi_rank, MPI_INFO_NULL, &local_comm);
+	MPI_Comm_rank(local_comm, &local_rank);
+	MPI_Comm_free(&local_comm);
 
 	// Initialize program arguments and device options.
 	Args args{argc, argv, sigmo::device::deviceOptions};
@@ -98,7 +102,6 @@ std::vector<std::string> loadFileLinesMPI(const std::string &filename, int max_l
   }
   // Select device based on the local MPI rank.
   sycl::device selected_device = devices[local_rank % devices.size()];
-	
   // Create a SYCL queue with the selected device and profiling enabled.
   sycl::queue queue{selected_device, sycl::property::queue::enable_profiling{}};
 
