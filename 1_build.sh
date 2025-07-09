@@ -67,7 +67,13 @@ fi
 if [[ $benchmarks == *"CuTS"* ]] || [[ $benchmarks == *"GSI"* ]] || [[ $benchmarks == *"VF3"* ]]
 then
   echo "[*] Cloning submodules"
-  git submodule update --init
+  if ! git submodule update --init; then
+    echo "[!] git submodule failed, cloning manually"
+    cd $SCRIPT_DIR/benchmarks
+    git clone https://github.com/appl-lab/CuTS.git ./cuTS
+    git clone https://github.com/MiviaLab/vf3lib.git ./vf3
+    git clone https://github.com/pkumod/GSI ./GSI
+  fi
 fi
 
 if [[ $benchmarks == *"CuTS"* ]]
