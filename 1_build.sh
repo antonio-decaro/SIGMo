@@ -8,7 +8,7 @@ AVAILABLE_BENCHMARKS="VF3,CuTS,GSI,SIGMO"
 
 benchmarks=$AVAILABLE_BENCHMARKS
 sigmo_arch="nvidia_gpu_sm_70"
-sigmo_compiler="icpx"
+sigmo_compiler=""
 
 help()
 {
@@ -125,6 +125,16 @@ fi
 
 if [[ $benchmarks == *"SIGMO"* ]]
 then
+  if [ -z "$sigmo_compiler" ]; then
+    if command -v icpx &> /dev/null; then
+      sigmo_compiler=$(which icpx)
+    else
+      echo "[!] Intel oneAPI compiler not found, please load the oneAPI environment"
+      echo "    or specify the compiler using --sigmo-compiler=<path_to_icpx>"
+      exit 1
+    fi
+  fi
+
   echo "[*] Building SIGMO"
   mkdir build
   cd build

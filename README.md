@@ -26,17 +26,21 @@ SIGMo is a high-performance GPU framework for batched subgraph isomorphism, spec
 
 ## Quick Start
 
-### Prerequisites
+### Requirements
 
-Install the following system packages and toolchains:
+The following core software is required to build and run SIGMo:
+- [Intel oneAPI Base Toolkit 2025.1.0](https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html?packages=oneapi-toolkit&oneapi-toolkit-os=linux) – you can use any installer method, e.g., `offline installer`, `apt` or `yum` package manager
+- CUDA toolkit (12.3) with [Codeplay plug-in](https://developer.codeplay.com/products/oneapi/nvidia/download) matching the oneAPI version if running tests on NVIDIA GPU – required for SIGMo assessment 
+- ROCm (7.0.0) with [Codeplay plug-in](https://developer.codeplay.com/products/oneapi/amd/download) matching the oneAPI version if running tests on AMD GPU
 - Python ≥ 3.9
 - CMake ≥ 3.10
-- g++ 11.4.0 (different versions may lead to a fail during compilation)
-- Intel oneAPI 2025.1.0
-- CUDA toolkit (12.3), and ROCm (7.0.0) with Codeplay plug-in matching the oneAPI version (Optional if want to run tests on NVIDIA or AMD GPUs)
-- NVIDIA DCGMI and NCU (Optional for NVIDIA metrics)
-- `zstd` (Optional for ZINC dataset decompression)
-- Intel MPI Library (Optional for multi-node support)
+- g++ 11.4.0 – different versions may lead to a fail during compilation
+- NVIDIA DCGMI and NVIDA NCU – optional, but required for GPU metrics collection
+
+For multi-node experiments, the following additional software is required:
+- [SLURM](https://slurm.schedmd.com/) – for job scheduling
+- `zstd` – for ZINC dataset decompression
+- Intel MPI Library 2021.11 – it comes with Intel oneAPI Base Toolkit
 
 ### 1. Compilation
 
@@ -51,8 +55,7 @@ Then build SIGMo and/or other frameworks:
 
 ```bash
 ./1_build.sh -b=SIGMO \
-  --sigmo-arch=nvidia_gpu_sm_80 \ # here goes the GPU architecture (NVIDIA A100)
-  --sigmo-compiler=$(which icpx)
+  --sigmo-arch=nvidia_gpu_sm_80 # here goes the GPU architecture (NVIDIA A100)
 ```
 
 For other GPUs:
@@ -123,7 +126,7 @@ mv ./out/SIGMO/sigmo_results.csv ./out/SIGMO/sigmo_results_<vendor>.csv
 
 ### Plotting Results
 
-Use the Jupyter notebook to generate all evaluation plots.
+Use the Jupyter notebook to generate all evaluation plots. We reccomend using VSCode or a web-based Jupyter environment to run the notebook.
 Run the notebook cells starting from the "Initialization" section. Each section generates plots used for evaluation and benchmarking.
 
 ---
