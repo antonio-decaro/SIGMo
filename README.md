@@ -29,17 +29,18 @@ SIGMo is a high-performance GPU framework for batched subgraph isomorphism, spec
 ### Requirements
 
 The following core software is required to build and run SIGMo:
-- [Intel oneAPI Base Toolkit 2025.1.0](https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html?packages=oneapi-toolkit&oneapi-toolkit-os=linux) – you can use any installer method, e.g., `offline installer`, `apt` or `yum` package manager
+- [Intel oneAPI Base Toolkit 2025.1.0](https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html?packages=oneapi-toolkit&oneapi-toolkit-os=linux) – you can use any installer method, e.g., offline/online installer, `apt` or `yum` package manager
 - CUDA toolkit (12.3) with [Codeplay plug-in](https://developer.codeplay.com/products/oneapi/nvidia/download) matching the oneAPI version if running tests on NVIDIA GPU – required for SIGMo assessment 
 - ROCm (7.0.0) with [Codeplay plug-in](https://developer.codeplay.com/products/oneapi/amd/download) matching the oneAPI version if running tests on AMD GPU
 - Python ≥ 3.9
 - CMake ≥ 3.10
 - g++ 11.4.0 – different versions may lead to a fail during compilation
-- NVIDIA DCGMI and NVIDA NCU – optional, but required for GPU metrics collection
+- `git` – for cloning repositories and submodules
+- [NVIDIA DCGM](https://developer.nvidia.com/dcgm) and [NVIDA NCU](https://developer.nvidia.com/nsight-compute) – optional, but required for GPU metrics collection
 
 For multi-node experiments, the following additional software is required:
 - [SLURM](https://slurm.schedmd.com/) – for job scheduling
-- `zstd` – for ZINC dataset decompression
+- [`zstd`](https://github.com/facebook/zstd) – for ZINC dataset decompression
 - Intel MPI Library 2021.11 – it comes with Intel oneAPI Base Toolkit
 
 ### 1. Compilation
@@ -70,6 +71,7 @@ To include VF3, CuTS, GSI:
 ./1_build.sh -b=VF3,CuTS,GSI,SIGMO ...
 ```
 > __Note__: `libreadline-dev` is required to compile GSI. If not installed, it will be automatically downloaded and compiled locally.
+> Additionally, make sure to have 
 
 ### 2. Dataset Preparation
 
@@ -113,6 +115,7 @@ On each hardware execute the following command.
 # Rename the output file:
 mv ./out/SIGMO/sigmo_results.csv ./out/SIGMO/sigmo_results_<vendor>.csv
 ```
+Where `<vendor>` is the GPU vendor (e.g., `nvidia`, `amd`, `intel`).
 > Upon completion of all experiments, the renamed result files should be gathered and transferred to a single machine designated for artifact analysis. All files must be placed in the directory ./out/SIGMO/ on that machine.
 
 #### Run multi-node scalability with SLURM:
@@ -137,7 +140,7 @@ Apache 2 License
 
 ## Acknowledgements
 
-This project leverages open source tools and benchmarks including VF3, CuTS, and GSI.
+This project leverages open source tools and benchmarks including [VF3](https://github.com/MiviaLab/vf3lib), [CuTS](https://dl.acm.org/doi/10.1145/3458817.3476214), and [GSI](https://ieeexplore.ieee.org/document/9101348).
 
 ---
 
