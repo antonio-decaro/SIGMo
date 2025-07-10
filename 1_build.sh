@@ -69,11 +69,11 @@ then
   echo "[*] Cloning submodules"
   if ! git submodule update --init; then
     echo "[!] git submodule failed, cloning manually"
-    cd $SCRIPT_DIR/benchmarks
     git clone https://github.com/appl-lab/CuTS.git ./cuTS
     git clone https://github.com/MiviaLab/vf3lib.git ./vf3
-    git clone https://github.com/pkumod/GSI ./GSI
   fi
+  cd $SCRIPT_DIR/benchmarks
+  git clone https://github.com/pkumod/GSI ./GSI
 fi
 
 if [[ $benchmarks == *"CuTS"* ]]
@@ -93,11 +93,34 @@ fi
 
 if [[ $benchmarks == *"GSI"* ]]
 then
+  if ! gcc $SCRIPT_DIR/benchmarks/test/test_readline.c -o $SCRIPT_DIR/benchmarks/test/test_readline > /dev/null 2>&1; then
+    echo "[!] readline library not found, building locally..."
+    mkdir -p $SCRIPT_DIR/benchmarks/libs
+    cd $SCRIPT_DIR/benchmarks/libs
+    if [ ! -f "readline-8.2.tar.gz" ]; then
+      wget https://ftp.gnu.org/gnu/readline/readline-8.2.tar.gz
+    fi
+    tar -xf readline-8.2.tar.gz
+    cd readline-8.2
+    ./configure --prefix=$SCRIPT_DIR/benchmarks/libs/readline-install
+    make -j$(nproc)
+    make install
+    export CPATH=$SCRIPT_DIR/benchmarks/libs/readline-install/include:$CPATH
+    export LD_LIBRARY_PATH=$SCRIPT_DIR/benchmarks/libs/readline-install/lib:$LD_LIBRARY_PATH
+    export PKG_CONFIG_PATH=$SCRIPT_DIR/benchmarks/libs/readline-install/lib/pkgconfig:$PKG_CONFIG_PATH
+    rm $SCRIPT_DIR/benchmarks/libs/readline-8.2.tar.gz
+    rm -rf $SCRIPT_DIR/benchmarks/libs/readline-8.2
+    cd $SCRIPT_DIR
+  else 
+    echo "[*] readline library found"
+    rm $SCRIPT_DIR/benchmarks/test/test_readline
+  fi
+
   echo "[*] Building GSI"
   cd $SCRIPT_DIR/benchmarks/GSI
   git apply ../GSI.patch
   rm objs/*.o
-  make
+  make 
 fi
 
 if [[ $benchmarks == *"SIGMO"* ]]

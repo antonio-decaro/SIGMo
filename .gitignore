@@ -12,3 +12,4 @@ tmp
 *.log
 logs/
 *.smi
+benchmarks/libs

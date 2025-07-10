@@ -1,4 +1,6 @@
 #!/bin/bash
+# Copyright (c) 2025 University of Salerno
+# SPDX-License-Identifier: Apache-2.0
 
 # Setting up variables
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
