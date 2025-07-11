@@ -88,9 +88,10 @@ Then build SIGMo and/or other frameworks:
 
 For other GPUs:
 
-- `nvidia_gpu_sm_70` for V100
-- `amd_gpu_gfx908` for MI100
-- `intel_gpu_pvc` for Max 1100
+- `nvidia_gpu_sm_70` for NVIDIA V100 (and V100S)
+- `amd_gpu_gfx908` for AMD MI100
+- `intel_gpu_pvc` for Intel Max 1100
+- the list of supported architectures can be found in the [Intel LLVM User Manual](https://github.com/intel/llvm/blob/sycl/sycl/doc/UsersManual.md)
 
 To include VF3, CuTS, GSI:
 
