@@ -136,7 +136,7 @@ This command launches all single-node experiments for SIGMo:
 - `core` Evaluates the SIGMo's filtering strategy and its performance.
 - `diameter` Groups query graphs by diameter and runs experiments per group;
 - `dataset-scale` Assesses single-node scalability by varying dataset size;
-- `gpu-metrics` Collects GPU performance metrics (requires NVIDIA NCU and DCGMI tools).
+- `gpu-metrics` Collects GPU performance metrics (requires NVIDIA NCU and DCGM tools).
 
 You can also run a single experiment or a subset by sepcifying the desired components with `-e`. For example: `-e=core,diameter`.
 
