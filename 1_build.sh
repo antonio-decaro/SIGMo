@@ -69,11 +69,11 @@ then
   echo "[*] Cloning submodules"
   if ! git submodule update --init; then
     echo "[!] git submodule failed, cloning manually"
+    cd $SCRIPT_DIR/benchmarks
     git clone https://github.com/appl-lab/CuTS.git ./cuTS
     git clone https://github.com/MiviaLab/vf3lib.git ./vf3
+    git clone https://github.com/pkumod/GSI ./GSI
   fi
-  cd $SCRIPT_DIR/benchmarks
-  git clone https://github.com/pkumod/GSI ./GSI
 fi
 
 if [[ $benchmarks == *"CuTS"* ]]
