@@ -12,12 +12,12 @@ SIGMo is a high-performance GPU framework for batched subgraph isomorphism, spec
 ## Repository Structure
 
 ```
-├── library/             # SIGMo library
-├── build/               # SIGMo build destination
-├── benchmark/           # Scripts to run baseline frameworks (VF3, CuTS, GSI)
+├── benchmarks/           # Scripts to run baseline frameworks (VF3, CuTS, GSI)
+├── build/               # SIGMo build destination (directory is auto-generated)
 ├── data/                # Input molecule data and generated formats
-├── scripts/             # SLURM scripts and framework launchers
+├── library/             # SIGMo library
 ├── out/                 # Output results (auto-generated)
+├── scripts/             # Framework launchers, SLURM scripts, and utility scripts
 ├── 1_build.sh           # Build script for frameworks and SIGMo
 ├── 2_init.sh            # Dataset conversion and initialization
 ├── 3_run.sh             # Unified runner for all experiments
@@ -32,7 +32,7 @@ The following core software is required to build and run SIGMo:
 - [Intel oneAPI Base Toolkit 2025.1.0](https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html?packages=oneapi-toolkit&oneapi-toolkit-os=linux) – you can use any installer method, e.g., offline/online installer, `apt` or `yum` package manager
 - CUDA toolkit (12.3) with [Codeplay plug-in](https://developer.codeplay.com/products/oneapi/nvidia/download) matching the oneAPI version if running tests on NVIDIA GPU – required for SIGMo assessment 
 - ROCm (7.0.0) with [Codeplay plug-in](https://developer.codeplay.com/products/oneapi/amd/download) matching the oneAPI version if running tests on AMD GPU
-- Python ≥ 3.9
+- Python ≥ 3.9 – Packages are defined in `scripts/requirements.txt` and will be installed automatically
 - CMake ≥ 3.10
 - g++ 11.4.0 – different versions may lead to a fail during compilation
 - `git` – for cloning repositories and submodules
@@ -42,6 +42,33 @@ For multi-node experiments, the following additional software is required:
 - [SLURM](https://slurm.schedmd.com/) – for job scheduling
 - [`zstd`](https://github.com/facebook/zstd) – for ZINC dataset decompression
 - Intel MPI Library 2021.11 – it comes with Intel oneAPI Base Toolkit
+
+#### Installing oneAPI
+You can install Intel oneAPI Base Toolkit using the [official guide](https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html?packages=oneapi-toolkit&oneapi-toolkit-os=linux). The recommended way is to use the online installer, which will download the required components during installation. Alternatively, you can use the offline installer if you have a stable internet connection.
+After downloading the installer, run it with the following command:
+
+```bash
+sudo sh ./intel-oneapi-base-toolkit-2025.2.0.592.sh -a --silent --eula accept
+```
+This will install the oneAPI Base Toolkit in the default location (`/opt/intel/oneapi`).
+Alternatively, you can install it in your home directory by running the installer without `sudo`.
+
+After downloading and installing the oneAPI Base Toolkit, on systems equipped with NVIDIA or AMD GPUs, you will also need to install the Codeplay plug-in to enable SYCL support. You can follow the instructions on the [Codeplay website](https://developer.codeplay.com/products/oneapi) to install the plug-in OR use the following commands:
+
+For NVIDIA GPUs:
+```bash
+curl -LOJ "https://developer.codeplay.com/api/v1/products/download?product=oneapi&variant=nvidia&filters[]=2025.1.0&filters[]=linux"
+chmod +x neapi-for-nvidia-gpus-2025.1.0-rocm-all-linux.sh
+sudo ./oneapi-for-nvidia-gpus-2025.1.0-rocm-all-linux.sh
+```
+For AMD GPUs:
+```bash
+curl -LOJ "https://developer.codeplay.com/api/v1/products/download?product=oneapi&variant=amd&filters[]=2025.1.0&filters[]=linux"
+chmod +x oneapi-for-amd-gpus-2025.1.0-rocm-6.3-linux.sh
+sudo ./oneapi-for-amd-gpus-2025.1.0-rocm-6.3-linux.sh
+```
+In both installations, avoid `sudo` if you installed oneAPI in your home directory.
+> __Note__: The Codeplay plug-in is required for SIGMo to work with NVIDIA and AMD GPUs. If you are using Intel GPUs, you can skip this step. The plug-in version must match the oneAPI version you have installed.
 
 ### 1. Compilation
 
@@ -71,7 +98,9 @@ To include VF3, CuTS, GSI:
 ./1_build.sh -b=VF3,CuTS,GSI,SIGMO ...
 ```
 > __Note__: `libreadline-dev` is required to compile GSI. If not installed, it will be automatically downloaded and compiled locally.
-> Additionally, make sure to have 
+Additionally, make sure to have `g++` version 11.4.0 installed, as other versions may lead to compilation errors.
+
+---
 
 ### 2. Dataset Preparation
 
@@ -85,6 +114,8 @@ To download the dataset used for multi-node scalability tests:
 ./2_init.sh -b=SIGMO --zinc=/path/where/zinc/will/be/downloaded # ~6GB of compressed dataset
 ```
 > __Note__: This script uses `zstd` to decompress the downloaded dataset.
+
+---
 
 ### 3. Running Experiments
 
@@ -124,19 +155,27 @@ Where `<vendor>` is the GPU vendor (e.g., `nvidia`, `amd`, `intel`).
 2. Run:
 
 ```bash
-./3_run.sh -b=SIGMO -e=mpi --zinc=/path/to/zinc
+./3_run.sh -b=SIGMO -e=mpi --zinc=/path/where/zinc/has/been/downloaded
 ```
 
-### Plotting Results
+---
 
-Use the Jupyter notebook to generate all evaluation plots. We reccomend using VSCode or a web-based Jupyter environment to run the notebook.
+### 4. Plotting Results
+
+Use the Jupyter notebook to generate all evaluation plots. We reccomend using VSCode to run the notebook, as it provides a convenient interface for executing cells and visualizing results.
 Run the notebook cells starting from the "Initialization" section. Each section generates plots used for evaluation and benchmarking.
+
+If you prefer to run the notebook locally, follow these steps:
+1. From the root directory, run: `source .venv/bin/activate` to activate the virtual environment (If you followed the previous instructions, this should be already set up. Otherwise, you can create a virtual environment with `python -m venv .venv`, activate it with `source .venv/bin/activate`, and run `pip install -r scripts/requirements.txt` to install the required packages)
+2. Install the notebook package: `pip install notebook`
+3. Start the Jupyter server: `jupyter notebook`
+4. Open the web browser and navigate to the notebook `4_produce_plot.ipynb`
+5. Run the notebook cells starting from the "Initialization" section
 
 ---
 
 ## License
-
-Apache 2 License
+This project is licensed under the [Apache 2 License](./LICENSE)
 
 ## Acknowledgements
 
