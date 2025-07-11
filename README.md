@@ -12,7 +12,7 @@ SIGMo is a high-performance GPU framework for batched subgraph isomorphism, spec
 ## Repository Structure
 
 ```
-├── benchmarks/           # Scripts to run baseline frameworks (VF3, CuTS, GSI)
+├── benchmarks/          # Scripts to run baseline frameworks (VF3, CuTS, GSI)
 ├── build/               # SIGMo build destination (directory is auto-generated)
 ├── data/                # Input molecule data and generated formats
 ├── library/             # SIGMo library
