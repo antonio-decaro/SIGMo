@@ -188,3 +188,23 @@ This project leverages open source tools and benchmarks including [VF3](https://
 
 For issues or collaboration requests, please open an issue or contact the maintainer directly.
 
+## Reference
+
+If you use SIGMo in your research or find it useful, please cite the following paper:
+```
+@inproceedings{sigmoSC25,
+  title={SIGMo: High-Throughput Batched Subgraph Isomorphism on GPUs for Molecular Matching},
+  author={De Caro, Antonio and Cordasco, Gennaro and Ficarelli, Federico and Cosenza, Biagio},
+  booktitle={Proceedings of the International Conference for High Performance Computing, Networking, Storage and Analysis},
+  series={SC '25},
+  year={2025},
+  isbn={9798400714665}, 
+  publisher={Association for Computing Machinery},
+  doi={10.1145/3712285.3759782},
+  pages={1524–1538}, 
+  numpages={15}, 
+  keywords={Subgraph Isomorphism, GPU, Molecular Matching},
+  address={New York, NY, USA},
+}
+```
+
