@@ -1,4 +1,7 @@
 # SIGMo: Scalable Isomorphism Graph Matching on GPUs
+<p align="center">
+<img src="/docs/sigmo_logo.png" alt="logo" width="500"/>
+</p>
 
 SIGMo is a high-performance GPU framework for batched subgraph isomorphism, specifically designed for molecular matching tasks at scale. The framework enables efficient filtering and matching of molecules using GPUs across multiple vendors (NVIDIA, AMD, Intel) and supports both single-node and multi-node execution environments.
 
